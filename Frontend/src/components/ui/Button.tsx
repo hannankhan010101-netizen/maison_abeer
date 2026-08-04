@@ -39,6 +39,26 @@ const SIZES: Record<ButtonSize, string> = {
   md: 'min-h-[44px] px-[18px] text-sm',
 };
 
+const BASE = [
+  'inline-flex items-center justify-center gap-[7px]',
+  'rounded-[var(--radius-pill)] font-extrabold',
+  'transition-[transform,filter,background-color] duration-150',
+  'hover:-translate-y-0.5 active:translate-y-0',
+  // Motion is decoration; never let it be the only affordance.
+  'motion-reduce:transform-none motion-reduce:transition-none',
+].join(' ');
+
+/**
+ * Button styling for elements that must not be a `<button>`.
+ *
+ * A navigation control has to be an anchor — it needs middle-click, "open in
+ * new tab" and a real href. Sharing the classes keeps it visually identical
+ * without pretending a link is a button in the accessibility tree.
+ */
+export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSize = 'md'): string {
+  return [BASE, VARIANTS[variant], SIZES[size]].join(' ');
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {
     variant = 'primary',
@@ -62,15 +82,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={isDisabled}
       aria-busy={loading || undefined}
       className={cn(
-        'inline-flex items-center justify-center gap-[7px]',
-        'rounded-[var(--radius-pill)] font-extrabold',
-        'transition-[transform,filter,background-color] duration-150',
-        'hover:-translate-y-0.5 active:translate-y-0',
-        // Motion is decoration; never let it be the only affordance.
-        'motion-reduce:transform-none motion-reduce:transition-none',
+        buttonClasses(variant, size),
         'disabled:pointer-events-none disabled:opacity-55',
-        VARIANTS[variant],
-        SIZES[size],
         className,
       )}
       {...props}
