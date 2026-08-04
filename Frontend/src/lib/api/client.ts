@@ -27,6 +27,47 @@ export interface RequestOptions {
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * Combine abort signals.
+ *
+ * `AbortSignal.any` is not available everywhere — Safari only shipped it in
+ * 17.4, and jsdom lacks it entirely. Calling it unguarded throws, and the
+ * client would report every request as a network failure on those runtimes.
+ */
+export function composeSignals(signals: AbortSignal[]): AbortSignal {
+  const live = signals.filter(Boolean);
+
+  if (live.length === 1) return live[0]!;
+
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any(live);
+  }
+
+  const controller = new AbortController();
+
+  for (const signal of live) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      break;
+    }
+
+    signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
+  }
+
+  return controller.signal;
+}
+
+/** `AbortSignal.timeout` has the same availability caveat. */
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
+  return controller.signal;
+}
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly getToken: TokenProvider | undefined;
@@ -83,8 +124,8 @@ export class ApiClient {
     if (body !== undefined) headers['Content-Type'] = 'application/json';
 
     // Compose the caller's signal with our timeout so either can abort.
-    const timeout = AbortSignal.timeout(this.timeoutMs);
-    const signal = options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+    const timeout = timeoutSignal(this.timeoutMs);
+    const signal = options?.signal ? composeSignals([options.signal, timeout]) : timeout;
 
     let response: Response;
 

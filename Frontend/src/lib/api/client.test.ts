@@ -264,6 +264,55 @@ describe('ApiClient', () => {
     });
   });
 
+  describe('abort signals', () => {
+    /**
+     * `AbortSignal.any` shipped in Safari only at 17.4 and is absent from
+     * jsdom. Calling it unguarded threw, which the client caught and reported
+     * as a network failure — so every request failed on those runtimes while
+     * looking like the API was unreachable.
+     */
+    it('works when AbortSignal.any is unavailable', async () => {
+      const original = AbortSignal.any;
+      // @ts-expect-error — simulating a runtime that lacks it.
+      delete AbortSignal.any;
+
+      try {
+        fetchImpl.mockResolvedValue(jsonResponse(200, { ok: true }));
+
+        const controller = new AbortController();
+        await expect(client().get('/x', { signal: controller.signal })).resolves.toEqual({
+          ok: true,
+        });
+      } finally {
+        AbortSignal.any = original;
+      }
+    });
+
+    it('still aborts when the caller cancels', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      fetchImpl.mockImplementation((_url: string, init: RequestInit) => {
+        if (init.signal?.aborted) {
+          return Promise.reject(new DOMException('Aborted', 'AbortError'));
+        }
+        return Promise.resolve(jsonResponse(200, {}));
+      });
+
+      // A caller-initiated abort is rethrown, not dressed up as a network error.
+      await expect(client().get('/x', { signal: controller.signal })).rejects.toThrow('Aborted');
+    });
+
+    it('passes a composed signal through to fetch', async () => {
+      fetchImpl.mockResolvedValue(jsonResponse(200, {}));
+
+      const controller = new AbortController();
+      await client().get('/x', { signal: controller.signal });
+
+      expect(fetchCall(fetchImpl).init.signal).toBeInstanceOf(AbortSignal);
+    });
+  });
+
   describe('responses', () => {
     it('returns parsed JSON', async () => {
       fetchImpl.mockResolvedValue(jsonResponse(200, { id: '1', full_name: 'Sana R.' }));
