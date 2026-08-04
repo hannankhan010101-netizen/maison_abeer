@@ -11,7 +11,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
-from enum import StrEnum
+
+from app.models.enums import MessageChannel
 
 BIRTHDAY_LOOKAHEAD_DAYS = 30
 """PRD §2.4 — a thirty-day birthday lookahead on the roster."""
@@ -21,11 +22,7 @@ REGULAR_FROM_VISIT = 3
 
 _NON_DIGITS = re.compile(r"[^\d+]")
 
-
-class MessageChannel(StrEnum):
-    SMS = "sms"
-    WHATSAPP = "whatsapp"
-    EMAIL = "email"
+__all__ = ["MessageChannel"]  # re-exported so callers have one import site
 
 
 def normalise_phone(raw: str | None) -> str | None:
