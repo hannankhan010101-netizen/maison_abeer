@@ -1,0 +1,118 @@
+/* ==========================================================================
+   Maison Abeer — design tokens
+   --------------------------------------------------------------------------
+   Ported from creative-workshop-portal-design.html (the visual source of
+   truth). Fill colours are unchanged from the prototype. Text colours that
+   failed the PRD's WCAG 2.1 AA 4.5:1 requirement were darkened — see
+   docs/adr/0002-design-system-contrast.md.
+
+   Every pair marked @a11y below is asserted by contrast.test.ts.
+   ========================================================================== */
+
+:root {
+  /* ---- surfaces ---------------------------------------------------------- */
+  --color-buttercream: #fff8f0; /* app background */
+  --color-paper: #fffdfa; /* cards */
+  --color-line: #f0e2d4; /* borders, dashed rules */
+
+  /* ---- rose family ------------------------------------------------------- */
+  --color-blush: #fbe7ea; /* soft fill */
+  --color-pink: #f2aabe; /* fill — nav active, accents */
+  --color-rose: #e2849e; /* fill — primary action, progress */
+  --color-rose-deep: #c25b78; /* fill/border accent only */
+
+  /* Text-safe rose. Use for ANY rose-coloured text.
+     @a11y 5.27:1 on paper · 5.08:1 on buttercream · 4.52:1 on blush */
+  --color-rose-ink: #b44363;
+
+  /* ---- craft colours (load-bearing: identify class types) ---------------- */
+  --color-terra: #c96f4a; /* pottery · also critical alerts */
+  --color-terra-soft: #f3dccb;
+  --color-terra-deep: #9b4d2d; /* @a11y 4.51:1 on terra-soft (was #9E4F2E, 4.41:1) */
+
+  --color-sage: #adbe93; /* ceramic painting */
+  --color-sage-soft: #e9efdd;
+  --color-sage-ink: #5f714d; /* @a11y 4.51:1 on sage-soft (was #6E8459, 3.50:1) */
+
+  --color-butter: #f7dc94; /* delight, gentle warnings */
+  --color-butter-soft: #fbf0d2;
+  --color-butter-ink: #88681f; /* @a11y 4.53:1 on butter-soft (was #8A6A1F, 4.44:1) */
+
+  /* ---- ink --------------------------------------------------------------- */
+  --color-cocoa: #40302a; /* body text · @a11y 11.91:1 on buttercream */
+  --color-latte: #866e60; /* muted text · @a11y 4.52:1 on buttercream (was #8A7263, 4.27:1) */
+  --color-danger: #bb463d; /* allergy chip ink · @a11y 4.53:1 on danger-soft (was #C4534B, 3.92:1) */
+  --color-danger-soft: #fdecea;
+  --color-danger-line: #f2c4c0;
+
+  /* ---- ink ON filled buttons --------------------------------------------
+     The prototype used white here; it measured 2.62:1 on rose and 1.86:1 on
+     pink. Cocoa on the same untouched fills gives 4.80:1 and 6.73:1. */
+  --color-on-rose: var(--color-cocoa); /* @a11y 4.80:1 */
+  --color-on-pink: var(--color-cocoa); /* @a11y 6.73:1 */
+
+  /* ---- shape ------------------------------------------------------------- */
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --radius-pill: 999px;
+
+  --shadow-soft: 0 10px 24px -14px rgb(64 48 42 / 28%);
+
+  /* ---- type -------------------------------------------------------------- */
+  --font-display: 'Young Serif', Georgia, serif;
+  --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
+  --font-hand: 'Caveat', 'Segoe Script', cursive;
+
+  /* ---- touch ------------------------------------------------------------- */
+  --tap-min: 44px; /* PRD §3.4 — in-studio use with clay-dusted fingers */
+}
+
+/* ==========================================================================
+   mocha — late-night dark mode. Warm browns, never neutral grey.
+   Applied as a class on <html> so it survives SSR without a flash.
+   ========================================================================== */
+.mocha {
+  --color-buttercream: #221a15;
+  --color-paper: #2c221c;
+  --color-line: #3e3128;
+
+  --color-blush: #3a2a2c;
+  --color-pink: #d48ca0;
+  --color-rose: #e2849e;
+  --color-rose-ink: #f0a8bd; /* @a11y 8.16:1 on mocha paper */
+
+  --color-terra-soft: #3e2e24;
+  --color-terra-deep: #e09877; /* @a11y 5.51:1 on mocha terra-soft */
+  --color-sage-soft: #2e3326;
+  --color-sage-ink: #b7c79d; /* @a11y 7.21:1 on mocha sage-soft */
+  --color-butter-soft: #38301e;
+  --color-butter-ink: #e3c584; /* @a11y 7.82:1 on mocha butter-soft */
+
+  --color-cocoa: #f4e9df; /* @a11y 14.32:1 on mocha bg */
+  --color-latte: #b9a392; /* @a11y 6.44:1 on mocha paper */
+
+  --color-danger: #f0a49c; /* @a11y 7.00:1 on mocha danger-soft */
+  --color-danger-soft: #43231f;
+  --color-danger-line: #6e332c;
+
+  /* Filled buttons keep dark ink in mocha — the fills stay light. */
+  --color-on-rose: #3a1e28; /* @a11y 5.75:1 */
+  --color-on-pink: #3a1e28; /* @a11y 5.77:1 */
+
+  --shadow-soft: 0 10px 24px -14px rgb(0 0 0 / 60%);
+}
+
+/* ==========================================================================
+   Motion — PRD §3.4: celebratory animation must respect reduced-motion.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,9 @@
+node_modules
+.next
+dist
+build
+coverage
+.venv
+__pycache__
+creative-workshop-portal-design.html
+package-lock.json
