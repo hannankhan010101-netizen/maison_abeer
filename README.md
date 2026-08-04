@@ -44,7 +44,7 @@ python -m venv .venv
 pip install -e ".[dev]"
 cp .env.example .env            # fill in your Supabase values
 alembic upgrade head
-uvicorn app.main:app --reload   # http://localhost:8000  ·  docs at /docs
+uvicorn app.main:create_app --factory --reload   # http://localhost:8000 · docs at /docs
 
 # 2. Frontend
 cd ../Frontend

@@ -78,6 +78,11 @@ allowed-confusables = ["–", "—", "’", "“", "”", "…", "×"]
 # SQLAlchemy evaluates model annotations at runtime to build the mapper, so
 # moving these imports into a TYPE_CHECKING block breaks table definition.
 "app/models/*" = ["TC001", "TC002", "TC003"]
+# Pydantic resolves model annotations at runtime to build validators, and
+# FastAPI resolves route and dependency annotations to wire injection. Both
+# break if these imports are deferred to TYPE_CHECKING.
+"app/schemas/*" = ["TC001", "TC002", "TC003"]
+"app/api/*" = ["TC001", "TC002", "TC003"]
 # The quantity parser has local variables named `token` (lexer tokens, not
 # credentials), which trips the hardcoded-password heuristic.
 "app/domain/quantities.py" = ["S105"]
