@@ -58,8 +58,11 @@ describe.each([
     const fg = tokens[fgToken];
     const bg = tokens[bgToken];
 
-    expect(fg, `${fgToken} missing from ${themeName} theme`).toBeDefined();
-    expect(bg, `${bgToken} missing from ${themeName} theme`).toBeDefined();
+    if (fg === undefined || bg === undefined) {
+      throw new Error(
+        `${fg === undefined ? fgToken : bgToken} is missing from the ${themeName} theme`,
+      );
+    }
 
     expect(ratio(fg, bg)).toBeGreaterThanOrEqual(AA_NORMAL);
   });

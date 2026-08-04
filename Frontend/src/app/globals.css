@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+@import '../styles/tokens.css';
+
+/* ==========================================================================
+   Tailwind theme — maps the design tokens onto utility classes.
+
+   tokens.css stays the single source of truth; this file only exposes it to
+   Tailwind. `@theme inline` means the utilities reference the custom
+   properties rather than copying their values, so `.mocha` retheming works
+   without generating a second set of classes.
+   ========================================================================== */
+@theme inline {
+  --color-buttercream: var(--color-buttercream);
+  --color-paper: var(--color-paper);
+  --color-line: var(--color-line);
+
+  --color-blush: var(--color-blush);
+  --color-pink: var(--color-pink);
+  --color-rose: var(--color-rose);
+  --color-rose-deep: var(--color-rose-deep);
+  --color-rose-ink: var(--color-rose-ink);
+
+  --color-terra: var(--color-terra);
+  --color-terra-soft: var(--color-terra-soft);
+  --color-terra-deep: var(--color-terra-deep);
+
+  --color-sage: var(--color-sage);
+  --color-sage-soft: var(--color-sage-soft);
+  --color-sage-ink: var(--color-sage-ink);
+
+  --color-butter: var(--color-butter);
+  --color-butter-soft: var(--color-butter-soft);
+  --color-butter-ink: var(--color-butter-ink);
+
+  --color-cocoa: var(--color-cocoa);
+  --color-latte: var(--color-latte);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-danger-line: var(--color-danger-line);
+
+  --color-on-rose: var(--color-on-rose);
+  --color-on-pink: var(--color-on-pink);
+
+  --radius-lg: var(--radius-lg);
+  --radius-md: var(--radius-md);
+  --radius-sm: var(--radius-sm);
+  --radius-pill: var(--radius-pill);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-hand: var(--font-hand);
+
+  --shadow-soft: var(--shadow-soft);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Prevent iOS Safari inflating text in landscape. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-buttercream);
+    color: var(--color-cocoa);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+
+    /* The prototype's subtle dotted paper texture. */
+    background-image: radial-gradient(rgb(226 132 158 / 5%) 1px, transparent 1px);
+    background-size: 22px 22px;
+
+    /* Respect the notch and the home indicator on phones. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Visible focus everywhere — 3px rose, as in the prototype. */
+  :focus-visible {
+    outline: 3px solid var(--color-rose);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Never remove focus rings for keyboard users; only hide the mouse ring. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  /* Handwritten asides — the app writing a little note to the host. */
+  .font-hand {
+    font-family: var(--font-hand);
+  }
+
+  /* Minimum 44px touch target (PRD §3.4), applied without changing layout. */
+  .tap-target {
+    position: relative;
+  }
+
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    width: 100%;
+    height: 100%;
+  }
+}

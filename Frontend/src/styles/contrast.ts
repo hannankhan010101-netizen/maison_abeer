@@ -43,7 +43,11 @@ export function luminance(hex: string): number {
 
 /** Contrast ratio between two colours, always >= 1. Order-independent. */
 export function contrastRatio(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  const first = luminance(a);
+  const second = luminance(b);
+  const hi = Math.max(first, second);
+  const lo = Math.min(first, second);
+
   return (hi + 0.05) / (lo + 0.05);
 }
 
@@ -82,17 +86,20 @@ export function extractColorTokens(
 
   for (const match of css.matchAll(declaration)) {
     const name = match[1];
-    const value = match[2].trim();
+    const rawValue = match[2];
+    if (name === undefined || rawValue === undefined) continue;
 
-    const hex = /^#[0-9a-fA-F]{3,8}$/.exec(value);
-    if (hex) {
+    const value = rawValue.trim();
+
+    if (/^#[0-9a-fA-F]{3,8}$/.test(value)) {
       literals[name] = value;
       continue;
     }
 
     const alias = /^var\(\s*(--[\w-]+)\s*\)$/.exec(value);
-    if (alias) {
-      aliases[name] = alias[1];
+    const target = alias?.[1];
+    if (target !== undefined) {
+      aliases[name] = target;
     }
     // Anything else (gradients, colour functions) is not a flat colour and is
     // intentionally ignored rather than guessed at.
