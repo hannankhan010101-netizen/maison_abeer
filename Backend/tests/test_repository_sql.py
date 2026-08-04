@@ -12,6 +12,7 @@ present in every statement the repositories build.
 
 from __future__ import annotations
 
+import ast
 from uuid import uuid4
 
 import pytest
@@ -173,23 +174,51 @@ class TestRepositoryStatements:
         assert "studio_id" in sql
         assert "JOIN booking" in sql
 
-    def test_every_repository_read_goes_through_the_scoped_helper(self) -> None:
-        """No bare `select(Model)` on a tenant table in the repositories.
+    def test_every_hand_written_select_names_studio_id(self) -> None:
+        """Any `select()` written by hand must filter studio_id itself.
 
-        Reads must use TenantSession.query so the filter cannot be omitted.
-        Hand-written statements are allowed only when they name studio_id
-        explicitly, which the tests above cover.
+        ORM reads go through `TenantSession.query`, which cannot forget the
+        filter. The exceptions are aggregate counts and joins written directly
+        for efficiency — exactly where a tenant predicate gets dropped. This
+        walks the AST of every repository and checks each raw `select()` call
+        has a `studio_id` reference somewhere in its statement chain.
         """
+        import ast
         from pathlib import Path
 
-        source = Path("app/repositories/sessions.py").read_text(encoding="utf-8")
+        for path in sorted(Path("app/repositories").glob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
 
-        for line in source.splitlines():
-            stripped = line.strip()
-            if not stripped.startswith("select(") and " select(" not in stripped:
-                continue
-            # Allowed: aggregate counts and joins that filter studio_id
-            # explicitly a few lines below; those are asserted individually.
-            assert "func.count" in stripped or "Guest." in stripped or "Booking." in stripped, (
-                f"Unscoped select in repository: {stripped}"
-            )
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if not (isinstance(node.func, ast.Name) and node.func.id == "select"):
+                    continue
+
+                # Walk outwards is not possible from a child node, so instead
+                # find the largest enclosing expression and check it contains
+                # a studio_id attribute access.
+                enclosing = _enclosing_statement(tree, node)
+                names = {
+                    child.attr for child in ast.walk(enclosing) if isinstance(child, ast.Attribute)
+                }
+
+                assert "studio_id" in names, (
+                    f"{path.name}: a hand-written select() does not filter studio_id "
+                    f"(line {node.lineno})"
+                )
+
+
+def _enclosing_statement(tree: ast.AST, target: ast.AST) -> ast.AST:
+    """The smallest statement node that contains `target`."""
+    import ast as _ast
+
+    best: _ast.AST = tree
+
+    for node in _ast.walk(tree):
+        if not isinstance(node, _ast.stmt):
+            continue
+        if any(child is target for child in _ast.walk(node)):
+            best = node
+
+    return best

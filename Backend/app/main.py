@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.providers import provide_guest_service, provide_session_service
 from app.api.v1 import guests, sessions
 from app.core.config import Settings, get_settings
 from app.core.db import reset_engine
@@ -52,6 +53,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     _register_error_handlers(app)
     _register_security_headers(app)
+
+    # Replace the routers' placeholder providers with the real, database-backed
+    # ones. Tests override these same keys with in-memory doubles.
+    app.dependency_overrides[sessions.get_session_service] = provide_session_service
+    app.dependency_overrides[guests.get_guest_service] = provide_guest_service
 
     app.include_router(sessions.router, prefix=API_PREFIX)
     app.include_router(guests.router, prefix=API_PREFIX)
