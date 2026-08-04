@@ -78,4 +78,4 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Cached accessor so settings are parsed once per process."""
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
