@@ -11,6 +11,8 @@ import {
 } from './keys';
 import type {
   Booking,
+  Checklist,
+  ChecklistItem,
   Guest,
   InviteResult,
   RescheduleResponse,
@@ -249,6 +251,34 @@ export function useInviteNext(sessionId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.waitlist(sessionId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(sessionId) });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Prep checklist
+// ---------------------------------------------------------------------------
+
+export function useChecklist(sessionId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.sessions.checklist(sessionId),
+    queryFn: ({ signal }) =>
+      api.get<Checklist>(`/api/v1/sessions/${sessionId}/checklist`, { signal }),
+    enabled: enabled && Boolean(sessionId),
+  });
+}
+
+export function useToggleChecklistItem(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ itemId, completed }: { itemId: string; completed: boolean }) =>
+      api.patch<ChecklistItem>(`/api/v1/checklist/${itemId}`, { completed }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.checklist(sessionId) });
     },
   });
 }

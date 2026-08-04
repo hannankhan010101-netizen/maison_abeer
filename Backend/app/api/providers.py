@@ -13,8 +13,10 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.api.deps import Db
+from app.repositories.checklist import SqlChecklistRepository
 from app.repositories.guests import SqlGuestRepository
 from app.repositories.sessions import SqlSessionRepository
+from app.services.checklist import ChecklistService
 from app.services.guests import GuestService
 from app.services.sessions import SessionService
 
@@ -38,3 +40,7 @@ def provide_session_service(db: Db, now: Now) -> SessionService:
 
 def provide_guest_service(db: Db, now: Now) -> GuestService:
     return GuestService(SqlGuestRepository(db), now=now)
+
+
+def provide_checklist_service(db: Db, now: Now) -> ChecklistService:
+    return ChecklistService(SqlChecklistRepository(db), now=now)

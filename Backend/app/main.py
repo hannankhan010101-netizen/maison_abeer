@@ -10,8 +10,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.providers import provide_guest_service, provide_session_service
-from app.api.v1 import guests, sessions
+from app.api.providers import (
+    provide_checklist_service,
+    provide_guest_service,
+    provide_session_service,
+)
+from app.api.v1 import checklist, guests, sessions
 from app.core.config import Settings, get_settings
 from app.core.db import reset_engine
 from app.core.errors import AppError
@@ -58,9 +62,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ones. Tests override these same keys with in-memory doubles.
     app.dependency_overrides[sessions.get_session_service] = provide_session_service
     app.dependency_overrides[guests.get_guest_service] = provide_guest_service
+    app.dependency_overrides[checklist.get_checklist_service] = provide_checklist_service
 
     app.include_router(sessions.router, prefix=API_PREFIX)
     app.include_router(guests.router, prefix=API_PREFIX)
+    app.include_router(checklist.router, prefix=API_PREFIX)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:

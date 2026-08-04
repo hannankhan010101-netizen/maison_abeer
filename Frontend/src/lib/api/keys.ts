@@ -15,6 +15,7 @@ export const queryKeys = {
     detail: (id: string) => ['sessions', 'detail', id] as const,
     roster: (id: string) => ['sessions', 'roster', id] as const,
     waitlist: (id: string) => ['sessions', 'waitlist', id] as const,
+    checklist: (id: string) => ['sessions', 'checklist', id] as const,
   },
   guests: {
     all: ['guests'] as const,
@@ -36,6 +37,8 @@ export function keysInvalidatedBySeatChange(sessionId: string) {
     queryKeys.sessions.detail(sessionId),
     queryKeys.sessions.roster(sessionId),
     queryKeys.sessions.waitlist(sessionId),
+    // Quantity-linked prep rescales with capacity (PRD §2.5).
+    queryKeys.sessions.checklist(sessionId),
     queryKeys.sessions.all,
   ];
 }

@@ -137,3 +137,39 @@ export interface UpcomingBirthday {
   days_away: number;
   has_upcoming_booking: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Prep checklist
+// ---------------------------------------------------------------------------
+
+export type DeadlineStatus = 'upcoming' | 'due_soon' | 'overdue' | 'done';
+export type ChecklistPhase = 'prep' | 'post_class';
+
+export interface ChecklistItem {
+  id: string;
+  /** Already rendered — quantity expressions resolved for the seat count. */
+  text: string;
+  quantity: number | null;
+  hours_before: number;
+  /** "T-24h", "at start", "T+2h". */
+  t_minus_label: string;
+  deadline_at: string;
+  status: DeadlineStatus;
+  phase: ChecklistPhase;
+  is_high_priority: boolean;
+  is_one_off: boolean;
+  completed_at: string | null;
+  /**
+   * A capacity change moved this item's quantity after it was ticked. The
+   * host is told rather than the value being silently rewritten.
+   */
+  needs_attention: boolean;
+}
+
+export interface Checklist {
+  session_id: string;
+  items: ChecklistItem[];
+  completed_count: number;
+  total_count: number;
+  overdue_count: number;
+}
