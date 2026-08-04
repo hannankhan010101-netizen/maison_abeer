@@ -98,6 +98,13 @@
   }
 }
 
+@keyframes fall {
+  to {
+    transform: translateY(130px) rotate(220deg);
+    opacity: 0;
+  }
+}
+
 @layer utilities {
   /* Handwritten asides — the app writing a little note to the host. */
   .font-hand {

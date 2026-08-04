@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Caveat, Nunito, Young_Serif } from 'next/font/google';
 import type { ReactNode } from 'react';
 
+import { MOCHA_INIT_SCRIPT } from '@/components/ui/MochaToggle';
+
 import './globals.css';
 
 /**
@@ -52,6 +54,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable}`}>
+      <head>
+        {/* Applied before paint so a dark-mode host never sees a light flash. */}
+        <script dangerouslySetInnerHTML={{ __html: MOCHA_INIT_SCRIPT }} />
+      </head>
       <body>
         {/* First stop for keyboard users on every page. */}
         <a

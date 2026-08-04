@@ -8,6 +8,7 @@ import { CalendarView } from './CalendarView';
 import { toneFor } from './SessionChip';
 import { ApiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/provider';
+import { ToastProvider } from '@/components/ui/Toast';
 import type { Session } from '@/lib/api/types';
 
 const fetchImpl = vi.fn();
@@ -67,7 +68,11 @@ function respondWith(sessions: Session[]): void {
 function Wrapper({ children }: { children: ReactNode }) {
   const client = createQueryClient();
   client.setDefaultOptions({ queries: { retry: false } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }
 
 function renderCalendar() {
@@ -102,7 +107,7 @@ describe('CalendarView', () => {
     respondWith([]);
     renderCalendar();
 
-    await screen.findAllByText('nothing scheduled');
+    await screen.findAllByText(/nothing scheduled/);
 
     const url = new URL(String(fetchImpl.mock.calls[0]![0]));
     expect(new Date(url.searchParams.get('start')!).getDate()).toBe(3);
@@ -138,8 +143,8 @@ describe('CalendarView', () => {
     respondWith([]);
     renderCalendar();
 
-    // Seven agenda days, all empty.
-    expect(await screen.findAllByText('nothing scheduled')).toHaveLength(7);
+    // Seven agenda days, all empty — and each offers to add a class.
+    expect(await screen.findAllByText(/nothing scheduled/)).toHaveLength(7);
   });
 
   it('labels today', async () => {
@@ -152,7 +157,7 @@ describe('CalendarView', () => {
   it('moves to the next week and refetches', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText('nothing scheduled');
+    await screen.findAllByText(/nothing scheduled/);
 
     await userEvent.click(screen.getByRole('button', { name: 'next →' }));
 
@@ -164,7 +169,7 @@ describe('CalendarView', () => {
   it('moves to the previous week', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText('nothing scheduled');
+    await screen.findAllByText(/nothing scheduled/);
 
     await userEvent.click(screen.getByRole('button', { name: '← previous' }));
 
@@ -175,7 +180,7 @@ describe('CalendarView', () => {
   it('returns to the current week', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText('nothing scheduled');
+    await screen.findAllByText(/nothing scheduled/);
 
     await userEvent.click(screen.getByRole('button', { name: 'next →' }));
     await userEvent.click(screen.getByRole('button', { name: 'this week' }));
@@ -201,7 +206,7 @@ describe('CalendarView', () => {
   it('gives every control a 44px touch target', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText('nothing scheduled');
+    await screen.findAllByText(/nothing scheduled/);
 
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveClass('min-h-[44px]');

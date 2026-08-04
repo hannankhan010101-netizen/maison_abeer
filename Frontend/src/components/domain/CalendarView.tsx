@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 
+import { NewSessionModal, classTypesFrom } from '@/components/domain/NewSessionModal';
+import { RescheduleModal, SeatModal } from '@/components/domain/SessionEditModals';
 import { SessionChip } from '@/components/domain/SessionChip';
 import { Button } from '@/components/ui/Button';
 import { Card, HandNote } from '@/components/ui/Card';
@@ -41,6 +43,11 @@ export function CalendarView({ now = new Date() }: CalendarViewProps) {
 
   const days = useMemo(() => weekDays(anchor), [anchor]);
   const byDay = useMemo(() => groupByDay(query.data ?? []), [query.data]);
+  const classTypes = useMemo(() => classTypesFrom(query.data ?? []), [query.data]);
+
+  // One modal at a time: adding a class, or editing the one just tapped.
+  const [addingOn, setAddingOn] = useState<Date | null>(null);
+  const [editing, setEditing] = useState<{ session: Session; mode: 'seats' | 'move' } | null>(null);
 
   return (
     <section>
@@ -62,10 +69,13 @@ export function CalendarView({ now = new Date() }: CalendarViewProps) {
           </Button>
         </nav>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Chip tone="pink">● bento cake</Chip>
           <Chip tone="terra">● pottery</Chip>
           <Chip tone="sage">● ceramic painting</Chip>
+          <Button size="sm" className="ml-1.5" onClick={() => setAddingOn(anchor)}>
+            + new session
+          </Button>
         </div>
       </div>
 
@@ -96,6 +106,8 @@ export function CalendarView({ now = new Date() }: CalendarViewProps) {
                 day={day}
                 sessions={byDay.get(dayKey(day)) ?? []}
                 now={now}
+                onAdd={() => setAddingOn(day)}
+                onSelect={(session) => setEditing({ session, mode: 'seats' })}
               />
             ))}
           </ol>
@@ -118,17 +130,54 @@ export function CalendarView({ now = new Date() }: CalendarViewProps) {
                   day={day}
                   sessions={byDay.get(dayKey(day)) ?? []}
                   now={now}
+                  onAdd={() => setAddingOn(day)}
+                  onSelect={(session) => setEditing({ session, mode: 'seats' })}
                 />
               ))}
             </div>
           </div>
         </>
       ) : null}
+
+      <NewSessionModal
+        open={addingOn !== null}
+        onClose={() => setAddingOn(null)}
+        defaultDate={addingOn ?? undefined}
+        classTypes={classTypes}
+      />
+
+      {editing ? (
+        <>
+          <SeatModal
+            session={editing.session}
+            open={editing.mode === 'seats'}
+            onClose={() => setEditing(null)}
+            onRequestMove={() => setEditing({ session: editing.session, mode: 'move' })}
+          />
+          <RescheduleModal
+            session={editing.session}
+            open={editing.mode === 'move'}
+            onClose={() => setEditing(null)}
+          />
+        </>
+      ) : null}
     </section>
   );
 }
 
-function AgendaDay({ day, sessions, now }: { day: Date; sessions: Session[]; now: Date }) {
+function AgendaDay({
+  day,
+  sessions,
+  now,
+  onAdd,
+  onSelect,
+}: {
+  day: Date;
+  sessions: Session[];
+  now: Date;
+  onAdd: () => void;
+  onSelect: (session: Session) => void;
+}) {
   const today = isToday(day, now);
 
   return (
@@ -144,14 +193,18 @@ function AgendaDay({ day, sessions, now }: { day: Date; sessions: Session[]; now
       </h2>
 
       {sessions.length === 0 ? (
-        <p className="border-line text-latte rounded-[var(--radius-md)] border-[1.5px] border-dashed px-3 py-2.5 text-sm">
-          nothing scheduled
-        </p>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="border-line text-latte hover:border-pink hover:text-rose-ink min-h-[44px] w-full rounded-[var(--radius-md)] border-[1.5px] border-dashed px-3 text-left text-sm"
+        >
+          nothing scheduled — add one?
+        </button>
       ) : (
         <ul className="grid gap-1.5">
           {sessions.map((session) => (
             <li key={session.id}>
-              <SessionChip session={session} variant="agenda" />
+              <SessionChip session={session} variant="agenda" onSelect={onSelect} />
             </li>
           ))}
         </ul>
@@ -160,7 +213,19 @@ function AgendaDay({ day, sessions, now }: { day: Date; sessions: Session[]; now
   );
 }
 
-function GridCell({ day, sessions, now }: { day: Date; sessions: Session[]; now: Date }) {
+function GridCell({
+  day,
+  sessions,
+  now,
+  onAdd,
+  onSelect,
+}: {
+  day: Date;
+  sessions: Session[];
+  now: Date;
+  onAdd: () => void;
+  onSelect: (session: Session) => void;
+}) {
   const today = isToday(day, now);
 
   return (
@@ -176,8 +241,19 @@ function GridCell({ day, sessions, now }: { day: Date; sessions: Session[]; now:
 
       <div className="mt-1.5 grid gap-1.5">
         {sessions.map((session) => (
-          <SessionChip key={session.id} session={session} />
+          <SessionChip key={session.id} session={session} onSelect={onSelect} />
         ))}
+
+        {sessions.length === 0 ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            aria-label={`Add a class on ${day.getDate()}`}
+            className="border-pink text-rose-ink min-h-[44px] w-full rounded-[10px] border-2 border-dashed text-xs font-extrabold"
+          >
+            + add
+          </button>
+        ) : null}
       </div>
     </div>
   );
