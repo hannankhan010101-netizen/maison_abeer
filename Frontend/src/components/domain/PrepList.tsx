@@ -11,6 +11,7 @@ import { FrostingCheckbox } from '@/components/ui/FrostingCheckbox';
 import { Icing } from '@/components/ui/Icing';
 import { ApiError } from '@/lib/api/errors';
 import { useChecklist, useSessions, useToggleChecklistItem } from '@/lib/api/hooks';
+import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks, formatTime } from '@/lib/dates';
 import type { ChecklistItem } from '@/lib/api/types';
 
@@ -41,7 +42,15 @@ export function groupByDeadline(items: ChecklistItem[]): [string, ChecklistItem[
   );
 }
 
-export function PrepList({ now = new Date() }: PrepListProps) {
+export function PrepList({ now: nowProp }: PrepListProps) {
+  const now = useResolvedNow(nowProp);
+
+  if (!now) return <TimeGateSkeleton />;
+
+  return <PrepListInner now={now} />;
+}
+
+function PrepListInner({ now }: { now: Date }) {
   const window = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
     [now],
@@ -224,6 +233,19 @@ function PrepItem({
           description="the quantity moved — worth a second look before class"
         />
       ) : null}
+    </div>
+  );
+}
+
+/** Stable placeholder until the client's clock is known (lib/useNow.ts). */
+function TimeGateSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading…</span>
+      <div
+        aria-hidden="true"
+        className="border-line h-48 rounded-[var(--radius-lg)] border-[1.5px] border-dashed"
+      />
     </div>
   );
 }

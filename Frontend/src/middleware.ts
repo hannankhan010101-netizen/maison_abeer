@@ -37,26 +37,22 @@ export async function middleware(request: NextRequest) {
   // Let the response carry any refreshed auth cookies back to the browser.
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet: CookieToSet[]) => {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value);
-          }
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (cookiesToSet: CookieToSet[]) => {
+        for (const { name, value } of cookiesToSet) {
+          request.cookies.set(name, value);
+        }
 
-          response = NextResponse.next({ request });
+        response = NextResponse.next({ request });
 
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
-        },
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
+        }
       },
     },
-  );
+  });
 
   // A failed auth check means "we cannot prove who this is", which is the
   // same decision as signed out. Supabase being unreachable must not take

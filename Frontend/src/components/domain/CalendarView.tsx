@@ -11,6 +11,7 @@ import { Chip } from '@/components/ui/Chip';
 import { ApiError } from '@/lib/api/errors';
 import { useSessions } from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
+import { useResolvedNow } from '@/lib/useNow';
 import {
   addWeeks,
   dayKey,
@@ -35,7 +36,15 @@ export interface CalendarViewProps {
   now?: Date;
 }
 
-export function CalendarView({ now = new Date() }: CalendarViewProps) {
+export function CalendarView({ now: nowProp }: CalendarViewProps) {
+  const now = useResolvedNow(nowProp);
+
+  if (!now) return <TimeGateSkeleton />;
+
+  return <CalendarViewInner now={now} />;
+}
+
+function CalendarViewInner({ now }: { now: Date }) {
   const [anchor, setAnchor] = useState(now);
 
   const window = useMemo(() => weekWindow(anchor), [anchor]);
@@ -272,6 +281,19 @@ function CalendarSkeleton() {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Stable placeholder until the client's clock is known (lib/useNow.ts). */
+function TimeGateSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading…</span>
+      <div
+        aria-hidden="true"
+        className="border-line h-48 rounded-[var(--radius-lg)] border-[1.5px] border-dashed"
+      />
     </div>
   );
 }

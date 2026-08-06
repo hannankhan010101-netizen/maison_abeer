@@ -53,7 +53,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable}`}>
+    // suppressHydrationWarning: the theme script below deliberately adds
+    // `mocha` to this element before React hydrates, so the client's class
+    // list legitimately differs from the server's. It applies to this element
+    // only, not its children, so real mismatches deeper in the tree still
+    // report.
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${display.variable} ${body.variable} ${hand.variable}`}
+    >
       <head>
         {/* Applied before paint so a dark-mode host never sees a light flash. */}
         <script dangerouslySetInnerHTML={{ __html: MOCHA_INIT_SCRIPT }} />

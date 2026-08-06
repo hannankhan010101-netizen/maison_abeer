@@ -9,6 +9,7 @@ import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { useRoster, useSessions } from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
+import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks } from '@/lib/dates';
 import {
   LAYOUTS,
@@ -37,7 +38,15 @@ export interface TagStudioProps {
   now?: Date;
 }
 
-export function TagStudio({ now = new Date() }: TagStudioProps) {
+export function TagStudio({ now: nowProp }: TagStudioProps) {
+  const now = useResolvedNow(nowProp);
+
+  if (!now) return <TimeGateSkeleton />;
+
+  return <TagStudioInner now={now} />;
+}
+
+function TagStudioInner({ now }: { now: Date }) {
   const window = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
     [now],
@@ -360,6 +369,19 @@ export function TagSheet({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Stable placeholder until the client's clock is known (lib/useNow.ts). */
+function TimeGateSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading…</span>
+      <div
+        aria-hidden="true"
+        className="border-line h-48 rounded-[var(--radius-lg)] border-[1.5px] border-dashed"
+      />
     </div>
   );
 }

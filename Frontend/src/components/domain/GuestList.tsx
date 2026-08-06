@@ -13,6 +13,7 @@ import { Icing } from '@/components/ui/Icing';
 import { useGuests, useSessions } from '@/lib/api/hooks';
 import { ApiError } from '@/lib/api/errors';
 import { cn } from '@/lib/cn';
+import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks } from '@/lib/dates';
 
 /**
@@ -29,7 +30,15 @@ export interface GuestListProps {
   now?: Date;
 }
 
-export function GuestList({ now = new Date() }: GuestListProps) {
+export function GuestList({ now: nowProp }: GuestListProps) {
+  const now = useResolvedNow(nowProp);
+
+  if (!now) return <TimeGateSkeleton />;
+
+  return <GuestListInner now={now} />;
+}
+
+function GuestListInner({ now }: { now: Date }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [adding, setAdding] = useState(false);
@@ -217,6 +226,19 @@ function Empty({ title, note }: { title: string; note: string }) {
     <div className="py-6 text-center">
       <p className="font-display text-lg">{title}</p>
       <p className="text-latte mt-1 text-sm">{note}</p>
+    </div>
+  );
+}
+
+/** Stable placeholder until the client's clock is known (lib/useNow.ts). */
+function TimeGateSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading…</span>
+      <div
+        aria-hidden="true"
+        className="border-line h-48 rounded-[var(--radius-lg)] border-[1.5px] border-dashed"
+      />
     </div>
   );
 }

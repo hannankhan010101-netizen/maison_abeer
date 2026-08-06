@@ -11,6 +11,7 @@ import { Chip } from '@/components/ui/Chip';
 import { WeekWrapped, summariseWeek } from '@/components/domain/WeekWrapped';
 import { ApiError } from '@/lib/api/errors';
 import { useSessions, useUpcomingBirthdays } from '@/lib/api/hooks';
+import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks, formatDateLong, formatRange, humanCountdown, timeOfDay } from '@/lib/dates';
 import type { Session, UpcomingBirthday } from '@/lib/api/types';
 
@@ -27,7 +28,17 @@ export interface DashboardProps {
   now?: Date;
 }
 
-export function Dashboard({ hostName, now = new Date() }: DashboardProps) {
+export function Dashboard({ hostName, now: nowProp }: DashboardProps) {
+  const now = useResolvedNow(nowProp);
+
+  // Gate before the inner component's hooks run, so the server and the first
+  // client render agree by construction.
+  if (!now) return <TimeGateSkeleton />;
+
+  return <DashboardInner hostName={hostName} now={now} />;
+}
+
+function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
   const window = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 2).toISOString() }),
     [now],
@@ -285,5 +296,18 @@ function AlertFeed({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Stable placeholder until the client's clock is known (lib/useNow.ts). */
+function TimeGateSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading…</span>
+      <div
+        aria-hidden="true"
+        className="border-line h-48 rounded-[var(--radius-lg)] border-[1.5px] border-dashed"
+      />
+    </div>
   );
 }
