@@ -1,14 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { AddGuestModal } from '@/components/domain/AddGuestModal';
 import { GuestRow } from '@/components/domain/GuestRow';
-import { Card, HandNote } from '@/components/ui/Card';
+import { SessionPicker } from '@/components/domain/SessionPicker';
+import { SessionRoster } from '@/components/domain/SessionRoster';
+import { Button } from '@/components/ui/Button';
+import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Icing } from '@/components/ui/Icing';
-import { useGuests } from '@/lib/api/hooks';
+import { useGuests, useSessions } from '@/lib/api/hooks';
 import { ApiError } from '@/lib/api/errors';
 import { cn } from '@/lib/cn';
+import { addWeeks } from '@/lib/dates';
 
 /**
  * The guest roster (PRD §2.4).
@@ -20,9 +25,27 @@ import { cn } from '@/lib/cn';
 
 type Filter = 'all' | 'regulars';
 
-export function GuestList() {
+export interface GuestListProps {
+  now?: Date;
+}
+
+export function GuestList({ now = new Date() }: GuestListProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [adding, setAdding] = useState(false);
+
+  const window = useMemo(
+    () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
+    [now],
+  );
+
+  const sessions = useSessions(window.start, window.end);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  const selected = useMemo(
+    () => sessions.data?.find((session) => session.id === sessionId) ?? sessions.data?.[0],
+    [sessions.data, sessionId],
+  );
 
   const query = useGuests({
     search: search.trim() || undefined,
@@ -31,10 +54,31 @@ export function GuestList() {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">guests</h1>
-      <p className="text-latte mb-5">
-        <HandNote>your regulars are highlighted 💗</HandNote>
-      </p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[clamp(26px,4vw,34px)]">guests</h1>
+          <p className="text-latte">
+            <HandNote>your regulars are highlighted 💗</HandNote>
+          </p>
+        </div>
+
+        <Button onClick={() => setAdding(true)}>+ add a guest</Button>
+      </div>
+
+      {/* Seating, cancellations and the waitlist for one class. */}
+      {sessions.isSuccess && (sessions.data?.length ?? 0) > 0 ? (
+        <div className="mb-6">
+          <Eyebrow>this class</Eyebrow>
+          <SessionPicker
+            sessions={sessions.data ?? []}
+            value={selected?.id ?? null}
+            onChange={setSessionId}
+          />
+          {selected ? <SessionRoster session={selected} /> : null}
+        </div>
+      ) : null}
+
+      <Eyebrow>everyone</Eyebrow>
 
       <label htmlFor="guest-search" className="sr-only">
         Search guests
@@ -75,6 +119,8 @@ export function GuestList() {
           regularsOnly={filter === 'regulars'}
         />
       </Card>
+
+      <AddGuestModal open={adding} onClose={() => setAdding(false)} />
     </section>
   );
 }

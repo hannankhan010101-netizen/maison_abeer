@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GuestList } from './GuestList';
 import { ApiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/provider';
+import { ToastProvider } from '@/components/ui/Toast';
 import type { Guest } from '@/lib/api/types';
 
 /**
@@ -57,14 +58,22 @@ function guest(overrides: Partial<Guest> = {}): Guest {
  * time, and a body can only be read once — so the second request of a test
  * fails with a consumed-stream error that looks like a component bug.
  */
+/**
+ * Routes each query to its own payload.
+ *
+ * The screen now loads sessions (for the roster) as well as guests, so a
+ * single blanket response would feed a guest array to the calendar query.
+ */
 function respondWith(body: unknown, status = 200): void {
-  fetchImpl.mockImplementation(
-    () =>
-      new Response(JSON.stringify(body), {
-        status,
-        headers: { 'content-type': 'application/json' },
-      }),
-  );
+  fetchImpl.mockImplementation((url: string) => {
+    const isGuests = String(url).includes('/guests');
+    const payload = isGuests ? body : [];
+
+    return new Response(JSON.stringify(payload), {
+      status: isGuests ? status : 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  });
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -72,7 +81,11 @@ function Wrapper({ children }: { children: ReactNode }) {
   const client = createQueryClient();
   client.setDefaultOptions({ queries: { retry: false } });
 
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }
 
 function renderList() {
@@ -206,8 +219,9 @@ describe('GuestList', () => {
     await screen.findByText('no guests yet');
 
     expect(screen.getByLabelText('Search guests')).toHaveClass('min-h-[44px]');
-    for (const button of screen.getAllByRole('button')) {
-      expect(button).toHaveClass('min-h-[44px]');
+
+    for (const name of ['everyone', /regulars/, '+ add a guest']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('min-h-[44px]');
     }
   });
 });
