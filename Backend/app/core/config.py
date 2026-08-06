@@ -7,10 +7,10 @@ Railway, Fly or a VPS without change.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, PostgresDsn, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Environment = Literal["development", "staging", "production"]
 
@@ -46,7 +46,12 @@ class Settings(BaseSettings):
     db_pool_recycle_seconds: int = 1800
 
     # ---- http -------------------------------------------------------------
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # NoDecode stops pydantic-settings JSON-decoding this before our validator
+    # runs. Without it, the documented `CORS_ORIGINS=http://localhost:3000`
+    # raises at startup because a bare URL is not valid JSON.
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod

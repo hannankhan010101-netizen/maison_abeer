@@ -22,14 +22,24 @@ function isPublic(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
+  const { pathname } = request.nextUrl;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Not configured yet. Treat everyone as signed out rather than throwing on
+  // every request — a misconfigured deployment should show the login page,
+  // not a 500 on every route including /login itself.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return isPublic(pathname) ? NextResponse.next() : redirectToLogin(request);
+  }
 
   // Let the response carry any refreshed auth cookies back to the browser.
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
@@ -48,19 +58,20 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // A failed auth check means "we cannot prove who this is", which is the
+  // same decision as signed out. Supabase being unreachable must not take
+  // the whole app down with a 500.
+  let user = null;
+
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    user = null;
+  }
 
   if (!user && !isPublic(pathname)) {
-    const login = request.nextUrl.clone();
-    login.pathname = '/login';
-    login.search = '';
-    // Return them where they were headed once they sign in. Validated on the
-    // way back out by safeDestination().
-    login.searchParams.set('next', `${pathname}${search}`);
-
-    return NextResponse.redirect(login);
+    return redirectToLogin(request);
   }
 
   // A signed-in host has no reason to see the login form.
@@ -73,6 +84,19 @@ export async function middleware(request: NextRequest) {
   }
 
   return response;
+}
+
+/** Send an unauthenticated request to sign in, remembering where it was going. */
+function redirectToLogin(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  const login = request.nextUrl.clone();
+  login.pathname = '/login';
+  login.search = '';
+  // Validated on the way back out by safeDestination().
+  login.searchParams.set('next', `${pathname}${search}`);
+
+  return NextResponse.redirect(login);
 }
 
 export const config = {
