@@ -16,6 +16,7 @@ from app.api.providers import (
     provide_session_service,
 )
 from app.api.v1 import checklist, guests, sessions
+from app.api.v1 import settings as settings_router
 from app.core.config import Settings, get_settings
 from app.core.db import reset_engine
 from app.core.errors import AppError
@@ -67,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sessions.router, prefix=API_PREFIX)
     app.include_router(guests.router, prefix=API_PREFIX)
     app.include_router(checklist.router, prefix=API_PREFIX)
+    app.include_router(settings_router.router, prefix=API_PREFIX)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:

@@ -10,6 +10,7 @@ import {
   queryKeys,
 } from './keys';
 import type {
+  BrandKit,
   Booking,
   Checklist,
   ChecklistItem,
@@ -19,6 +20,7 @@ import type {
   Roster,
   Session,
   SessionCreateResponse,
+  StudioSettings,
   UpcomingBirthday,
 } from './types';
 
@@ -280,5 +282,54 @@ export function useToggleChecklistItem(sessionId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.checklist(sessionId) });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export function useSettings() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.settings.all,
+    queryFn: ({ signal }) => api.get<StudioSettings>('/api/v1/settings', { signal }),
+  });
+}
+
+export function useUpdateSettings() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: Partial<StudioSettings>) =>
+      api.patch<StudioSettings>('/api/v1/settings', body),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.settings.all, updated);
+      // Quiet hours and rest days change what the calendar and messages
+      // screens say, so those must not keep showing the old rules.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+    },
+  });
+}
+
+export function useBrandKit() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.settings.brandKit,
+    queryFn: ({ signal }) => api.get<BrandKit>('/api/v1/settings/brand-kit', { signal }),
+  });
+}
+
+export function useUpdateBrandKit() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: Partial<BrandKit>) =>
+      api.patch<BrandKit>('/api/v1/settings/brand-kit', body),
+    onSuccess: (updated) => queryClient.setQueryData(queryKeys.settings.brandKit, updated),
   });
 }

@@ -31,6 +31,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/guests', label: 'guests', icon: '💌' },
   { href: '/prep', label: 'prep', icon: '✅' },
   { href: '/messages', label: 'messages', icon: '💬' },
+  { href: '/settings', label: 'settings', icon: '🎨' },
 ] as const;
 
 export function isActive(pathname: string, href: string): boolean {

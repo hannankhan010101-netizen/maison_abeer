@@ -173,3 +173,30 @@ export interface Checklist {
   total_count: number;
   overdue_count: number;
 }
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export type VoicePreset = 'soft_sweet' | 'chaotic_bestie' | 'clean_minimal';
+export type EmojiDensity = 'none' | 'light' | 'full';
+
+export interface StudioSettings {
+  timezone: string;
+  /** "HH:MM:SS" — guest messages only send inside this window. */
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  weekly_class_cap: number | null;
+  /** ISO weekdays, Monday=1 … Sunday=7. */
+  rest_days: number[];
+  default_voice: VoicePreset;
+  emoji_density: EmojiDensity;
+  show_greeting: boolean;
+}
+
+export interface BrandKit {
+  logo_url: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
+  instagram_handle: string | null;
+}

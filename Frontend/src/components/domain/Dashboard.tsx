@@ -8,6 +8,7 @@ import { Button, buttonClasses } from '@/components/ui/Button';
 import { CapacityRing } from '@/components/ui/CapacityRing';
 import { Card, CardTitle, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { WeekWrapped, summariseWeek } from '@/components/domain/WeekWrapped';
 import { ApiError } from '@/lib/api/errors';
 import { useSessions, useUpcomingBirthdays } from '@/lib/api/hooks';
 import { addWeeks, formatDateLong, formatRange, humanCountdown, timeOfDay } from '@/lib/dates';
@@ -78,6 +79,9 @@ export function Dashboard({ hostName, now = new Date() }: DashboardProps) {
           <div className="grid content-start gap-3">
             <Eyebrow>alerts &amp; nudges</Eyebrow>
             <AlertFeed sessions={sessions.data} birthdays={birthdays.data ?? []} />
+
+            {/* Celebratory, and deliberately screenshot-shaped (PRD §2.1). */}
+            <WeekWrapped stats={summariseWeek(sessions.data, now)} />
           </div>
         </div>
       ) : null}

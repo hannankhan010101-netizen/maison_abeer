@@ -17,6 +17,10 @@ export const queryKeys = {
     waitlist: (id: string) => ['sessions', 'waitlist', id] as const,
     checklist: (id: string) => ['sessions', 'checklist', id] as const,
   },
+  settings: {
+    all: ['settings'] as const,
+    brandKit: ['settings', 'brand-kit'] as const,
+  },
   guests: {
     all: ['guests'] as const,
     list: (params: { search?: string; regularsOnly?: boolean }) =>
