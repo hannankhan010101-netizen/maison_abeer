@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { isDemoMode } from '@/lib/demo/enabled';
+
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
 /**
@@ -23,6 +25,10 @@ function isPublic(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Demo mode has no auth to check. Dev-only and double-gated; a production
+  // build folds this to `false` and drops the branch entirely.
+  if (isDemoMode()) return NextResponse.next();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

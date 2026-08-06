@@ -7,6 +7,8 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { ApiClient } from './client';
 import { ApiError } from './errors';
 import { getAccessToken } from '@/lib/supabase/client';
+import { isDemoMode } from '@/lib/demo/enabled';
+import { createDemoFetch } from '@/lib/demo/transport';
 
 const ApiContext = createContext<ApiClient | null>(null);
 
@@ -55,18 +57,26 @@ export function ApiProvider({ children }: { children: ReactNode }) {
   // explicitly not a caching guarantee.
   const [queryClient] = useState(createQueryClient);
 
-  const apiClient = useMemo(
-    () =>
-      new ApiClient({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000',
-        getToken: getAccessToken,
-        onUnauthorized: () => {
-          queryClient.clear();
-          router.replace('/login');
-        },
-      }),
-    [queryClient, router],
-  );
+  const apiClient = useMemo(() => {
+    // Demo mode answers from fixtures instead of the network, so the app is
+    // usable without a Supabase project or a database. Dev-only; see
+    // lib/demo/enabled.ts.
+    if (isDemoMode()) {
+      return new ApiClient({
+        baseUrl: 'http://demo.local',
+        fetchImpl: createDemoFetch(),
+      });
+    }
+
+    return new ApiClient({
+      baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000',
+      getToken: getAccessToken,
+      onUnauthorized: () => {
+        queryClient.clear();
+        router.replace('/login');
+      },
+    });
+  }, [queryClient, router]);
 
   return (
     <QueryClientProvider client={queryClient}>
