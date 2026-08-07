@@ -58,3 +58,30 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  e2e:
+    name: End-to-end · 375 / 768 / 1440
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      # Chromium only: these assert layout, routing and accessibility, none of
+      # which differ enough across engines to justify tripling the runtime.
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+        working-directory: Frontend
+      - name: Test
+        run: npx playwright test
+        working-directory: Frontend
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: Frontend/playwright-report
+          retention-days: 7

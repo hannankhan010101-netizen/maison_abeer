@@ -210,7 +210,7 @@ function GuestListBody({
         </Chip>
       </div>
 
-      <ul>
+      <ul aria-label="Guests">
         {guests.map((guest) => (
           <li key={guest.id}>
             <GuestRow guest={guest} />

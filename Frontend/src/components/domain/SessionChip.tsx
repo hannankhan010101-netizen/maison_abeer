@@ -61,7 +61,7 @@ export function SessionChip({ session, variant = 'grid', onSelect, className }: 
       )}
     >
       <span className="block">{name}</span>
-      <span aria-hidden="true" className="block font-bold opacity-75">
+      <span aria-hidden="true" className="block font-bold">
         {time} · {capacity.booked}/{capacity.seats}
         {session.status === 'locked' ? ' 🔒' : null}
       </span>

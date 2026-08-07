@@ -347,8 +347,8 @@ export function TagSheet({
                 </span>
               ) : null}
 
-              <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase opacity-65">
-                Hello, i&rsquo;m
+              <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase">
+                Hello, I&rsquo;m
               </span>
 
               {/* Type scales down rather than wrapping (PRD §2.3). */}
