@@ -9,6 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from app.schemas.guest import (
+    AllergyRead,
     BirthdayRead,
     BookingCreate,
     BookingRead,
@@ -53,7 +54,16 @@ def _to_read(guest: GuestSnapshot, *, today: date) -> GuestRead:
         birthday=guest.birthday,
         days_until_birthday=guest.days_until_birthday(today),
         memory_note=guest.memory_note,
-        allergies=[],
+        allergies=[
+            AllergyRead(
+                id=allergy.id,
+                label=allergy.label,
+                severity=allergy.severity,
+                notes=allergy.notes,
+                is_critical=allergy.is_critical,
+            )
+            for allergy in guest.allergies
+        ],
         available_credits=guest.available_credits,
     )
 
@@ -140,6 +150,14 @@ def get_roster(session_id: UUID, service: Service) -> RosterRead:
     bookings = service.roster(session_id)
     guests = {g.id: g for g in service.list_guests()}
 
+    # Counted over the people actually in the room, not the whole guest book:
+    # this drives the day-of allergy banner for *this* class.
+    seated = [
+        guests[booking.guest_id]
+        for booking in bookings
+        if booking.guest_id in guests and booking.status != "cancelled"
+    ]
+
     return RosterRead(
         session_id=session_id,
         bookings=[
@@ -155,7 +173,7 @@ def get_roster(session_id: UUID, service: Service) -> RosterRead:
             if booking.guest_id in guests
         ],
         unassigned_count=service.unassigned_count(session_id),
-        critical_allergy_count=0,
+        critical_allergy_count=sum(1 for guest in seated if guest.has_critical_allergy),
     )
 
 

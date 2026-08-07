@@ -32,10 +32,10 @@ export function SignOutButton() {
       variant="secondary"
       size="sm"
       loading={pending}
-      loadingLabel="signing out…"
+      loadingLabel="Signing out…"
       onClick={signOut}
     >
-      sign out
+      Sign out
     </Button>
   );
 }

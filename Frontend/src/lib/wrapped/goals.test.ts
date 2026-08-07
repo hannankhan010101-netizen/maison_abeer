@@ -65,7 +65,7 @@ describe('encouragementFor', () => {
   });
 
   it('celebrates a finished goal', () => {
-    expect(encouragementFor(1, 0, 'guests')).toContain('done');
+    expect(encouragementFor(1, 0, 'guests')).toContain('Done');
   });
 
   it('is kind about having not started', () => {

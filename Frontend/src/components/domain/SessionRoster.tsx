@@ -55,7 +55,7 @@ export function SessionRoster({ session }: SessionRosterProps) {
   return (
     <Card>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <Eyebrow className="mb-0">who&rsquo;s coming</Eyebrow>
+        <Eyebrow className="mb-0">Who&rsquo;s coming</Eyebrow>
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Chip tone="neutral">
@@ -75,17 +75,17 @@ export function SessionRoster({ session }: SessionRosterProps) {
               ? 'a seat is free — offer it to the next person?'
               : 'waitlist is open'
           }
-          description="invites hold a seat for 12h, then pass down the list · quiet hours respected"
+          description="Invites hold a seat for 12h, then pass down the list · quiet hours respected"
           action={
             <Button
               variant="secondary"
               size="sm"
               onClick={invite}
               loading={inviteNext.isPending}
-              loadingLabel="inviting…"
+              loadingLabel="Inviting…"
               disabled={session.capacity.available === 0}
             >
-              invite next
+              Invite next
             </Button>
           }
         />
@@ -109,14 +109,14 @@ export function SessionRoster({ session }: SessionRosterProps) {
               : "We couldn't load the roster."}
           </p>
           <Button variant="ghost" className="mt-2" onClick={() => void roster.refetch()}>
-            try again
+            Try again
           </Button>
         </div>
       ) : null}
 
       {roster.isSuccess && bookings.length === 0 ? (
         <p className="text-latte py-5 text-center text-sm">
-          nobody booked in yet — add a guest and they&rsquo;ll appear here
+          Nobody booked in yet — add a guest and they&rsquo;ll appear here
         </p>
       ) : null}
 
@@ -143,7 +143,7 @@ export function SessionRoster({ session }: SessionRosterProps) {
                     }
                     className="border-line bg-paper text-latte min-h-[44px] rounded-[var(--radius-pill)] border-[1.5px] px-3 text-xs font-extrabold"
                   >
-                    <option value="">no table</option>
+                    <option value="">No table</option>
                     {Array.from({ length: MAX_TABLES }, (_, index) => index + 1).map((table) => (
                       <option key={table} value={table}>
                         table {table}
@@ -157,7 +157,7 @@ export function SessionRoster({ session }: SessionRosterProps) {
                     onClick={() => setCancelling(booking)}
                     aria-label={`Cancel ${booking.guest.full_name}'s booking`}
                   >
-                    cancel
+                    Cancel
                   </Button>
                 </div>
               }
@@ -229,34 +229,34 @@ function CancelBookingModal({
       footer={
         <>
           <Button variant="secondary" type="button" onClick={onClose}>
-            keep the booking
+            Keep the booking
           </Button>
           <Button
             variant="danger"
             onClick={confirm}
             loading={cancelBooking.isPending}
-            loadingLabel="cancelling…"
+            loadingLabel="Cancelling…"
           >
-            cancel the seat
+            Cancel the seat
           </Button>
         </>
       }
     >
       <fieldset>
         <legend className="text-latte mb-2 text-xs font-extrabold tracking-[0.06em] uppercase">
-          how are you handling it?
+          How are you handling it?
         </legend>
 
         {[
           {
             id: 'credit' as const,
-            label: 'save a class credit',
-            note: 'sends a warm note and keeps their seat for next time',
+            label: 'Save a class credit',
+            note: 'Sends a warm note and keeps their seat for next time',
           },
           {
             id: 'refunded' as const,
-            label: 'refunded them',
-            note: 'just records it — money is handled outside the app',
+            label: 'Refunded them',
+            note: 'Just records it — money is handled outside the app',
           },
         ].map((option) => (
           <label
@@ -286,7 +286,7 @@ function CancelBookingModal({
         id="cancel-note"
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        placeholder="anything to remember? (optional)"
+        placeholder="Anything to remember? (optional)"
         className="border-line bg-buttercream text-cocoa min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3.5 text-sm"
       />
 
@@ -297,7 +297,7 @@ function CancelBookingModal({
       ) : null}
 
       <p className="mt-3">
-        <HandNote>life happens 🫶</HandNote>
+        <HandNote>Life happens 🫶</HandNote>
       </p>
     </Modal>
   );

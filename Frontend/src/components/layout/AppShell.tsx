@@ -25,14 +25,14 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: '/today', label: 'today', icon: '🌷' },
-  { href: '/calendar', label: 'calendar', icon: '📅' },
-  { href: '/tags', label: 'name tags', icon: '🏷️' },
-  { href: '/guests', label: 'guests', icon: '💌' },
-  { href: '/prep', label: 'prep', icon: '✅' },
-  { href: '/messages', label: 'messages', icon: '💬' },
-  { href: '/wrapped', label: 'receipts', icon: '📊' },
-  { href: '/settings', label: 'settings', icon: '🎨' },
+  { href: '/today', label: 'Today', icon: '🌷' },
+  { href: '/calendar', label: 'Calendar', icon: '📅' },
+  { href: '/tags', label: 'Name tags', icon: '🏷️' },
+  { href: '/guests', label: 'Guests', icon: '💌' },
+  { href: '/prep', label: 'Prep', icon: '✅' },
+  { href: '/messages', label: 'Messages', icon: '💬' },
+  { href: '/wrapped', label: 'Receipts', icon: '📊' },
+  { href: '/settings', label: 'Settings', icon: '🎨' },
 ] as const;
 
 export function isActive(pathname: string, href: string): boolean {
@@ -87,7 +87,7 @@ export function AppShell({ children, topBar }: AppShellProps) {
           <span className="font-display text-2xl tracking-tight">
             Maison Abeer<span className="text-rose-ink">.</span>
           </span>
-          <span className="font-hand text-latte block text-base">your studio bestie ✨</span>
+          <span className="font-hand text-latte block text-base">Your studio bestie ✨</span>
         </div>
 
         <nav aria-label="Main">
@@ -101,7 +101,7 @@ export function AppShell({ children, topBar }: AppShellProps) {
         </nav>
 
         <p className="font-hand text-latte mt-auto rotate-[-2deg] p-3 text-[15px]">
-          you&rsquo;ve got this ♡
+          You&rsquo;ve got this ♡
         </p>
       </aside>
 

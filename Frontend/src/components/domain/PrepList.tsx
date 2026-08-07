@@ -51,12 +51,12 @@ export function PrepList({ now: nowProp }: PrepListProps) {
 }
 
 function PrepListInner({ now }: { now: Date }) {
-  const window = useMemo(
+  const range = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
     [now],
   );
 
-  const sessions = useSessions(window.start, window.end);
+  const sessions = useSessions(range.start, range.end);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -77,9 +77,9 @@ function PrepListInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">prep</h1>
+      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Prep</h1>
       <p className="text-latte mb-4">
-        <HandNote>quantities auto-scale with seats</HandNote>
+        <HandNote>Quantities auto-scale with seats</HandNote>
       </p>
 
       <SessionPicker
@@ -90,9 +90,9 @@ function PrepListInner({ now }: { now: Date }) {
 
       {sessions.isSuccess && (sessions.data?.length ?? 0) === 0 ? (
         <Card>
-          <p className="font-display py-4 text-center text-lg">nothing to prep yet</p>
+          <p className="font-display py-4 text-center text-lg">Nothing to prep yet</p>
           <p className="text-latte text-center text-sm">
-            schedule a class and its checklist appears here
+            Schedule a class and its checklist appears here
           </p>
         </Card>
       ) : null}
@@ -106,7 +106,7 @@ function PrepListInner({ now }: { now: Date }) {
                 : "We couldn't load your prep just now."}
             </p>
             <Button variant="ghost" className="mt-3" onClick={() => void checklist.refetch()}>
-              try again
+              Try again
             </Button>
           </div>
         </Card>
@@ -159,7 +159,7 @@ function PrepListInner({ now }: { now: Date }) {
           <div className="grid content-start gap-4">
             {reset.length > 0 ? (
               <Card>
-                <Eyebrow>after class · reset</Eyebrow>
+                <Eyebrow>After class · reset</Eyebrow>
                 {/* Operational memory covers the full cycle: prepare, host, reset. */}
                 {reset.map((item) => (
                   <PrepItem
@@ -172,10 +172,10 @@ function PrepListInner({ now }: { now: Date }) {
             ) : null}
 
             <Card>
-              <CardTitle>how streaks work</CardTitle>
+              <CardTitle>How streaks work</CardTitle>
               <p className="text-latte mt-1 text-[13.5px]">
-                finish everything before class starts and your streak grows. miss one? it resets
-                quietly — <b className="text-cocoa">no shame copy, ever.</b> 🫶
+                Finish everything before class starts and your streak grows. miss one? it resets
+                quietly — <b className="text-cocoa">No shame copy, ever.</b> 🫶
               </p>
             </Card>
           </div>
@@ -211,7 +211,7 @@ function PrepItem({
             ) : null}
             {item.is_one_off ? (
               <Chip tone="neutral" className="ml-1.5">
-                just this date
+                Just this date
               </Chip>
             ) : null}
           </>
@@ -229,8 +229,8 @@ function PrepItem({
           className="mt-1 mb-2"
           tone="warning"
           icon="👀"
-          title="seats changed after you ticked this"
-          description="the quantity moved — worth a second look before class"
+          title="Seats changed after you ticked this"
+          description="The quantity moved — worth a second look before class"
         />
       ) : null}
     </div>

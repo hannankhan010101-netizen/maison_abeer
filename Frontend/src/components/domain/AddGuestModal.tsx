@@ -30,7 +30,7 @@ export interface AddGuestModalProps {
 const CHANNELS: { id: MessageChannel; label: string }[] = [
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'sms', label: 'SMS' },
-  { id: 'email', label: 'email' },
+  { id: 'email', label: 'Email' },
 ];
 
 export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) {
@@ -106,33 +106,33 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
     <Modal
       open={open}
       onClose={close}
-      title="add a guest 💌"
+      title="Add a guest 💌"
       footer={
         duplicate ? (
           <>
             <Button variant="secondary" type="button" onClick={() => setDuplicate(null)}>
-              edit details
+              Edit details
             </Button>
             <Button
               onClick={() => void submit(true)}
               loading={createGuest.isPending}
-              loadingLabel="merging…"
+              loadingLabel="Merging…"
             >
-              add to their history
+              Add to their history
             </Button>
           </>
         ) : (
           <>
             <Button variant="secondary" type="button" onClick={close}>
-              cancel
+              Cancel
             </Button>
             <Button
               type="submit"
               form="add-guest"
               loading={createGuest.isPending}
-              loadingLabel="adding…"
+              loadingLabel="Adding…"
             >
-              add guest
+              Add guest
             </Button>
           </>
         )
@@ -142,15 +142,15 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
         <div role="alert">
           <p className="text-sm font-bold">{duplicate}</p>
           <p className="text-latte mt-2 text-sm">
-            adding to their history keeps their visits, notes and allergies in one place.
+            Adding to their history keeps their visits, notes and allergies in one place.
           </p>
         </div>
       ) : (
         <form id="add-guest" onSubmit={handleSubmit} noValidate>
           <Field
-            label="name"
+            label="Name"
             htmlFor="guest-name"
-            hint="a name on its own is enough to start"
+            hint="A name on its own is enough to start"
             error={error?.fieldError('full_name')}
           >
             <input
@@ -163,7 +163,7 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
             />
           </Field>
 
-          <Field label="phone" htmlFor="guest-phone" error={error?.fieldError('phone')}>
+          <Field label="Phone" htmlFor="guest-phone" error={error?.fieldError('phone')}>
             <input
               id="guest-phone"
               type="tel"
@@ -174,7 +174,7 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
             />
           </Field>
 
-          <Field label="email" htmlFor="guest-email" error={error?.fieldError('email')}>
+          <Field label="Email" htmlFor="guest-email" error={error?.fieldError('email')}>
             <input
               id="guest-email"
               type="email"
@@ -186,7 +186,7 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
           </Field>
 
           <Field
-            label="reach them on"
+            label="Reach them on"
             htmlFor="guest-channel"
             error={error?.fieldError('preferred_channel')}
           >
@@ -205,9 +205,9 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
           </Field>
 
           <Field
-            label="birthday"
+            label="Birthday"
             htmlFor="guest-birthday"
-            hint="optional — powers the birthday radar"
+            hint="Optional — powers the birthday radar"
           >
             <input
               id="guest-birthday"
@@ -219,7 +219,7 @@ export function AddGuestModal({ open, onClose, onCreated }: AddGuestModalProps) 
           </Field>
 
           <Field
-            label="a note to remember them by"
+            label="A note to remember them by"
             htmlFor="guest-note"
             hint="&ldquo;came with her sister; loved the matcha buttercream&rdquo;"
           >

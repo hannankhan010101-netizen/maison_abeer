@@ -59,7 +59,7 @@ export function MochaToggle() {
       onClick={toggle}
       aria-pressed={enabled}
       aria-label={enabled ? 'Switch to light mode' : 'Switch to late night mocha mode'}
-      title={enabled ? 'good morning mode' : 'late night mocha mode'}
+      title={enabled ? 'Good morning mode' : 'Late night mocha mode'}
       className="border-line bg-paper grid size-11 place-items-center rounded-full border-[1.5px] text-base transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
     >
       <span aria-hidden="true">{enabled ? '☀️' : '🌙'}</span>

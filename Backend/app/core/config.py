@@ -45,6 +45,17 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
     db_pool_recycle_seconds: int = 1800
 
+    cron_secret: str = ""
+    """Shared secret for the scheduled-task endpoint. Empty disables it."""
+
+    db_serverless: bool = False
+    """Set on Vercel. Switches to NullPool and disables prepared statements.
+
+    Defaults to False so a mistake degrades to the safe direction: a pool on
+    a long-lived host is correct, a pool on a serverless one exhausts the
+    database's connection limit.
+    """
+
     # ---- http -------------------------------------------------------------
     # NoDecode stops pydantic-settings JSON-decoding this before our validator
     # runs. Without it, the documented `CORS_ORIGINS=http://localhost:3000`

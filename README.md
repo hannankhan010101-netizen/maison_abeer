@@ -12,12 +12,12 @@ Visual source of truth is [`creative-workshop-portal-design.html`](./creative-wo
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| Web | Next.js 15 · App Router · TypeScript · Tailwind v4 |
-| API | Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic |
-| Data | Supabase Postgres |
-| Auth | Supabase Auth (JWT verified by the API) |
+| Layer | Technology                                         |
+| ----- | -------------------------------------------------- |
+| Web   | Next.js 15 · App Router · TypeScript · Tailwind v4 |
+| API   | Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic   |
+| Data  | Supabase Postgres                                  |
+| Auth  | Supabase Auth (JWT verified by the API)            |
 
 The browser authenticates against Supabase and then talks **only** to the FastAPI gateway.
 See [ADR 0001](./docs/adr/0001-architecture.md) for why.

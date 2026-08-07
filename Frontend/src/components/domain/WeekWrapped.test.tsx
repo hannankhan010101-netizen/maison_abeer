@@ -10,7 +10,7 @@ function session(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -100,7 +100,7 @@ describe('WeekWrapped', () => {
   it('renders the week', () => {
     render(<WeekWrapped stats={stats()} />);
 
-    expect(screen.getByText('your week, wrapped 🎀')).toBeInTheDocument();
+    expect(screen.getByText('Your week, wrapped 🎀')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('28')).toBeInTheDocument();
   });
@@ -110,8 +110,8 @@ describe('WeekWrapped', () => {
 
     // The visual layout pairs a big number with small text; a screen reader
     // needs that pairing to survive.
-    expect(screen.getByText('classes hosted')).toBeInTheDocument();
-    expect(screen.getByText('guests taught')).toBeInTheDocument();
+    expect(screen.getByText('Classes hosted')).toBeInTheDocument();
+    expect(screen.getByText('Guests taught')).toBeInTheDocument();
   });
 
   it('shows earned milestones', () => {
@@ -129,6 +129,6 @@ describe('WeekWrapped', () => {
 
   it('hides the decorative screenshot prompt from screen readers', () => {
     const { container } = render(<WeekWrapped stats={stats()} />);
-    expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('screenshot me!');
+    expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('Screenshot me!');
   });
 });

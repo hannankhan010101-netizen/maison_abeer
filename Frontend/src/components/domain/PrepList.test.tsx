@@ -29,7 +29,7 @@ const NOW = new Date(2026, 7, 4, 10, 0);
 function item(overrides: Partial<ChecklistItem> = {}): ChecklistItem {
   return {
     id: 'item-1',
-    text: 'bake cake bases',
+    text: 'Bake cake bases',
     quantity: 12,
     hours_before: 24,
     t_minus_label: 'T-24h',
@@ -48,7 +48,7 @@ function session(): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -154,7 +154,7 @@ describe('PrepList', () => {
   it('groups steps under their T-minus heading', async () => {
     respond([
       item({ id: 'a', t_minus_label: 'T-24h', hours_before: 24 }),
-      item({ id: 'b', t_minus_label: 'T-1h', hours_before: 1, text: 'set out sprinkles' }),
+      item({ id: 'b', t_minus_label: 'T-1h', hours_before: 1, text: 'Set out sprinkles' }),
     ]);
     renderPrep();
 
@@ -174,7 +174,7 @@ describe('PrepList', () => {
     renderPrep();
 
     // PRD §2.5: prep and capacity can never silently drift apart.
-    expect(await screen.findByText('seats changed after you ticked this')).toBeInTheDocument();
+    expect(await screen.findByText('Seats changed after you ticked this')).toBeInTheDocument();
   });
 
   it('flags overdue steps', async () => {
@@ -187,27 +187,27 @@ describe('PrepList', () => {
 
   it('separates the post-class reset list', async () => {
     respond([
-      item({ id: 'a', text: 'bake cake bases' }),
-      item({ id: 'b', text: 'wash piping tips', phase: 'post_class', hours_before: -2 }),
+      item({ id: 'a', text: 'Bake cake bases' }),
+      item({ id: 'b', text: 'Wash piping tips', phase: 'post_class', hours_before: -2 }),
     ]);
     renderPrep();
 
-    expect(await screen.findByText('after class · reset')).toBeInTheDocument();
-    expect(screen.getByText('wash piping tips')).toBeInTheDocument();
+    expect(await screen.findByText('After class · reset')).toBeInTheDocument();
+    expect(screen.getByText('Wash piping tips')).toBeInTheDocument();
   });
 
   it('marks a one-off step as belonging to this date only', async () => {
-    respond([item({ is_one_off: true, text: "ayesha's birthday candle" })]);
+    respond([item({ is_one_off: true, text: "Ayesha's birthday candle" })]);
     renderPrep();
 
-    expect(await screen.findByText('just this date')).toBeInTheDocument();
+    expect(await screen.findByText('Just this date')).toBeInTheDocument();
   });
 
   it('sends a tick to the API', async () => {
     respond([item()]);
     renderPrep();
 
-    await screen.findByText('bake cake bases');
+    await screen.findByText('Bake cake bases');
     await userEvent.click(screen.getByRole('checkbox'));
 
     await waitFor(() => {
@@ -224,13 +224,13 @@ describe('PrepList', () => {
     renderPrep();
 
     // Gamification here is celebratory only (PRD §2.5).
-    expect(await screen.findByText(/no shame copy, ever/)).toBeInTheDocument();
+    expect(await screen.findByText(/No shame copy, ever/)).toBeInTheDocument();
   });
 
   it('says so when there is nothing to prep', async () => {
     respond([], []);
     renderPrep();
 
-    expect(await screen.findByText('nothing to prep yet')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing to prep yet')).toBeInTheDocument();
   });
 });

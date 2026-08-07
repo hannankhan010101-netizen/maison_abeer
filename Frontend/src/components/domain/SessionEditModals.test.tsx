@@ -29,7 +29,7 @@ function session(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -62,7 +62,7 @@ function impact(overrides: Partial<RescheduleImpact> = {}): RescheduleImpact {
     deadline_shifts: [
       {
         item_id: 'i1',
-        label: 'bake cake bases',
+        label: 'Bake cake bases',
         previous_deadline: new Date(2026, 7, 7, 14, 0).toISOString(),
         new_deadline: new Date(2026, 7, 8, 14, 0).toISOString(),
         becomes_overdue_immediately: false,
@@ -106,10 +106,10 @@ describe('SeatModal', () => {
     respond(200, session({ capacity: { ...session().capacity, seats: 12 } }));
     render(<SeatModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
 
-    const input = screen.getByLabelText('seats');
+    const input = screen.getByLabelText('Seats');
     await userEvent.clear(input);
     await userEvent.type(input, '12');
-    await userEvent.click(screen.getByRole('button', { name: 'save' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     const patch = fetchImpl.mock.calls.find((c) => (c[1] as RequestInit).method === 'PATCH');
     expect((patch![1] as RequestInit).body).toBe('{"seats":12}');
@@ -123,10 +123,10 @@ describe('SeatModal', () => {
 
     render(<SeatModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
 
-    const input = screen.getByLabelText('seats');
+    const input = screen.getByLabelText('Seats');
     await userEvent.clear(input);
     await userEvent.type(input, '6');
-    await userEvent.click(screen.getByRole('button', { name: 'save' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     // The backend wrote host-facing copy; the UI must not replace it.
     expect(
@@ -139,7 +139,7 @@ describe('SeatModal', () => {
     const onClose = vi.fn();
 
     render(<SeatModal session={session()} open onClose={onClose} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'save' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await screen.findByText('Too few.');
     expect(onClose).not.toHaveBeenCalled();
@@ -152,7 +152,7 @@ describe('SeatModal', () => {
       { wrapper: Wrapper },
     );
 
-    await userEvent.click(screen.getByRole('button', { name: 'move this class instead' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Move this class instead' }));
     expect(onRequestMove).toHaveBeenCalled();
   });
 });
@@ -164,12 +164,12 @@ describe('RescheduleModal', () => {
     respond(200, { preview: true, impact: impact() });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
 
     // The impact step replaces the form.
-    expect(await screen.findByRole('button', { name: 'confirm move' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Confirm move' })).toBeInTheDocument();
     expect(screen.getByText(/guests? booked in/)).toBeInTheDocument();
-    expect(screen.queryByLabelText('new date & time')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('New date & time')).not.toBeInTheDocument();
 
     // Exactly one call so far — the preview. Nothing has been written.
     expect(fetchImpl.mock.calls).toHaveLength(1);
@@ -182,9 +182,9 @@ describe('RescheduleModal', () => {
     respond(200, { preview: true, impact: impact() });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
 
-    expect(await screen.findByText(/bake cake bases/)).toBeInTheDocument();
+    expect(await screen.findByText(/Bake cake bases/)).toBeInTheDocument();
   });
 
   it('warns when steps would land already overdue', async () => {
@@ -194,7 +194,7 @@ describe('RescheduleModal', () => {
     });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
 
     expect(await screen.findByText(/2 steps would already be overdue/)).toBeInTheDocument();
   });
@@ -206,7 +206,7 @@ describe('RescheduleModal', () => {
     });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
 
     // The host has to reach those two personally (PRD §2.4).
     expect(await screen.findByText(/2 can’t be messaged/)).toBeInTheDocument();
@@ -216,11 +216,11 @@ describe('RescheduleModal', () => {
     respond(200, { preview: true, impact: impact() });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
-    await screen.findByRole('button', { name: 'confirm move' });
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
+    await screen.findByRole('button', { name: 'Confirm move' });
 
     respond(200, { preview: false, session: session(), impact: impact() });
-    await userEvent.click(screen.getByRole('button', { name: 'confirm move' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm move' }));
 
     const confirmCall = fetchImpl.mock.calls.at(-1)!;
     const body = JSON.parse(String((confirmCall[1] as RequestInit).body));
@@ -232,17 +232,17 @@ describe('RescheduleModal', () => {
     respond(200, { preview: true, impact: impact() });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Back' }));
 
-    expect(screen.getByLabelText('new date & time')).toBeInTheDocument();
+    expect(screen.getByLabelText('New date & time')).toBeInTheDocument();
   });
 
   it('shows why a past slot was refused', async () => {
     respond(422, { code: 'past_slot', message: 'That slot is in the past.' });
 
     render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
-    await userEvent.click(screen.getByRole('button', { name: 'see what changes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
 
     expect(await screen.findByText('That slot is in the past.')).toBeInTheDocument();
   });

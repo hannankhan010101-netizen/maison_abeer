@@ -14,14 +14,21 @@ import type {
   Booking,
   Checklist,
   ChecklistItem,
+  ExportRecord,
+  Feedback,
   Guest,
   InviteResult,
+  MessagePreview,
+  MessageScheduleResult,
   RescheduleResponse,
   Roster,
+  ScheduledMessage,
   Session,
   SessionCreateResponse,
   StudioSettings,
+  TagSheet,
   UpcomingBirthday,
+  VoicePreset,
 } from './types';
 
 /**
@@ -331,5 +338,162 @@ export function useUpdateBrandKit() {
     mutationFn: (body: Partial<BrandKit>) =>
       api.patch<BrandKit>('/api/v1/settings/brand-kit', body),
     onSuccess: (updated) => queryClient.setQueryData(queryKeys.settings.brandKit, updated),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Messages (PRD §2.6)
+// ---------------------------------------------------------------------------
+
+/**
+ * What would go out, without queueing anything.
+ *
+ * A mutation rather than a query despite reading nothing: it is an explicit
+ * act by the host, and caching a preview across a voice change would show
+ * copy they are no longer looking at.
+ */
+export function usePreviewMessages(sessionId: string) {
+  const api = useApi();
+
+  return useMutation({
+    mutationFn: (voice?: VoicePreset) =>
+      api.post<MessagePreview[]>(`/api/v1/sessions/${sessionId}/messages/preview`, {
+        voice: voice ?? null,
+      }),
+  });
+}
+
+export function useScheduleMessages(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (voice?: VoicePreset) =>
+      api.post<MessageScheduleResult>(`/api/v1/sessions/${sessionId}/messages`, {
+        voice: voice ?? null,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.messages(sessionId) });
+      // A newly queued batch can contain failures worth surfacing at once.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.failed });
+    },
+  });
+}
+
+export function useSessionMessages(sessionId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.sessions.messages(sessionId),
+    queryFn: ({ signal }) =>
+      api.get<ScheduledMessage[]>(`/api/v1/sessions/${sessionId}/messages`, { signal }),
+    enabled: enabled && Boolean(sessionId),
+  });
+}
+
+export function useGuestMessages(guestId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.messages.forGuest(guestId),
+    queryFn: ({ signal }) =>
+      api.get<ScheduledMessage[]>(`/api/v1/guests/${guestId}/messages`, { signal }),
+    enabled: enabled && Boolean(guestId),
+  });
+}
+
+/** Feeds the dashboard alert. A failed send must never be invisible. */
+export function useFailedMessages() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.messages.failed,
+    queryFn: ({ signal }) => api.get<ScheduledMessage[]>('/api/v1/messages/failed', { signal }),
+  });
+}
+
+export function useRetryMessage() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId: string) =>
+      api.post<ScheduledMessage>(`/api/v1/messages/${messageId}/retry`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+    },
+  });
+}
+
+export function useCancelMessage() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId, reason }: { messageId: string; reason?: string }) =>
+      api.post<ScheduledMessage>(`/api/v1/messages/${messageId}/cancel`, {
+        reason: reason ?? null,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+    },
+  });
+}
+
+export function useSubmitFeedback() {
+  const api = useApi();
+
+  return useMutation({
+    mutationFn: ({
+      bookingId,
+      rating,
+      oneWord,
+    }: {
+      bookingId: string;
+      /** 1 = 😕, 2 = 🙂, 3 = 😍 — ascending with sentiment, matching the API. */
+      rating: number;
+      oneWord?: string | null;
+    }) =>
+      api.put<Feedback>(`/api/v1/bookings/${bookingId}/feedback`, {
+        rating,
+        one_word: oneWord ?? null,
+      }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Name tags (PRD §2.3)
+// ---------------------------------------------------------------------------
+
+export function useTagSheet(sessionId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.sessions.tags(sessionId),
+    queryFn: ({ signal }) => api.get<TagSheet>(`/api/v1/sessions/${sessionId}/tags`, { signal }),
+    enabled: enabled && Boolean(sessionId),
+  });
+}
+
+/**
+ * Log that tags were printed.
+ *
+ * Called *after* the print dialog, never before: the stored fingerprint has
+ * to describe what actually reached paper, or the staleness banner lies.
+ */
+export function useRecordExport(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ theme, layout }: { theme: string; layout: string }) =>
+      api.post<ExportRecord>(`/api/v1/sessions/${sessionId}/exports`, { theme, layout }),
+    onSuccess: () => {
+      // The sheet carries roster_changed_since_export, which just became false.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.tags(sessionId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.exports(sessionId) });
+    },
   });
 }

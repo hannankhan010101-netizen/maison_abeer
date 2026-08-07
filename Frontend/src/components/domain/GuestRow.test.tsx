@@ -62,7 +62,7 @@ describe('GuestRow', () => {
       <GuestRow
         guest={guest({
           allergies: [
-            { id: 'a1', label: 'nut allergy', severity: 'allergy', notes: null, is_critical: true },
+            { id: 'a1', label: 'Nut allergy', severity: 'allergy', notes: null, is_critical: true },
           ],
         })}
       />,
@@ -70,7 +70,7 @@ describe('GuestRow', () => {
 
     // Health-adjacent information must survive being read aloud.
     expect(screen.getByText('Allergy:')).toHaveClass('sr-only');
-    expect(screen.getByText(/nut allergy/)).toBeInTheDocument();
+    expect(screen.getByText(/Nut allergy/)).toBeInTheDocument();
   });
 
   it('does not show a non-critical preference as an allergy chip', () => {
@@ -80,7 +80,7 @@ describe('GuestRow', () => {
           allergies: [
             {
               id: 'a1',
-              label: 'no coriander',
+              label: 'No coriander',
               severity: 'preference',
               notes: null,
               is_critical: false,
@@ -111,7 +111,7 @@ describe('GuestRow', () => {
   it('badges a guest who cannot be messaged', () => {
     // The PRD requires the host to know to reach them personally.
     render(<GuestRow guest={guest({ is_contactable: false })} />);
-    expect(screen.getByText('no messages')).toBeInTheDocument();
+    expect(screen.getByText('No messages')).toBeInTheDocument();
   });
 
   it('shows available rain-check credits, pluralised', () => {
@@ -125,7 +125,7 @@ describe('GuestRow', () => {
   it('shows the mini-CRM note', () => {
     render(
       <GuestRow
-        guest={guest({ memory_note: 'came with her sister; loved the matcha buttercream' })}
+        guest={guest({ memory_note: 'Came with her sister; loved the matcha buttercream' })}
       />,
     );
 

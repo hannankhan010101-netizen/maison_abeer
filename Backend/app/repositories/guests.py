@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import NotFoundError
 from app.domain.capacity import Capacity
@@ -19,7 +20,12 @@ from app.models.enums import BookingStatus, CreditStatus, SessionStatus, Waitlis
 from app.models.guest import Guest, GuestCredit
 from app.models.session import Booking, Session, WaitlistEntry
 from app.models.studio import StudioSettings
-from app.services.guests import BookingSnapshot, GuestDraft, GuestSnapshot
+from app.services.guests import (
+    AllergySnapshot,
+    BookingSnapshot,
+    GuestDraft,
+    GuestSnapshot,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -53,6 +59,20 @@ class SqlGuestRepository:
             birthday=guest.birthday,
             memory_note=guest.memory_note,
             available_credits=self._available_credits(guest.id),
+            allergies=tuple(
+                AllergySnapshot(
+                    id=allergy.id,
+                    label=allergy.label,
+                    severity=allergy.severity,
+                    notes=allergy.notes,
+                )
+                # Severe first: the roster and the day-of alert both read the
+                # first entry when they only have room for one.
+                for allergy in sorted(
+                    guest.allergies,
+                    key=lambda item: (not item.is_critical, item.label),
+                )
+            ),
         )
 
     def _available_credits(self, guest_id: UUID) -> int:
@@ -63,7 +83,13 @@ class SqlGuestRepository:
         return len(self._db.scalars(statement))
 
     def list_guests(self) -> Sequence[GuestSnapshot]:
-        statement = self._db.query(Guest).where(Guest.archived_at.is_(None))
+        # selectinload, not lazy loading: the roster renders every guest's
+        # allergy chips, so the default would fire one query per guest.
+        statement = (
+            self._db.query(Guest)
+            .where(Guest.archived_at.is_(None))
+            .options(selectinload(Guest.allergies))
+        )
         return [self._snapshot(guest) for guest in self._db.scalars(statement)]
 
     def get_guest(self, guest_id: UUID) -> GuestSnapshot | None:

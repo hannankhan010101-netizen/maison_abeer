@@ -99,7 +99,7 @@ describe('nameFontSize', () => {
 
 describe('subtextFor', () => {
   it('uses the first answer given', () => {
-    expect(subtextFor({ flavour: 'team gulab jamun 🍮' })).toBe('team gulab jamun 🍮');
+    expect(subtextFor({ flavour: 'Team gulab jamun 🍮' })).toBe('Team gulab jamun 🍮');
   });
 
   it('skips blank answers', () => {
@@ -121,7 +121,7 @@ describe('subtextFor', () => {
   });
 
   it('does not truncate one that fits', () => {
-    expect(subtextFor({ a: 'birthday girl 🎂' })).toBe('birthday girl 🎂');
+    expect(subtextFor({ a: 'Birthday girl 🎂' })).toBe('Birthday girl 🎂');
   });
 });
 
@@ -153,7 +153,7 @@ describe('buildTags', () => {
   });
 
   it('omits subtext when the toggle is off', () => {
-    const tags = buildTags([booking({ booking_answers: { flavour: 'matcha' } })], {
+    const tags = buildTags([booking({ booking_answers: { flavour: 'Matcha' } })], {
       ...ALL_ON,
       showSubtext: false,
     });

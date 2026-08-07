@@ -14,15 +14,15 @@ The same PRD requires **WCAG 2.1 AA with 4.5:1 for body text**, and explicitly w
 
 Measuring every foreground/background pair in the prototype found seven failures:
 
-| Pair | Ratio |
-|---|---|
-| white on `--pink` (active nav) | 1.86:1 |
-| `--rose` as text on paper | 2.58:1 |
+| Pair                               | Ratio  |
+| ---------------------------------- | ------ |
+| white on `--pink` (active nav)     | 1.86:1 |
+| `--rose` as text on paper          | 2.58:1 |
 | white on `--rose` (primary button) | 2.62:1 |
-| `.chip-pink` ink on blush | 3.50:1 |
-| `.chip-sage` ink on sage-soft | 3.50:1 |
-| `.chip-warn` ink (allergy chip) | 3.92:1 |
-| `--latte` muted text | 4.27:1 |
+| `.chip-pink` ink on blush          | 3.50:1 |
+| `.chip-sage` ink on sage-soft      | 3.50:1 |
+| `.chip-warn` ink (allergy chip)    | 3.92:1 |
+| `--latte` muted text               | 4.27:1 |
 
 The allergy chip failing matters operationally, not just legally — the PRD routes a guest's nut
 allergy through that component (§2.4).
@@ -40,14 +40,14 @@ sitting on it from white to `--cocoa #40302A`.
 
 Flip the ink. No fill colour changes.
 
-| Fix | Before | After |
-|---|---|---|
-| Button/nav text on `--rose`: white → `--cocoa` | 2.62:1 | **4.80:1** |
-| Active nav text on `--pink`: white → `--cocoa` | 1.86:1 | **6.73:1** |
-| New `--rose-ink #B44363` for all rose-coloured *text* | 2.58:1 | **5.27:1** paper · 5.08 buttercream · 4.52 blush |
-| `.chip-sage` ink → `#5F714D` | 3.50:1 | **4.51:1** |
-| `.chip-warn` ink → `#BB463D` | 3.92:1 | **4.53:1** |
-| `--latte` muted text → `#866E60` | 4.27:1 | **4.52:1** |
+| Fix                                                   | Before | After                                            |
+| ----------------------------------------------------- | ------ | ------------------------------------------------ |
+| Button/nav text on `--rose`: white → `--cocoa`        | 2.62:1 | **4.80:1**                                       |
+| Active nav text on `--pink`: white → `--cocoa`        | 1.86:1 | **6.73:1**                                       |
+| New `--rose-ink #B44363` for all rose-coloured _text_ | 2.58:1 | **5.27:1** paper · 5.08 buttercream · 4.52 blush |
+| `.chip-sage` ink → `#5F714D`                          | 3.50:1 | **4.51:1**                                       |
+| `.chip-warn` ink → `#BB463D`                          | 3.92:1 | **4.53:1**                                       |
+| `--latte` muted text → `#866E60`                      | 4.27:1 | **4.52:1**                                       |
 
 A single new token, `--rose-ink`, covers rose-coloured text on all three light surfaces, so
 authors never have to pick between variants by background.

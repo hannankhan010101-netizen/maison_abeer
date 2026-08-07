@@ -22,6 +22,7 @@ from app.domain.guests import (
     visit_badge,
 )
 from app.domain.waitlist import invite_next
+from app.models.enums import AllergySeverity
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -31,6 +32,24 @@ if TYPE_CHECKING:
     from app.domain.capacity import Capacity
     from app.domain.scheduling import QuietHours
     from app.domain.waitlist import InviteDecision, WaitlistEntry
+
+
+@dataclass(frozen=True, slots=True)
+class AllergySnapshot:
+    """An allergy as the UI needs it.
+
+    `is_critical` is derived here rather than stored, so the rule that decides
+    what gets a red chip and a day-of alert lives in exactly one place.
+    """
+
+    id: UUID
+    label: str
+    severity: AllergySeverity
+    notes: str | None = None
+
+    @property
+    def is_critical(self) -> bool:
+        return self.severity in {AllergySeverity.ALLERGY, AllergySeverity.SEVERE}
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +64,11 @@ class GuestSnapshot:
     birthday: date | None
     memory_note: str | None
     available_credits: int = 0
+    allergies: tuple[AllergySnapshot, ...] = ()
+
+    @property
+    def has_critical_allergy(self) -> bool:
+        return any(allergy.is_critical for allergy in self.allergies)
 
     @property
     def is_contactable(self) -> bool:

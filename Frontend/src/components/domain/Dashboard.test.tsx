@@ -37,7 +37,7 @@ function session(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake decorating',
+    class_type_name: 'Bento cake decorating',
     color_token: 'pink',
     title: null,
     location: 'Studio A',
@@ -181,7 +181,7 @@ describe('Dashboard', () => {
     respond({ sessions: [session()] });
     renderDashboard({ hostName: 'zara' });
 
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('good morning');
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Good morning');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('zara');
   });
 
@@ -189,7 +189,7 @@ describe('Dashboard', () => {
     respond({ sessions: [session()] });
     renderDashboard();
 
-    expect(await screen.findByText('bento cake decorating')).toBeInTheDocument();
+    expect(await screen.findByText('Bento cake decorating')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: '8 of 10 seats booked' })).toBeInTheDocument();
   });
 
@@ -198,16 +198,16 @@ describe('Dashboard', () => {
       sessions: [
         session({
           id: 'later',
-          class_type_name: 'pottery',
+          class_type_name: 'Pottery',
           starts_at: new Date(2026, 7, 9).toISOString(),
         }),
-        session({ id: 'sooner', class_type_name: 'ceramic painting' }),
+        session({ id: 'sooner', class_type_name: 'Ceramic painting' }),
       ],
     });
 
     renderDashboard();
 
-    expect(await screen.findByText('ceramic painting')).toBeInTheDocument();
+    expect(await screen.findByText('Ceramic painting')).toBeInTheDocument();
   });
 
   it('offers the three quick actions as real links', async () => {
@@ -215,30 +215,30 @@ describe('Dashboard', () => {
     renderDashboard();
 
     // Links, not buttons: middle-click and open-in-new-tab must work.
-    expect(await screen.findByRole('link', { name: 'print name tags' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Print name tags' })).toHaveAttribute(
       'href',
       '/tags',
     );
-    expect(screen.getByRole('link', { name: 'view guest list' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View guest list' })).toHaveAttribute(
       'href',
       '/guests',
     );
-    expect(screen.getByRole('link', { name: 'adjust seats' })).toHaveAttribute('href', '/calendar');
+    expect(screen.getByRole('link', { name: 'Adjust seats' })).toHaveAttribute('href', '/calendar');
   });
 
   it('shows a warm empty state with nothing scheduled', async () => {
     respond({ sessions: [] });
     renderDashboard();
 
-    expect(await screen.findByText('nothing scheduled yet')).toBeInTheDocument();
-    expect(screen.getByText('plan something lovely?')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing scheduled yet')).toBeInTheDocument();
+    expect(screen.getByText('Plan something lovely?')).toBeInTheDocument();
   });
 
   it('adapts the greeting to a quiet day', async () => {
     respond({ sessions: [] });
     renderDashboard();
 
-    expect(await screen.findByText(/quiet day today/)).toBeInTheDocument();
+    expect(await screen.findByText(/Quiet day today/)).toBeInTheDocument();
   });
 
   it('announces a critical alert', async () => {
@@ -246,7 +246,7 @@ describe('Dashboard', () => {
     renderDashboard();
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('roster changed since your last export');
+    expect(alert).toHaveTextContent('Roster changed since your last export');
   });
 
   it('says so when nothing needs the host', async () => {

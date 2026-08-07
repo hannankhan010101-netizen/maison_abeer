@@ -91,7 +91,7 @@ describe('AppShell', () => {
   it('hides decorative icons from screen readers', () => {
     render(<AppShell>content</AppShell>);
 
-    const [link] = screen.getAllByRole('link', { name: /today/ });
+    const [link] = screen.getAllByRole('link', { name: /Today/ });
     if (!link) throw new Error('expected a today link');
     const icon = link.querySelector('[aria-hidden="true"]');
 

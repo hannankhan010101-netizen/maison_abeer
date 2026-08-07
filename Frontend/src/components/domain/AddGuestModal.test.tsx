@@ -60,8 +60,8 @@ describe('AddGuestModal', () => {
     respond(201, { id: 'g1', full_name: 'Hira S.' });
     renderModal();
 
-    await userEvent.type(screen.getByLabelText('name'), 'Hira S.');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Hira S.');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
     // Hosts add people from DMs and calls; requiring contact details would
     // push them back to the notes app this replaces.
@@ -73,10 +73,10 @@ describe('AddGuestModal', () => {
     respond(201, { id: 'g1', full_name: 'Sana R.' });
     renderModal();
 
-    await userEvent.type(screen.getByLabelText('name'), 'Sana R.');
-    await userEvent.type(screen.getByLabelText('phone'), '0300 1234567');
-    await userEvent.type(screen.getByLabelText('a note to remember them by'), 'loves matcha');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Sana R.');
+    await userEvent.type(screen.getByLabelText('Phone'), '0300 1234567');
+    await userEvent.type(screen.getByLabelText('A note to remember them by'), 'loves matcha');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
     await waitFor(() => {
       const body = lastBody();
@@ -92,24 +92,24 @@ describe('AddGuestModal', () => {
     });
 
     renderModal();
-    await userEvent.type(screen.getByLabelText('name'), 'Sana');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Sana');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
     // Merging blends allergy records, so the host decides — but they should
     // not have to start over to do it.
     expect(await screen.findByRole('alert')).toHaveTextContent('already in your guests');
-    expect(screen.getByRole('button', { name: 'add to their history' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add to their history' })).toBeInTheDocument();
   });
 
   it('retries with the merge flag when confirmed', async () => {
     respond(409, { code: 'duplicate_guest', message: 'Already there.' });
 
     renderModal();
-    await userEvent.type(screen.getByLabelText('name'), 'Sana');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Sana');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
     respond(201, { id: 'existing', full_name: 'Sana R.' });
-    await userEvent.click(await screen.findByRole('button', { name: 'add to their history' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Add to their history' }));
 
     await waitFor(() => {
       const url = String(fetchImpl.mock.calls.at(-1)![0]);
@@ -121,13 +121,13 @@ describe('AddGuestModal', () => {
     respond(409, { code: 'duplicate_guest', message: 'Already there.' });
 
     renderModal();
-    await userEvent.type(screen.getByLabelText('name'), 'Sana');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Sana');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
-    await userEvent.click(await screen.findByRole('button', { name: 'edit details' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit details' }));
 
     // The typed name survives the round trip.
-    expect(screen.getByLabelText('name')).toHaveValue('Sana');
+    expect(screen.getByLabelText('Name')).toHaveValue('Sana');
   });
 
   it('shows a field error against the right input', async () => {
@@ -138,8 +138,8 @@ describe('AddGuestModal', () => {
     });
 
     renderModal();
-    await userEvent.type(screen.getByLabelText('name'), 'Sana');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Sana');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
     expect(await screen.findByText('That email looks off.')).toBeInTheDocument();
   });
@@ -149,8 +149,8 @@ describe('AddGuestModal', () => {
     respond(201, { id: 'g1', full_name: 'Hira S.' });
 
     renderModal({ onCreated });
-    await userEvent.type(screen.getByLabelText('name'), 'Hira S.');
-    await userEvent.click(screen.getByRole('button', { name: 'add guest' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Hira S.');
+    await userEvent.click(screen.getByRole('button', { name: 'Add guest' }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 'g1', full_name: 'Hira S.' }));
   });
@@ -160,8 +160,8 @@ describe('AddGuestModal', () => {
     respond(201, { id: 'g1', full_name: 'Hira' });
 
     const { rerender } = renderModal({ onClose });
-    await userEvent.type(screen.getByLabelText('name'), 'Hira');
-    await userEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Hira');
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     rerender(
       <Wrapper>
@@ -170,6 +170,6 @@ describe('AddGuestModal', () => {
     );
 
     // Reopening should not resurrect a half-typed guest.
-    expect(screen.getByLabelText('name')).toHaveValue('');
+    expect(screen.getByLabelText('Name')).toHaveValue('');
   });
 });

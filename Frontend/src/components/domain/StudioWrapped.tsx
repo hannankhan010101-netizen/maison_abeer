@@ -131,7 +131,7 @@ export function StudioWrapped({
             <p className="mt-3 text-[15px] font-bold opacity-80">{slide.detail}</p>
           </div>
 
-          <p className="font-hand text-lg opacity-70">maison abeer</p>
+          <p className="font-hand text-lg opacity-70">Maison Abeer</p>
         </div>
       </div>
 
@@ -142,10 +142,10 @@ export function StudioWrapped({
 
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => setIndex(0)}>
-            start over
+            Start over
           </Button>
-          <Button size="sm" onClick={() => toast('screenshot it — already story-shaped 📲')}>
-            share
+          <Button size="sm" onClick={() => toast('Screenshot it — already story-shaped 📲')}>
+            Share
           </Button>
         </div>
       </div>

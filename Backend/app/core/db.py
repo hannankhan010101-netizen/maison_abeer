@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from sqlalchemy import Select, create_engine, event, select
 from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.core.config import Settings, get_settings
 from app.core.errors import NotFoundError
@@ -38,10 +39,35 @@ _session_factory: sessionmaker[SASession] | None = None
 def create_db_engine(settings: Settings | None = None) -> Engine:
     """Build the engine.
 
+    Two shapes, because a long-lived container and a serverless function want
+    opposite things from a connection pool.
+
+    **Long-lived** (uvicorn on a VM): a real pool, reused across requests.
     `pool_pre_ping` matters on Supabase's pooler, which drops idle server-side
     connections; without it the first query after an idle period fails.
+
+    **Serverless** (Vercel): `NullPool`. A function instance handles one
+    request and freezes, so a pool it holds is dead weight the database still
+    counts against `max_connections` — enough concurrent invocations and the
+    project stops accepting connections entirely. Prepared statements are also
+    disabled, because a transaction-mode pooler hands each statement to a
+    different backend and psycopg's cached plan will not be there:
+    `prepared statement "_pg3_0" does not exist` under load, and only under
+    load, which is the worst way to find out.
     """
     resolved = settings or get_settings()
+
+    connect_args: dict[str, object] = {"options": "-c statement_timeout=15000"}
+
+    if resolved.db_serverless:
+        connect_args["prepare_threshold"] = None
+
+        return create_engine(
+            str(resolved.database_url),
+            poolclass=NullPool,
+            future=True,
+            connect_args=connect_args,
+        )
 
     return create_engine(
         str(resolved.database_url),
@@ -50,9 +76,7 @@ def create_db_engine(settings: Settings | None = None) -> Engine:
         pool_recycle=resolved.db_pool_recycle_seconds,
         pool_pre_ping=True,
         future=True,
-        # Statement-level timeout so one pathological query cannot pin a
-        # connection indefinitely.
-        connect_args={"options": "-c statement_timeout=15000"},
+        connect_args=connect_args,
     )
 
 

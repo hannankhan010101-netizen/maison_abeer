@@ -25,8 +25,8 @@ export interface TagTheme {
 export const THEMES: readonly TagTheme[] = [
   {
     id: 'coquette',
-    label: 'coquette & ribbon',
-    description: 'bows, blush, cursive',
+    label: 'Coquette & ribbon',
+    description: 'Bows, blush, cursive',
     suitsColorToken: 'pink',
     swatch: 'bg-gradient-to-br from-blush to-pink',
     tagClass: 'bg-blush text-rose-ink border-[#F2C9D4]',
@@ -34,16 +34,16 @@ export const THEMES: readonly TagTheme[] = [
   },
   {
     id: 'clay',
-    label: 'clay & terracotta',
-    description: 'earthy, organic, rustic',
+    label: 'Clay & terracotta',
+    description: 'Earthy, organic, rustic',
     suitsColorToken: 'terra',
     swatch: 'bg-gradient-to-br from-[#EBD9C7] to-terra',
     tagClass: 'bg-[#EBD9C7] text-[#5E3A24] border-[#D9BC9F] rounded-[18px_22px_16px_24px]',
   },
   {
     id: 'pastel',
-    label: 'pastel minimalist',
-    description: 'line-art florals, sage',
+    label: 'Pastel minimalist',
+    description: 'Line-art florals, sage',
     suitsColorToken: 'sage',
     swatch: 'bg-gradient-to-br from-paper to-sage',
     tagClass: 'bg-paper text-sage-ink border-dashed border-sage',
@@ -51,8 +51,8 @@ export const THEMES: readonly TagTheme[] = [
   },
   {
     id: 'autumn',
-    label: 'autumn drop',
-    description: 'seasonal · limited',
+    label: 'Autumn drop',
+    description: 'Seasonal · limited',
     suitsColorToken: 'butter',
     seasonal: true,
     swatch: 'bg-gradient-to-br from-butter to-terra',
@@ -70,19 +70,19 @@ export interface TagLayout {
 }
 
 export const LAYOUTS: readonly TagLayout[] = [
-  { id: 'a4-8', label: 'A4 grid · 8 per page', perPage: 8, description: 'with faint trim marks' },
+  { id: 'a4-8', label: 'A4 grid · 8 per page', perPage: 8, description: 'With faint trim marks' },
   {
     id: 'a4-10',
     label: 'A4 grid · 10 per page',
     perPage: 10,
-    description: 'tighter, smaller tags',
+    description: 'Tighter, smaller tags',
   },
-  { id: 'sticker', label: 'sticker sheet', perPage: 10, description: 'pre-cut label paper' },
+  { id: 'sticker', label: 'Sticker sheet', perPage: 10, description: 'Pre-cut label paper' },
   {
     id: 'thermal',
-    label: 'thermal · one at a time',
+    label: 'Thermal · one at a time',
     perPage: 1,
-    description: 'desktop label printer',
+    description: 'Desktop label printer',
   },
 ] as const;
 

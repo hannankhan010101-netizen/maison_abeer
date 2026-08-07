@@ -7,7 +7,7 @@ import { AlertCard } from '@/components/ui/AlertCard';
 import { Button } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
-import { useRoster, useSessions } from '@/lib/api/hooks';
+import { useRecordExport, useRoster, useSessions, useTagSheet } from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
 import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks } from '@/lib/dates';
@@ -47,12 +47,12 @@ export function TagStudio({ now: nowProp }: TagStudioProps) {
 }
 
 function TagStudioInner({ now }: { now: Date }) {
-  const window = useMemo(
+  const range = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
     [now],
   );
 
-  const sessions = useSessions(window.start, window.end);
+  const sessions = useSessions(range.start, range.end);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -61,6 +61,12 @@ function TagStudioInner({ now }: { now: Date }) {
   );
 
   const roster = useRoster(selected?.id ?? '', Boolean(selected));
+
+  // The sheet carries the server's fingerprint of what was last printed. It
+  // is the authority on staleness: comparing timestamps would raise the
+  // banner for edits that never reach a tag, and stay quiet for ones that do.
+  const sheet = useTagSheet(selected?.id ?? '', Boolean(selected));
+  const recordExport = useRecordExport(selected?.id ?? '');
 
   const [theme, setTheme] = useState<ThemeId | null>(null);
   const [layout, setLayout] = useState<LayoutId>('a4-8');
@@ -89,9 +95,9 @@ function TagStudioInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">name tag studio</h1>
+      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Name tag studio</h1>
       <p className="text-latte mb-4">
-        <HandNote>whole event kit in one click ✂️</HandNote>
+        <HandNote>Whole event kit in one click ✂️</HandNote>
       </p>
 
       <SessionPicker
@@ -102,21 +108,21 @@ function TagStudioInner({ now }: { now: Date }) {
 
       {sessions.isSuccess && (sessions.data?.length ?? 0) === 0 ? (
         <Card>
-          <p className="font-display py-4 text-center text-lg">no upcoming classes</p>
+          <p className="font-display py-4 text-center text-lg">No upcoming classes</p>
           <p className="text-latte text-center text-sm">
-            schedule one and its tags will be ready here
+            Schedule one and its tags will be ready here
           </p>
         </Card>
       ) : null}
 
       {selected ? (
         <>
-          {selected.roster_changed_since_export ? (
+          {(sheet.data?.roster_changed_since_export ?? selected.roster_changed_since_export) ? (
             <AlertCard
               className="mb-4"
               tone="critical"
               icon="🏷️"
-              title="roster updated since your last export"
+              title="Roster updated since your last export"
               description="re-export so the printed set matches who's coming"
             />
           ) : null}
@@ -133,7 +139,7 @@ function TagStudioInner({ now }: { now: Date }) {
 
           <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
             <div>
-              <Eyebrow>theme</Eyebrow>
+              <Eyebrow>Theme</Eyebrow>
               <ul className="mb-4 grid gap-2">
                 {THEMES.map((option) => {
                   const active = option.id === activeTheme.id;
@@ -168,19 +174,19 @@ function TagStudioInner({ now }: { now: Date }) {
               </ul>
 
               <Card className="p-3.5">
-                <Eyebrow>show on tags</Eyebrow>
+                <Eyebrow>Show on tags</Eyebrow>
                 <Toggle
-                  label="table number"
+                  label="Table number"
                   checked={options.showTableNumber}
                   onChange={(v) => setOptions((o) => ({ ...o, showTableNumber: v }))}
                 />
                 <Toggle
-                  label="fun subtext"
+                  label="Fun subtext"
                   checked={options.showSubtext}
                   onChange={(v) => setOptions((o) => ({ ...o, showSubtext: v }))}
                 />
                 <Toggle
-                  label="instagram QR"
+                  label="Instagram QR"
                   checked={options.showQrCode}
                   onChange={(v) => setOptions((o) => ({ ...o, showQrCode: v }))}
                 />
@@ -190,7 +196,7 @@ function TagStudioInner({ now }: { now: Date }) {
                     htmlFor="layout"
                     className="text-latte mb-1.5 block text-[11.5px] font-extrabold tracking-[0.14em] uppercase"
                   >
-                    layout
+                    Layout
                   </label>
                   <select
                     id="layout"
@@ -217,7 +223,19 @@ function TagStudioInner({ now }: { now: Date }) {
               />
 
               <div className="mt-3.5 flex flex-wrap items-center gap-3">
-                <Button disabled={tags.length === 0}>export print PDF ⤓</Button>
+                <Button
+                  disabled={tags.length === 0 || recordExport.isPending}
+                  onClick={() => {
+                    // Print first, record second. The stored fingerprint has
+                    // to describe what actually reached paper — recording up
+                    // front would clear the staleness banner even if the host
+                    // cancelled the print dialog.
+                    window.print();
+                    recordExport.mutate({ theme: activeTheme.id, layout });
+                  }}
+                >
+                  Export print PDF ⤓
+                </Button>
                 <HandNote>
                   {tags.length} tag{tags.length === 1 ? '' : 's'} · {pageCount(tags.length, layout)}{' '}
                   page
@@ -225,16 +243,16 @@ function TagStudioInner({ now }: { now: Date }) {
                 </HandNote>
               </div>
 
-              <Eyebrow className="mt-5">matching event kit</Eyebrow>
+              <Eyebrow className="mt-5">Matching event kit</Eyebrow>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {[
-                  { icon: '🪧', label: 'welcome sign', note: 'A4 / A3' },
+                  { icon: '🪧', label: 'Welcome sign', note: 'A4 / A3' },
                   {
                     icon: '🔢',
-                    label: 'table cards',
+                    label: 'Table cards',
                     note: `×${new Set(tags.map((t) => t.tableNumber).filter(Boolean)).size || 0}`,
                   },
-                  { icon: '📱', label: 'story templates', note: '×3' },
+                  { icon: '📱', label: 'Story templates', note: '×3' },
                 ].map((piece) => (
                   <li key={piece.label}>
                     <Card className="p-3.5 text-center text-xs font-extrabold">
@@ -306,7 +324,7 @@ export function TagSheet({
     return (
       <Card>
         <p className="text-latte py-6 text-center text-sm">
-          no guests booked yet — tags appear as people join
+          No guests booked yet — tags appear as people join
         </p>
       </Card>
     );
@@ -330,7 +348,7 @@ export function TagSheet({
               ) : null}
 
               <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase opacity-65">
-                hello, i&rsquo;m
+                Hello, i&rsquo;m
               </span>
 
               {/* Type scales down rather than wrapping (PRD §2.3). */}

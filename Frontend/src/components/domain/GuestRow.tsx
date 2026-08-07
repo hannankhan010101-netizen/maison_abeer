@@ -79,7 +79,7 @@ export function GuestRow({ guest, action, className }: GuestRowProps) {
 
           {!guest.is_contactable ? (
             <Chip tone="neutral" srPrefix="Note:">
-              no messages
+              No messages
             </Chip>
           ) : null}
 

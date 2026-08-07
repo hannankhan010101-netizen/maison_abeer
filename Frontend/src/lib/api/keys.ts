@@ -16,6 +16,14 @@ export const queryKeys = {
     roster: (id: string) => ['sessions', 'roster', id] as const,
     waitlist: (id: string) => ['sessions', 'waitlist', id] as const,
     checklist: (id: string) => ['sessions', 'checklist', id] as const,
+    messages: (id: string) => ['sessions', 'messages', id] as const,
+    tags: (id: string) => ['sessions', 'tags', id] as const,
+    exports: (id: string) => ['sessions', 'exports', id] as const,
+  },
+  messages: {
+    all: ['messages'] as const,
+    failed: ['messages', 'failed'] as const,
+    forGuest: (id: string) => ['messages', 'guest', id] as const,
   },
   settings: {
     all: ['settings'] as const,

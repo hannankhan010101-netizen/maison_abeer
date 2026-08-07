@@ -47,8 +47,8 @@ export function CalendarView({ now: nowProp }: CalendarViewProps) {
 function CalendarViewInner({ now }: { now: Date }) {
   const [anchor, setAnchor] = useState(now);
 
-  const window = useMemo(() => weekWindow(anchor), [anchor]);
-  const query = useSessions(window.start, window.end);
+  const range = useMemo(() => weekWindow(anchor), [anchor]);
+  const query = useSessions(range.start, range.end);
 
   const days = useMemo(() => weekDays(anchor), [anchor]);
   const byDay = useMemo(() => groupByDay(query.data ?? []), [query.data]);
@@ -60,9 +60,9 @@ function CalendarViewInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">this week</h1>
+      <h1 className="font-display text-[clamp(26px,4vw,34px)]">This week</h1>
       <p className="text-latte mb-4">
-        <HandNote>your rest day is protected 🌙</HandNote>
+        <HandNote>Your rest day is protected 🌙</HandNote>
       </p>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -71,10 +71,10 @@ function CalendarViewInner({ now }: { now: Date }) {
             ← previous
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setAnchor(now)}>
-            this week
+            This week
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setAnchor(addWeeks(anchor, 1))}>
-            next →
+            Next →
           </Button>
         </nav>
 
@@ -99,7 +99,7 @@ function CalendarViewInner({ now }: { now: Date }) {
                 : "We couldn't load your week just now."}
             </p>
             <Button variant="ghost" className="mt-3" onClick={() => void query.refetch()}>
-              try again
+              Try again
             </Button>
           </div>
         </Card>
@@ -207,7 +207,7 @@ function AgendaDay({
           onClick={onAdd}
           className="border-line text-latte hover:border-pink hover:text-rose-ink min-h-[44px] w-full rounded-[var(--radius-md)] border-[1.5px] border-dashed px-3 text-left text-sm"
         >
-          nothing scheduled — add one?
+          Nothing scheduled — add one?
         </button>
       ) : (
         <ul className="grid gap-1.5">

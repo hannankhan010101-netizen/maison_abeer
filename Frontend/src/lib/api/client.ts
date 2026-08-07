@@ -95,6 +95,11 @@ export class ApiClient {
     return this.request<T>('PATCH', path, body, options);
   }
 
+  /** Used for upserts, where a repeat call must correct rather than conflict. */
+  put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>('PUT', path, body, options);
+  }
+
   delete<T>(path: string, options?: RequestOptions): Promise<T> {
     return this.request<T>('DELETE', path, undefined, options);
   }

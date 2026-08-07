@@ -86,25 +86,25 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
     <Modal
       open={open}
       onClose={onClose}
-      title="new session ✨"
+      title="New session ✨"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} type="button">
-            cancel
+            Cancel
           </Button>
           <Button
             type="submit"
             form="new-session"
             loading={createSession.isPending}
-            loadingLabel="adding…"
+            loadingLabel="Adding…"
           >
-            add session
+            Add session
           </Button>
         </>
       }
     >
       <form id="new-session" onSubmit={handleSubmit} noValidate>
-        <Field label="class type" htmlFor="class-type">
+        <Field label="Class type" htmlFor="class-type">
           <select
             id="class-type"
             value={classTypeId}
@@ -121,7 +121,7 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
         </Field>
 
         <Field
-          label="date & time"
+          label="Date & time"
           htmlFor="starts-at"
           error={error?.fieldError('starts_at') ?? error?.fieldError('ends_at')}
         >
@@ -135,7 +135,7 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
           />
         </Field>
 
-        <Field label="how long" htmlFor="duration">
+        <Field label="How long" htmlFor="duration">
           <select
             id="duration"
             value={durationMinutes}
@@ -151,9 +151,9 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
         </Field>
 
         <Field
-          label="seats"
+          label="Seats"
           htmlFor="seats"
-          hint="the checklist scales its quantities to match"
+          hint="The checklist scales its quantities to match"
           error={error?.fieldError('seats')}
         >
           <input
@@ -169,9 +169,9 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
         </Field>
 
         <Field
-          label="repeat weekly until"
+          label="Repeat weekly until"
           htmlFor="repeat-until"
-          hint="leave empty for a one-off"
+          hint="Leave empty for a one-off"
           error={error?.fieldError('repeat_weekly_until')}
         >
           <input

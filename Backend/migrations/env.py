@@ -24,8 +24,17 @@ target_metadata = Base.metadata
 
 
 def _database_url() -> str:
-    """Resolve the URL from settings, escaping `%` for ConfigParser."""
-    return str(get_settings().database_url).replace("%", "%%")
+    """Resolve the URL from settings.
+
+    Deliberately *not* `%`-escaped for ConfigParser. The value is written
+    straight into the plain dict returned by `config.get_section()`, which is
+    never interpolated, so doubling the percent signs here is never undone --
+    it just corrupts the URL. A password containing a percent-encoded
+    character is where this bites: `%23%23` ("##") would reach the driver as
+    `%%23%%23`, unquote to `%#%#`, and fail authentication with a misleading
+    "password authentication failed" against the wrong username.
+    """
+    return str(get_settings().database_url)
 
 
 def include_object(

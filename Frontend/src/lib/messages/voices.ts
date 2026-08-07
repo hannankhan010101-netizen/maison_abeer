@@ -24,21 +24,21 @@ export interface Voice {
 export const VOICES: readonly Voice[] = [
   {
     id: 'soft_sweet',
-    label: 'soft & sweet',
+    label: 'Soft & sweet',
     icon: '🌷',
-    description: 'warm, gentle, lots of heart',
+    description: 'Warm, gentle, lots of heart',
   },
   {
     id: 'chaotic_bestie',
-    label: 'chaotic bestie',
+    label: 'Chaotic bestie',
     icon: '🔥',
-    description: 'caps lock and affection',
+    description: 'Caps lock and affection',
   },
   {
     id: 'clean_minimal',
-    label: 'clean & minimal',
+    label: 'Clean & minimal',
     icon: '🤍',
-    description: 'just the facts, kindly',
+    description: 'Just the facts, kindly',
   },
 ] as const;
 
@@ -66,11 +66,11 @@ interface Template {
 const TEMPLATES: Record<MessageKind, Record<VoiceId, Template>> = {
   reminder_24h: {
     soft_sweet: {
-      body: "we can't wait to see you tomorrow at {time}!{e} wear something comfy — aprons are on us. parking is right out front, lovely.",
+      body: "We can't wait to see you tomorrow at {time}!{e} Wear something comfy — aprons are on us. Parking is right out front, lovely.",
       emoji: { light: ' 🎀', full: ' 🎀💗' },
     },
     chaotic_bestie: {
-      body: 'BESTIE. tomorrow. {time}. {class_name}. be there.{e} (wear clothes you can get frosting on, this is a warning)',
+      body: 'BESTIE. Tomorrow. {time}. {class_name}. Be there.{e} (wear clothes you can get frosting on, this is a warning)',
       emoji: { light: ' 🧁', full: ' 🧁🔥💅' },
     },
     clean_minimal: {
@@ -80,11 +80,11 @@ const TEMPLATES: Record<MessageKind, Record<VoiceId, Template>> = {
   },
   thank_you: {
     soft_sweet: {
-      body: 'thank you for making with us, {guest_name}{e} tap an emoji + one word to tell us how it felt?',
+      body: 'Thank you for making with us, {guest_name}{e} Tap an emoji + one word to tell us how it felt?',
       emoji: { light: ' 💗', full: ' 💗✨' },
     },
     chaotic_bestie: {
-      body: '{guest_name}!! you ATE that (literally){e} one emoji + one word — how was it??',
+      body: '{guest_name}!! You ATE that (literally){e} one emoji + one word — how was it??',
       emoji: { light: ' 💅', full: ' 💅🔥' },
     },
     clean_minimal: {
@@ -94,11 +94,11 @@ const TEMPLATES: Record<MessageKind, Record<VoiceId, Template>> = {
   },
   schedule_change: {
     soft_sweet: {
-      body: 'heads up lovely — {class_name} has moved to {date} at {time}.{e} same spot, same fun. reply if that no longer works!',
+      body: 'Heads up lovely — {class_name} has moved to {date} at {time}.{e} Same spot, same fun. Reply if that no longer works!',
       emoji: { light: ' 💗', full: ' 💗🌷' },
     },
     chaotic_bestie: {
-      body: 'PLOT TWIST. {class_name} is now {date} at {time}.{e} same vibes, new day. shout if you can’t make it!',
+      body: 'PLOT TWIST. {class_name} is now {date} at {time}.{e} Same vibes, new day. Shout if you can’t make it!',
       emoji: { light: ' 🌀', full: ' 🌀🔥' },
     },
     clean_minimal: {
@@ -108,11 +108,11 @@ const TEMPLATES: Record<MessageKind, Record<VoiceId, Template>> = {
   },
   waitlist_invite: {
     soft_sweet: {
-      body: 'a seat just opened up for {class_name} on {date}!{e} it’s yours if you’d like it — just reply and it’s saved.',
+      body: 'A seat just opened up for {class_name} on {date}!{e} It’s yours if you’d like it — just reply and it’s saved.',
       emoji: { light: ' 🎀', full: ' 🎀💗' },
     },
     chaotic_bestie: {
-      body: 'SEAT. OPENED. {class_name}, {date}.{e} say the word and it’s yours before someone else grabs it',
+      body: 'SEAT. OPENED. {class_name}, {date}.{e} Say the word and it’s yours before someone else grabs it',
       emoji: { light: ' 👀', full: ' 👀🔥' },
     },
     clean_minimal: {
@@ -180,21 +180,21 @@ export const SEND_SCHEDULE: readonly ScheduledStep[] = [
   {
     id: 'reminder',
     label: 'T-24h · guest reminder',
-    detail: 'details, parking, what to wear, dietary check',
+    detail: 'Details, parking, what to wear, dietary check',
     hoursFromStart: -24,
     audience: 'guest',
   },
   {
     id: 'host-nudge',
     label: 'T-3h · host nudge',
-    detail: 'tags printed? aprons out? you’ve got this',
+    detail: 'Tags printed? Aprons out? You’ve got this',
     hoursFromStart: -3,
     audience: 'host',
   },
   {
     id: 'thank-you',
     label: 'T+24h · thank you + feedback',
-    detail: 'emoji + one word · photo tag invite',
+    detail: 'Emoji + one word · photo tag invite',
     hoursFromStart: 24,
     audience: 'guest',
   },

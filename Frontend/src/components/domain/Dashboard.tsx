@@ -39,12 +39,12 @@ export function Dashboard({ hostName, now: nowProp }: DashboardProps) {
 }
 
 function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
-  const window = useMemo(
+  const range = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 2).toISOString() }),
     [now],
   );
 
-  const sessions = useSessions(window.start, window.end);
+  const sessions = useSessions(range.start, range.end);
   const birthdays = useUpcomingBirthdays();
 
   const upcoming = useMemo(() => {
@@ -65,7 +65,7 @@ function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
                 : "We couldn't load your day just now."}
             </p>
             <Button variant="ghost" className="mt-3" onClick={() => void sessions.refetch()}>
-              try again
+              Try again
             </Button>
           </div>
         </Card>
@@ -88,7 +88,7 @@ function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
           </div>
 
           <div className="grid content-start gap-3">
-            <Eyebrow>alerts &amp; nudges</Eyebrow>
+            <Eyebrow>Alerts &amp; nudges</Eyebrow>
             <AlertFeed sessions={sessions.data} birthdays={birthdays.data ?? []} />
 
             {/* Celebratory, and deliberately screenshot-shaped (PRD §2.1). */}
@@ -116,12 +116,12 @@ function Greeting({
   // as a busy one.
   const note = next
     ? `${next.title ?? next.class_type_name} ${humanCountdown(next.starts_at, now)}`
-    : 'quiet day today — perfect time to plan something lovely';
+    : 'Quiet day today — perfect time to plan something lovely';
 
   return (
     <header className="mb-5">
       <h1 className="font-display text-[clamp(26px,4vw,34px)]">
-        good {part}
+        Good {part}
         {name} ✨
       </h1>
       <p className="text-latte">
@@ -152,9 +152,9 @@ function NextUpCard({ session, now }: { session: Session; now: Date }) {
           </p>
 
           <p className="mt-1.5 flex flex-wrap gap-1.5">
-            {capacity.state === 'sold_out' ? <Chip tone="pink">sold out 🎀</Chip> : null}
-            {capacity.state === 'nearly_full' ? <Chip tone="pink">filling fast 🔥</Chip> : null}
-            {capacity.waitlist_is_open ? <Chip tone="butter">waitlist open</Chip> : null}
+            {capacity.state === 'sold_out' ? <Chip tone="pink">Sold out 🎀</Chip> : null}
+            {capacity.state === 'nearly_full' ? <Chip tone="pink">Filling fast 🔥</Chip> : null}
+            {capacity.waitlist_is_open ? <Chip tone="butter">Waitlist open</Chip> : null}
             {session.status === 'locked' ? <Chip tone="neutral">🔒 closed</Chip> : null}
           </p>
         </div>
@@ -163,13 +163,13 @@ function NextUpCard({ session, now }: { session: Session; now: Date }) {
       {/* The PRD's three quick actions, each jumping straight to the module. */}
       <div className="mt-4 flex flex-wrap gap-2.5">
         <Link href="/tags" className={buttonClasses()}>
-          print name tags
+          Print name tags
         </Link>
         <Link href="/guests" className={buttonClasses('secondary')}>
-          view guest list
+          View guest list
         </Link>
         <Link href="/calendar" className={buttonClasses('secondary')}>
-          adjust seats
+          Adjust seats
         </Link>
       </div>
     </Card>
@@ -180,10 +180,10 @@ function NothingScheduled() {
   return (
     <Card>
       <div className="py-4 text-center">
-        <p className="font-display text-lg">nothing scheduled yet</p>
-        <p className="text-latte mt-1 text-sm">plan something lovely?</p>
+        <p className="font-display text-lg">Nothing scheduled yet</p>
+        <p className="text-latte mt-1 text-sm">Plan something lovely?</p>
         <Link href="/calendar" className={`${buttonClasses('ghost')} mt-4`}>
-          open the calendar
+          Open the calendar
         </Link>
       </div>
     </Card>
@@ -214,7 +214,7 @@ export function buildAlerts(sessions: Session[], birthdays: UpcomingBirthday[]) 
         tone: 'warning',
         icon: '🪑',
         title: `${count} guest${count === 1 ? '' : 's'} need${count === 1 ? 's' : ''} a table`,
-        description: 'assign before printing tags',
+        description: 'Assign before printing tags',
         href: '/guests',
       });
     }
@@ -224,8 +224,8 @@ export function buildAlerts(sessions: Session[], birthdays: UpcomingBirthday[]) 
         id: `export-${session.id}`,
         tone: 'critical',
         icon: '🏷️',
-        title: 'roster changed since your last export',
-        description: 're-export tags so the printed set matches',
+        title: 'Roster changed since your last export',
+        description: 'Re-export tags so the printed set matches',
         href: '/tags',
       });
     }
@@ -235,8 +235,8 @@ export function buildAlerts(sessions: Session[], birthdays: UpcomingBirthday[]) 
         id: `waitlist-${session.id}`,
         tone: 'gentle',
         icon: '💌',
-        title: 'a seat opened up',
-        description: 'invite the next person from the waitlist',
+        title: 'A seat opened up',
+        description: 'Invite the next person from the waitlist',
         href: '/guests',
       });
     }
@@ -272,7 +272,7 @@ function AlertFeed({
     return (
       <Card>
         <p className="text-sm">
-          <HandNote>all quiet — nothing needs you right now ♡</HandNote>
+          <HandNote>All quiet — nothing needs you right now ♡</HandNote>
         </p>
       </Card>
     );
@@ -289,7 +289,7 @@ function AlertFeed({
             description={alert.description}
             action={
               <Link href={alert.href} className={buttonClasses('secondary', 'sm')}>
-                open
+                Open
               </Link>
             }
           />

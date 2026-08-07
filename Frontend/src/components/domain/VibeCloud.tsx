@@ -46,11 +46,11 @@ export function VibeCloud({ words, className }: VibeCloudProps) {
   if (tallied.length === 0) {
     return (
       <Card className={className}>
-        <Eyebrow>what people say</Eyebrow>
+        <Eyebrow>What people say</Eyebrow>
         <p className="text-latte py-4 text-center text-sm">
-          nothing yet — after a class, guests get one tap and one word.
+          Nothing yet — after a class, guests get one tap and one word.
           <br />
-          <HandNote>their words land here 💬</HandNote>
+          <HandNote>Their words land here 💬</HandNote>
         </p>
       </Card>
     );
@@ -58,7 +58,7 @@ export function VibeCloud({ words, className }: VibeCloudProps) {
 
   return (
     <Card className={className}>
-      <Eyebrow>what people say about your classes</Eyebrow>
+      <Eyebrow>What people say about your classes</Eyebrow>
 
       <ul className="flex flex-wrap items-baseline gap-x-3 gap-y-2 py-1">
         {tallied.map((entry, rank) => (
@@ -83,7 +83,7 @@ export function VibeCloud({ words, className }: VibeCloudProps) {
       </ul>
 
       <p className="mt-2">
-        <HandNote>steal these for your captions ✍️</HandNote>
+        <HandNote>Steal these for your captions ✍️</HandNote>
       </p>
     </Card>
   );

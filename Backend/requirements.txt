@@ -1,0 +1,22 @@
+# Vercel's Python runtime installs from this file; it does not read
+# pyproject.toml. Kept in step with [project.dependencies] there, which stays
+# the source of truth for local development and CI.
+#
+# uvicorn is deliberately absent: Vercel supplies the ASGI server, and the
+# [standard] extra pulls in compiled packages that only slow the build.
+
+fastapi>=0.115.6
+pydantic>=2.10.4
+email-validator>=2.2.0
+pydantic-settings>=2.7.0
+sqlalchemy>=2.0.36
+alembic>=1.14.0
+psycopg[binary]>=3.2.3
+pyjwt[crypto]>=2.10.1
+httpx>=0.28.1
+python-dateutil>=2.9.0
+structlog>=24.4.0
+slowapi>=0.1.9
+# Ships the IANA timezone database. A slim Linux image has no system zoneinfo,
+# so without this every ZoneInfo lookup raises and all scheduling breaks.
+tzdata>=2024.2

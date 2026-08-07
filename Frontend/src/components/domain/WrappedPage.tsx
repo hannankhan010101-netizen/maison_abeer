@@ -66,12 +66,12 @@ export function WrappedPage({ now: nowProp }: { now?: Date }) {
 
 function WrappedPageInner({ now }: { now: Date }) {
   // A season back, so the story has something to look back on.
-  const window = useMemo(
+  const range = useMemo(
     () => ({ start: addWeeks(now, -26).toISOString(), end: addWeeks(now, 4).toISOString() }),
     [now],
   );
 
-  const sessions = useSessions(window.start, window.end);
+  const sessions = useSessions(range.start, range.end);
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
 
   const stats = useMemo(
@@ -81,9 +81,9 @@ function WrappedPageInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">your receipts</h1>
+      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Your receipts</h1>
       <p className="text-latte mb-5">
-        <HandNote>proof that people keep showing up 💗</HandNote>
+        <HandNote>Proof that people keep showing up 💗</HandNote>
       </p>
 
       {sessions.isError ? (
@@ -95,7 +95,7 @@ function WrappedPageInner({ now }: { now: Date }) {
                 : "We couldn't load your season."}
             </p>
             <Button variant="ghost" className="mt-3" onClick={() => void sessions.refetch()}>
-              try again
+              Try again
             </Button>
           </div>
         </Card>
@@ -104,7 +104,7 @@ function WrappedPageInner({ now }: { now: Date }) {
       {sessions.isSuccess ? (
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
           <div>
-            <Eyebrow>studio wrapped</Eyebrow>
+            <Eyebrow>Studio wrapped</Eyebrow>
             <StudioWrapped sessions={list} words={SAMPLE_WORDS} now={now} />
           </div>
 

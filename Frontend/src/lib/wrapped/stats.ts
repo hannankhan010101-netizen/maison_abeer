@@ -33,29 +33,29 @@ export interface StudioPersonality {
 
 const PERSONALITIES: Record<string, Omit<StudioPersonality, 'id'>> = {
   sunrise: {
-    title: 'sunrise baker',
+    title: 'Sunrise baker',
     emoji: '☀️',
-    blurb: 'you start before the world does. morning classes, quiet studio, best light.',
+    blurb: 'You start before the world does. Morning classes, quiet studio, best light.',
   },
   goldenHour: {
-    title: 'golden hour host',
+    title: 'Golden hour host',
     emoji: '🌇',
-    blurb: 'late afternoon is your hour. everything looks better in that light and you know it.',
+    blurb: 'Late afternoon is your hour. Everything looks better in that light and you know it.',
   },
   moonlit: {
-    title: 'after dark studio',
+    title: 'After dark studio',
     emoji: '🌙',
-    blurb: 'evening classes, fairy lights, people unwinding. your studio is where the day lands.',
+    blurb: 'Evening classes, fairy lights, people unwinding. Your studio is where the day lands.',
   },
   weekender: {
-    title: 'weekend main character',
+    title: 'Weekend main character',
     emoji: '🎀',
-    blurb: 'saturdays belong to you. weekday you rests, weekend you runs the show.',
+    blurb: 'Saturdays belong to you. Weekday you rests, weekend you runs the show.',
   },
   soldOut: {
-    title: 'sold out era',
+    title: 'Sold out era',
     emoji: '🔥',
-    blurb: 'people book before you finish posting. that is not luck, that is a reputation.',
+    blurb: 'People book before you finish posting. That is not luck, that is a reputation.',
   },
 };
 
@@ -71,9 +71,9 @@ export function personalityFor(sessions: Session[]): StudioPersonality {
   if (taught.length === 0) {
     return {
       id: 'newStudio',
-      title: 'brand new',
+      title: 'Brand new',
       emoji: '🌱',
-      blurb: 'the first class is the hardest. everything after is momentum.',
+      blurb: 'The first class is the hardest. Everything after is momentum.',
     };
   }
 
@@ -104,7 +104,7 @@ export function personalityFor(sessions: Session[]): StudioPersonality {
 // Derived facts
 // ---------------------------------------------------------------------------
 
-const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export interface WrappedStats {
   classesTaught: number;
@@ -246,8 +246,8 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   slides.push({
     id: 'intro',
     eyebrow: season,
-    headline: 'let’s look back',
-    detail: 'a whole season of people making things in your studio.',
+    headline: 'Let’s look back',
+    detail: 'A whole season of people making things in your studio.',
     emoji: '✨',
     gradient: 'from-pink via-butter to-sage',
   });
@@ -255,7 +255,7 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.classesTaught > 0) {
     slides.push({
       id: 'classes',
-      eyebrow: 'you showed up',
+      eyebrow: 'You showed up',
       headline: `${stats.classesTaught} classes`,
       detail: `that’s ${stats.hoursTaught} hours of your hands covered in something.`,
       emoji: '🎀',
@@ -266,9 +266,9 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.guestsTaught > 0) {
     slides.push({
       id: 'guests',
-      eyebrow: 'you taught',
+      eyebrow: 'You taught',
       headline: `${stats.guestsTaught} people`,
-      detail: 'every one of them left with something they made themselves.',
+      detail: 'Every one of them left with something they made themselves.',
       emoji: '💗',
       gradient: 'from-butter via-pink to-blush',
     });
@@ -277,7 +277,7 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.signatureCraft) {
     slides.push({
       id: 'craft',
-      eyebrow: 'your signature',
+      eyebrow: 'Your signature',
       headline: stats.signatureCraft,
       detail: `${Math.round(stats.signatureCraftShare * 100)}% of everything you ran. that’s a whole identity.`,
       emoji: '🏺',
@@ -288,9 +288,9 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.busiestDay) {
     slides.push({
       id: 'day',
-      eyebrow: 'your day',
+      eyebrow: 'Your day',
       headline: stats.busiestDay,
-      detail: 'the one the studio is loudest. everyone has one.',
+      detail: 'The one the studio is loudest. Everyone has one.',
       emoji: '📅',
       gradient: 'from-sage-soft via-butter to-blush',
     });
@@ -299,9 +299,9 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.soldOutCount > 0) {
     slides.push({
       id: 'soldout',
-      eyebrow: 'no seats left',
+      eyebrow: 'No seats left',
       headline: `${stats.soldOutCount} sold out`,
-      detail: 'people booked before you were ready. that never gets old.',
+      detail: 'People booked before you were ready. That never gets old.',
       emoji: '🔥',
       gradient: 'from-rose via-terra to-butter',
     });
@@ -310,9 +310,9 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.longestStreakWeeks >= 2) {
     slides.push({
       id: 'streak',
-      eyebrow: 'consistency',
+      eyebrow: 'Consistency',
       headline: `${stats.longestStreakWeeks} weeks straight`,
-      detail: 'showing up on the quiet weeks is the whole thing.',
+      detail: 'Showing up on the quiet weeks is the whole thing.',
       emoji: '📈',
       gradient: 'from-sage via-butter to-pink',
     });
@@ -321,7 +321,7 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
   if (stats.topWords.length > 0) {
     slides.push({
       id: 'word',
-      eyebrow: 'they described it as',
+      eyebrow: 'They described it as',
       headline: stats.topWords[0]!.word,
       detail: `said ${stats.topWords[0]!.count} times. their word, not yours.`,
       emoji: '🗣️',
@@ -331,7 +331,7 @@ export function buildSlides(stats: WrappedStats, season: Season): WrappedSlide[]
 
   slides.push({
     id: 'personality',
-    eyebrow: 'this season you were',
+    eyebrow: 'This season you were',
     headline: stats.personality.title,
     detail: stats.personality.blurb,
     emoji: stats.personality.emoji,

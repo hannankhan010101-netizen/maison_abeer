@@ -22,13 +22,13 @@ import type { StudioSettings } from '@/lib/api/types';
  */
 
 const DAYS = [
-  { iso: 1, label: 'mon' },
-  { iso: 2, label: 'tue' },
-  { iso: 3, label: 'wed' },
-  { iso: 4, label: 'thu' },
-  { iso: 5, label: 'fri' },
-  { iso: 6, label: 'sat' },
-  { iso: 7, label: 'sun' },
+  { iso: 1, label: 'Mon' },
+  { iso: 2, label: 'Tue' },
+  { iso: 3, label: 'Wed' },
+  { iso: 4, label: 'Thu' },
+  { iso: 5, label: 'Fri' },
+  { iso: 6, label: 'Sat' },
+  { iso: 7, label: 'Sun' },
 ] as const;
 
 export function SettingsForm() {
@@ -61,7 +61,7 @@ export function SettingsForm() {
               : "We couldn't load your settings."}
           </p>
           <Button variant="ghost" className="mt-3" onClick={() => void settings.refetch()}>
-            try again
+            Try again
           </Button>
         </div>
       </Card>
@@ -111,7 +111,7 @@ export function SettingsForm() {
 
       await updateBrandKit.mutateAsync({ instagram_handle: handle.trim() || null });
 
-      toast('settings saved ✨');
+      toast('Settings saved ✨');
     } catch (caught) {
       toast(caught instanceof ApiError ? caught.displayMessage : "We couldn't save that.", 'error');
     }
@@ -120,14 +120,14 @@ export function SettingsForm() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
-        <CardTitle>quiet hours</CardTitle>
+        <CardTitle>Quiet hours</CardTitle>
         <p className="text-latte mt-1 mb-3 text-[13.5px]">
-          guest messages only send inside this window. anything triggered outside it waits for the
+          Guest messages only send inside this window. anything triggered outside it waits for the
           next opening — nobody gets invited to a class at 3am.
         </p>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="from" htmlFor="quiet-start">
+          <Field label="From" htmlFor="quiet-start">
             <input
               id="quiet-start"
               type="time"
@@ -137,7 +137,7 @@ export function SettingsForm() {
             />
           </Field>
 
-          <Field label="until" htmlFor="quiet-end">
+          <Field label="Until" htmlFor="quiet-end">
             <input
               id="quiet-end"
               type="time"
@@ -149,9 +149,9 @@ export function SettingsForm() {
         </div>
 
         <Field
-          label="studio timezone"
+          label="Studio timezone"
           htmlFor="timezone"
-          hint="all class times are read in this zone"
+          hint="All class times are read in this zone"
         >
           <input
             id="timezone"
@@ -171,12 +171,12 @@ export function SettingsForm() {
       </Card>
 
       <Card>
-        <CardTitle>your energy</CardTitle>
+        <CardTitle>Your energy</CardTitle>
         <p className="text-latte mt-1 mb-3 text-[13.5px]">
-          these only ever ask — nothing here blocks you from scheduling.
+          These only ever ask — nothing here blocks you from scheduling.
         </p>
 
-        <Eyebrow>rest days</Eyebrow>
+        <Eyebrow>Rest days</Eyebrow>
         <div role="group" aria-label="Rest days" className="mb-4 flex flex-wrap gap-1.5">
           {DAYS.map((day) => {
             const active = draft.rest_days.includes(day.iso);
@@ -201,7 +201,7 @@ export function SettingsForm() {
         <Field
           label="classes per week you're happy with"
           htmlFor="weekly-cap"
-          hint="leave empty for no gentle nudge"
+          hint="Leave empty for no gentle nudge"
         >
           <input
             id="weekly-cap"
@@ -218,9 +218,9 @@ export function SettingsForm() {
       </Card>
 
       <Card>
-        <CardTitle>your voice</CardTitle>
+        <CardTitle>Your voice</CardTitle>
         <p className="text-latte mt-1 mb-3 text-[13.5px]">
-          the default tone for every guest message. you can still override it per message.
+          The default tone for every guest message. you can still override it per message.
         </p>
 
         <div role="radiogroup" aria-label="Default voice" className="flex flex-wrap gap-2">
@@ -245,7 +245,7 @@ export function SettingsForm() {
           })}
         </div>
 
-        <Eyebrow className="mt-4">emoji</Eyebrow>
+        <Eyebrow className="mt-4">Emoji</Eyebrow>
         <div role="radiogroup" aria-label="Emoji density" className="flex flex-wrap gap-2">
           {(['none', 'light', 'full'] as const).map((density) => (
             <button
@@ -268,12 +268,12 @@ export function SettingsForm() {
       </Card>
 
       <Card>
-        <CardTitle>your studio</CardTitle>
+        <CardTitle>Your studio</CardTitle>
 
         <Field
-          label="instagram handle"
+          label="Instagram handle"
           htmlFor="instagram"
-          hint="becomes the QR code on your name tags"
+          hint="Becomes the QR code on your name tags"
         >
           <input
             id="instagram"
@@ -285,7 +285,7 @@ export function SettingsForm() {
         </Field>
 
         <label className="border-line flex min-h-[44px] items-center justify-between gap-3 border-t-[1.5px] border-dashed pt-2 text-[13.5px] font-bold">
-          show the greeting on my dashboard
+          Show the greeting on my dashboard
           <input
             type="checkbox"
             checked={draft.show_greeting}
@@ -295,7 +295,7 @@ export function SettingsForm() {
         </label>
 
         <p className="mt-2">
-          <HandNote>some hosts prefer a plain header ♡</HandNote>
+          <HandNote>Some hosts prefer a plain header ♡</HandNote>
         </p>
       </Card>
 
@@ -303,9 +303,9 @@ export function SettingsForm() {
         <Button
           onClick={save}
           loading={updateSettings.isPending || updateBrandKit.isPending}
-          loadingLabel="saving…"
+          loadingLabel="Saving…"
         >
-          save settings
+          Save settings
         </Button>
       </div>
     </div>

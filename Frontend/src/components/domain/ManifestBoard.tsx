@@ -58,8 +58,8 @@ export function ManifestBoard({ totals }: ManifestBoardProps) {
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <Eyebrow className="mb-0">manifest board</Eyebrow>
-          <HandNote>what you&rsquo;re working toward ✨</HandNote>
+          <Eyebrow className="mb-0">Manifest board</Eyebrow>
+          <HandNote>What you&rsquo;re working toward ✨</HandNote>
         </div>
 
         <Button size="sm" onClick={() => setAdding(true)}>
@@ -69,9 +69,9 @@ export function ManifestBoard({ totals }: ManifestBoardProps) {
 
       {goals.length === 0 ? (
         <Card>
-          <CardTitle>nothing on the board yet</CardTitle>
+          <CardTitle>Nothing on the board yet</CardTitle>
           <p className="text-latte mt-1 mb-3 text-[13.5px]">
-            pick something to aim at. it only lives on this device.
+            Pick something to aim at. it only lives on this device.
           </p>
 
           <ul className="grid gap-2">
@@ -105,7 +105,7 @@ export function ManifestBoard({ totals }: ManifestBoardProps) {
                     type="button"
                     onClick={() => {
                       persist(goals.filter((goal) => goal.id !== item.goal.id));
-                      toast('taken off the board');
+                      toast('Taken off the board');
                     }}
                     aria-label={`Remove goal: ${item.goal.label}`}
                     className="text-latte hover:text-danger min-h-[44px] px-2"
@@ -148,7 +148,7 @@ export function ManifestBoard({ totals }: ManifestBoardProps) {
         onClose={() => setAdding(false)}
         onAdd={(goal) => {
           persist([...goals, goal]);
-          toast('on the board ✨');
+          toast('On the board ✨');
         }}
       />
     </section>
@@ -184,18 +184,18 @@ function AddGoalModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="set a goal ✨"
+      title="Set a goal ✨"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={onClose}>
-            cancel
+            Cancel
           </Button>
-          <Button onClick={submit}>put it on the board</Button>
+          <Button onClick={submit}>Put it on the board</Button>
         </>
       }
     >
       <Field
-        label="what are you aiming at"
+        label="What are you aiming at"
         htmlFor="goal-label"
         hint="optional — we'll name it if you don't"
       >
@@ -208,7 +208,7 @@ function AddGoalModal({
         />
       </Field>
 
-      <Field label="measured in" htmlFor="goal-metric">
+      <Field label="Measured in" htmlFor="goal-metric">
         <select
           id="goal-metric"
           value={metric}
@@ -223,7 +223,7 @@ function AddGoalModal({
         </select>
       </Field>
 
-      <Field label="target" htmlFor="goal-target">
+      <Field label="Target" htmlFor="goal-target">
         <input
           id="goal-target"
           type="number"
@@ -234,7 +234,7 @@ function AddGoalModal({
         />
       </Field>
 
-      <p className="text-latte text-xs">stays on this device — nobody else sees it.</p>
+      <p className="text-latte text-xs">Stays on this device — nobody else sees it.</p>
     </Modal>
   );
 }

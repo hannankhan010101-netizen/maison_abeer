@@ -127,7 +127,7 @@ describe('GuestList', () => {
 
     renderList();
 
-    expect(await screen.findByText('no guests yet')).toBeInTheDocument();
+    expect(await screen.findByText('No guests yet')).toBeInTheDocument();
     // The PRD forbids a blank list; it must suggest the next step.
     expect(screen.getByText(/a name is enough to start/)).toBeInTheDocument();
   });
@@ -136,22 +136,22 @@ describe('GuestList', () => {
     respondWith([]);
 
     renderList();
-    await screen.findByText('no guests yet');
+    await screen.findByText('No guests yet');
 
     await userEvent.type(screen.getByLabelText('Search guests'), 'zzz');
 
-    expect(await screen.findByText('no one by that name')).toBeInTheDocument();
+    expect(await screen.findByText('No one by that name')).toBeInTheDocument();
   });
 
   it('explains how the regulars badge is earned when there are none', async () => {
     respondWith([]);
 
     renderList();
-    await screen.findByText('no guests yet');
+    await screen.findByText('No guests yet');
 
-    await userEvent.click(screen.getByRole('button', { name: /regulars/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Regulars/ }));
 
-    expect(await screen.findByText('no regulars just yet')).toBeInTheDocument();
+    expect(await screen.findByText('No regulars just yet')).toBeInTheDocument();
   });
 
   it('surfaces the API message on failure and offers a retry', async () => {
@@ -162,14 +162,14 @@ describe('GuestList', () => {
     const alert = await screen.findByRole('alert');
     // The API's copy, not a generic failure string.
     expect(alert).toHaveTextContent("That's a lot of requests.");
-    expect(screen.getByRole('button', { name: 'try again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('sends the search term to the API', async () => {
     respondWith([]);
 
     renderList();
-    await screen.findByText('no guests yet');
+    await screen.findByText('No guests yet');
 
     await userEvent.type(screen.getByLabelText('Search guests'), 'sana');
 
@@ -183,9 +183,9 @@ describe('GuestList', () => {
     respondWith([]);
 
     renderList();
-    await screen.findByText('no guests yet');
+    await screen.findByText('No guests yet');
 
-    await userEvent.click(screen.getByRole('button', { name: /regulars/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Regulars/ }));
 
     await waitFor(() => {
       const urls = fetchImpl.mock.calls.map((call) => String(call[0]));
@@ -197,16 +197,16 @@ describe('GuestList', () => {
     respondWith([]);
 
     renderList();
-    await screen.findByText('no guests yet');
+    await screen.findByText('No guests yet');
 
-    expect(screen.getByRole('button', { name: 'everyone' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Everyone' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
 
-    await userEvent.click(screen.getByRole('button', { name: /regulars/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Regulars/ }));
 
-    expect(screen.getByRole('button', { name: /regulars/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Regulars/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -216,11 +216,11 @@ describe('GuestList', () => {
     respondWith([]);
 
     renderList();
-    await screen.findByText('no guests yet');
+    await screen.findByText('No guests yet');
 
     expect(screen.getByLabelText('Search guests')).toHaveClass('min-h-[44px]');
 
-    for (const name of ['everyone', /regulars/, '+ add a guest']) {
+    for (const name of ['Everyone', /Regulars/, '+ Add a guest']) {
       expect(screen.getByRole('button', { name })).toHaveClass('min-h-[44px]');
     }
   });

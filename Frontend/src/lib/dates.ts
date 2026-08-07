@@ -84,14 +84,16 @@ export function formatTime(iso: string, locale?: string): string {
  * weekday name is still localised; only the order is fixed.
  */
 export function formatDayLabel(date: Date, locale?: string): string {
-  const weekday = date.toLocaleDateString(locale, { weekday: 'short' }).toLowerCase();
+  const weekday = date.toLocaleDateString(locale, { weekday: 'short' });
   return `${weekday} ${date.getDate()}`;
 }
 
 export function formatDateLong(iso: string, locale?: string): string {
-  return new Date(iso)
-    .toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })
-    .toLowerCase();
+  return new Date(iso).toLocaleDateString(locale, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 export function formatRange(startIso: string, endIso: string, locale?: string): string {

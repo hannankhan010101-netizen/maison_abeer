@@ -31,16 +31,16 @@ export interface GoalProgress {
 export const GOAL_STORAGE_KEY = 'maison-abeer-goals';
 
 export const METRIC_LABELS: Record<Goal['metric'], string> = {
-  guests: 'guests taught',
-  classes: 'classes run',
-  sellouts: 'sold-out classes',
+  guests: 'Guests taught',
+  classes: 'Classes run',
+  sellouts: 'Sold-out classes',
 };
 
 /** Starter goals, so an empty board still suggests what one looks like. */
 export const SUGGESTED_GOALS: Omit<Goal, 'id'>[] = [
   { metric: 'guests', target: 100, label: '100 people through the door' },
-  { metric: 'classes', target: 12, label: 'a class every week for a season' },
-  { metric: 'sellouts', target: 5, label: 'five sold-out classes' },
+  { metric: 'classes', target: 12, label: 'A class every week for a season' },
+  { metric: 'sellouts', target: 5, label: 'Five sold-out classes' },
 ];
 
 /**
@@ -54,13 +54,13 @@ export function encouragementFor(
   remaining: number,
   metric: Goal['metric'],
 ): string {
-  if (fraction >= 1) return 'done. that was you 🎀';
+  if (fraction >= 1) return 'Done. That was you 🎀';
   if (fraction >= 0.9) return `${remaining} to go — genuinely almost there`;
-  if (fraction >= 0.5) return 'past halfway, which is the hard part';
-  if (fraction >= 0.2) return 'it is moving. that counts';
+  if (fraction >= 0.5) return 'Past halfway, which is the hard part';
+  if (fraction >= 0.2) return 'It is moving. That counts';
   if (fraction > 0) return `${remaining} ${METRIC_LABELS[metric]} to go — early days`;
 
-  return 'nothing yet, and that is a fine place to start';
+  return 'Nothing yet, and that is a fine place to start';
 }
 
 export function progressFor(

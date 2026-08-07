@@ -14,7 +14,7 @@ const NOW = new Date(2026, 7, 20, 12, 0);
 function session(overrides: Partial<Session> & { id: string }): Session {
   return {
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -173,7 +173,7 @@ describe('personalityFor', () => {
 describe('deriveWrapped', () => {
   const sessions = [
     on('a', new Date(2026, 7, 1, 14)),
-    on('b', new Date(2026, 7, 8, 14), { class_type_name: 'pottery' }),
+    on('b', new Date(2026, 7, 8, 14), { class_type_name: 'Pottery' }),
     on('c', new Date(2026, 7, 15, 14)),
     on('future', new Date(2026, 8, 1, 14)),
   ];
@@ -193,12 +193,12 @@ describe('deriveWrapped', () => {
   it('finds the signature craft and its share', () => {
     const stats = deriveWrapped({ sessions, words: [], now: NOW });
 
-    expect(stats.signatureCraft).toBe('bento cake');
+    expect(stats.signatureCraft).toBe('Bento cake');
     expect(stats.signatureCraftShare).toBeCloseTo(2 / 3);
   });
 
   it('finds the busiest day by name', () => {
-    expect(deriveWrapped({ sessions, words: [], now: NOW }).busiestDay).toBe('saturday');
+    expect(deriveWrapped({ sessions, words: [], now: NOW }).busiestDay).toBe('Saturday');
   });
 
   it('is empty but valid for a brand new studio', () => {

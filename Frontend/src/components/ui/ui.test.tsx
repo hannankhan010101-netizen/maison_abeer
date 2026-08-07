@@ -116,13 +116,13 @@ describe('Chip', () => {
   it('gives the allergy chip a spoken prefix', () => {
     render(
       <Chip tone="allergy" srPrefix="Allergy:">
-        nut allergy
+        Nut allergy
       </Chip>,
     );
 
     // Colour alone must never carry health-adjacent meaning.
     expect(screen.getByText('Allergy:')).toHaveClass('sr-only');
-    expect(screen.getByText('nut allergy')).toBeInTheDocument();
+    expect(screen.getByText('Nut allergy')).toBeInTheDocument();
   });
 
   it('applies the craft tone that identifies a class type', () => {
@@ -134,14 +134,14 @@ describe('Chip', () => {
 describe('FrostingCheckbox', () => {
   it('associates its label so the whole row is clickable', async () => {
     const onChange = vi.fn();
-    render(<FrostingCheckbox id="c1" label="load kiln for glaze pieces" onChange={onChange} />);
+    render(<FrostingCheckbox id="c1" label="Load kiln for glaze pieces" onChange={onChange} />);
 
-    await userEvent.click(screen.getByLabelText('load kiln for glaze pieces'));
+    await userEvent.click(screen.getByLabelText('Load kiln for glaze pieces'));
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
   it('marks overdue steps with more than colour', () => {
-    render(<FrostingCheckbox id="c2" label="load kiln" meta="due today — don't forget!" overdue />);
+    render(<FrostingCheckbox id="c2" label="Load kiln" meta="due today — don't forget!" overdue />);
 
     // The wording itself signals urgency; the tint is reinforcement.
     expect(screen.getByText(/due today/)).toHaveClass('text-danger');
@@ -149,7 +149,7 @@ describe('FrostingCheckbox', () => {
 
   it('is keyboard operable', async () => {
     const onChange = vi.fn();
-    render(<FrostingCheckbox id="c3" label="wedge clay" onChange={onChange} />);
+    render(<FrostingCheckbox id="c3" label="Wedge clay" onChange={onChange} />);
 
     await userEvent.tab();
     expect(screen.getByRole('checkbox')).toHaveFocus();
@@ -161,17 +161,17 @@ describe('FrostingCheckbox', () => {
 
 describe('AlertCard', () => {
   it('announces critical alerts', () => {
-    render(<AlertCard tone="critical" title="kiln alert" description="load by 6 pm" />);
-    expect(screen.getByRole('alert')).toHaveTextContent('kiln alert');
+    render(<AlertCard tone="critical" title="Kiln alert" description="Load by 6 pm" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Kiln alert');
   });
 
   it('does not interrupt for gentle nudges', () => {
-    render(<AlertCard tone="gentle" title="waitlist +1" />);
+    render(<AlertCard tone="gentle" title="Waitlist +1" />);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('hides decorative icons from assistive technology', () => {
-    const { container } = render(<AlertCard title="kiln alert" icon="🔥" />);
+    const { container } = render(<AlertCard title="Kiln alert" icon="🔥" />);
     expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('🔥');
   });
 });

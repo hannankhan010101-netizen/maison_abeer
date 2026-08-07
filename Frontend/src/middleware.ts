@@ -17,7 +17,10 @@ type CookieToSet = { name: string; value: string; options?: Record<string, unkno
  * Supabase. For an authorisation decision, only the verified answer counts.
  */
 
-const PUBLIC_PATHS = ['/login', '/auth'];
+// `/book` is the guest-facing booking page linked from ads. It must never
+// redirect to a login form — the people arriving there have no account and
+// are not meant to get one.
+const PUBLIC_PATHS = ['/login', '/auth', '/book'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));

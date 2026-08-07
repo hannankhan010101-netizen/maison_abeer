@@ -90,7 +90,7 @@ export function CapacityRing({ booked, seats, state, className }: CapacityRingPr
         aria-hidden="true"
         className="fill-latte font-body text-[9.5px] font-bold"
       >
-        seats booked
+        Seats booked
       </text>
     </svg>
   );

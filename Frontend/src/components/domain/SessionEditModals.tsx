@@ -48,9 +48,9 @@ export function SeatModal({
 
       if (updated.capacity.state === 'sold_out' && session.capacity.state !== 'sold_out') {
         // The sell-out moment (PRD §2.1).
-        celebrate('SOLD OUT! milestone saved 🎀');
+        celebrate('SOLD OUT! Milestone saved 🎀');
       } else {
-        toast('seats updated ✨');
+        toast('Seats updated ✨');
       }
 
       onClose();
@@ -67,24 +67,24 @@ export function SeatModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="adjust seats"
+      title="Adjust seats"
       footer={
         <>
           {onRequestMove ? (
             <Button variant="ghost" type="button" onClick={onRequestMove} className="mr-auto">
-              move this class instead
+              Move this class instead
             </Button>
           ) : null}
           <Button variant="secondary" type="button" onClick={onClose}>
-            cancel
+            Cancel
           </Button>
           <Button
             type="submit"
             form="seat-form"
             loading={changeSeats.isPending}
-            loadingLabel="saving…"
+            loadingLabel="Saving…"
           >
-            save
+            Save
           </Button>
         </>
       }
@@ -94,7 +94,7 @@ export function SeatModal({
           {session.capacity.booked} of {session.capacity.seats} seats are booked.
         </p>
 
-        <Field label="seats" htmlFor="seat-count" error={error ?? undefined}>
+        <Field label="Seats" htmlFor="seat-count" error={error ?? undefined}>
           <input
             id="seat-count"
             type="number"
@@ -109,7 +109,7 @@ export function SeatModal({
         </Field>
 
         <p className="text-latte text-xs">
-          quantity-linked prep steps rescale automatically — you&rsquo;ll be told if something you
+          Quantity-linked prep steps rescale automatically — you&rsquo;ll be told if something you
           already ticked needs more.
         </p>
       </form>
@@ -189,29 +189,29 @@ export function RescheduleModal({
     <Modal
       open={open}
       onClose={close}
-      title="move this class"
+      title="Move this class"
       footer={
         impact ? (
           <>
             <Button variant="secondary" type="button" onClick={() => setImpact(null)}>
-              back
+              Back
             </Button>
-            <Button onClick={confirm} loading={reschedule.isPending} loadingLabel="moving…">
-              confirm move
+            <Button onClick={confirm} loading={reschedule.isPending} loadingLabel="Moving…">
+              Confirm move
             </Button>
           </>
         ) : (
           <>
             <Button variant="secondary" type="button" onClick={close}>
-              cancel
+              Cancel
             </Button>
             <Button
               type="submit"
               form="reschedule-form"
               loading={preview.isPending}
-              loadingLabel="checking…"
+              loadingLabel="Checking…"
             >
-              see what changes
+              See what changes
             </Button>
           </>
         )
@@ -220,8 +220,8 @@ export function RescheduleModal({
       {impact ? (
         <div>
           <p className="mb-3 text-sm">
-            moving from <b>{formatDateLong(impact.previous_start)}</b> to{' '}
-            <b>{formatDateLong(impact.new_start)}</b> at <b>{formatTime(impact.new_start)}</b>.
+            Moving from <b>{formatDateLong(impact.previous_start)}</b> to{' '}
+            <b>{formatDateLong(impact.new_start)}</b> At <b>{formatTime(impact.new_start)}</b>.
           </p>
 
           <ul className="mb-3 grid gap-1.5 text-sm">
@@ -279,7 +279,7 @@ export function RescheduleModal({
         </div>
       ) : (
         <form id="reschedule-form" onSubmit={handlePreview} noValidate>
-          <Field label="new date & time" htmlFor="new-starts-at" error={error ?? undefined}>
+          <Field label="New date & time" htmlFor="new-starts-at" error={error ?? undefined}>
             <input
               id="new-starts-at"
               type="datetime-local"
@@ -291,7 +291,7 @@ export function RescheduleModal({
           </Field>
 
           <p className="text-latte text-xs">
-            nothing saves yet — you&rsquo;ll see exactly what changes first.
+            Nothing saves yet — you&rsquo;ll see exactly what changes first.
           </p>
         </form>
       )}

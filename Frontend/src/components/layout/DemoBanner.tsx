@@ -15,7 +15,7 @@ export function DemoBanner() {
       role="status"
       className="border-butter bg-butter-soft text-butter-ink border-b-[1.5px] px-4 py-2 text-center text-xs font-extrabold"
     >
-      demo mode · sample data, nothing here is real · sign-in is bypassed
+      Demo mode · sample data, nothing here is real · sign-in is bypassed
     </div>
   );
 }

@@ -10,10 +10,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, ForeignKey, MetaData, func
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from app.models import enums
 
 # Predictable constraint names, so migrations can reference them by name
 # rather than by whatever the database happened to generate.
@@ -26,8 +30,33 @@ NAMING_CONVENTION = {
 }
 
 
+def _enum_type_map() -> dict[type, SAEnum]:
+    """Map every StrEnum to a PG type labelled by value, not by name.
+
+    SQLAlchemy labels an enum type with the member *names* by default, so
+    `BookingStatus.CANCELLED` would be stored as `CANCELLED` while the API
+    serialises the same value as `cancelled`. These are StrEnums whose value
+    already is the wire format, so the two must not diverge: a partial index
+    like `WHERE status <> 'cancelled'` is written against the wire format and
+    fails outright against a type labelled `CANCELLED`.
+
+    Built by iterating the enums module so a new enum cannot be added without
+    picking this up.
+    """
+    return {
+        member: SAEnum(
+            member,
+            name=member.__name__.lower(),
+            values_callable=lambda enum: [item.value for item in enum],
+        )
+        for member in vars(enums).values()
+        if isinstance(member, type) and issubclass(member, StrEnum) and member is not StrEnum
+    }
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    type_annotation_map = _enum_type_map()
 
 
 def uuid_pk() -> Mapped[uuid.UUID]:

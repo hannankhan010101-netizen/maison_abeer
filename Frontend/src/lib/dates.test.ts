@@ -75,7 +75,7 @@ describe('formatDayLabel', () => {
   it('puts the weekday before the day number', () => {
     // Intl's own {weekday, day} format renders "4 Tue" in en-US, which reads
     // wrong as a column header — hence composing the order ourselves.
-    expect(formatDayLabel(at(2026, 8, 4), 'en-US')).toBe('tue 4');
+    expect(formatDayLabel(at(2026, 8, 4), 'en-US')).toBe('Tue 4');
   });
 
   it('still localises the weekday name', () => {

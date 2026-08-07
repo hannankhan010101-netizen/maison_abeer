@@ -62,7 +62,7 @@ function session(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -135,7 +135,7 @@ describe('TagStudio', () => {
     respond({ sessions: [session({ color_token: 'terra' })], bookings: [booking('Sana')] });
     renderStudio();
 
-    expect(await screen.findByRole('button', { name: /clay & terracotta/ })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: /Clay & terracotta/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -146,9 +146,9 @@ describe('TagStudio', () => {
     renderStudio();
 
     await screen.findByText('Sana');
-    await userEvent.click(screen.getByRole('button', { name: /autumn drop/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Autumn drop/ }));
 
-    expect(screen.getByRole('button', { name: /autumn drop/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Autumn drop/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -167,18 +167,18 @@ describe('TagStudio', () => {
 
     expect(await screen.findByText('table 2')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByLabelText('table number'));
+    await userEvent.click(screen.getByLabelText('Table number'));
     expect(screen.queryByText('table 2')).not.toBeInTheDocument();
   });
 
   it('shows fun booking answers as subtext', async () => {
     respond({
       sessions: [session()],
-      bookings: [booking('Sana', { booking_answers: { flavour: 'team gulab jamun 🍮' } })],
+      bookings: [booking('Sana', { booking_answers: { flavour: 'Team gulab jamun 🍮' } })],
     });
     renderStudio();
 
-    expect(await screen.findByText('team gulab jamun 🍮')).toBeInTheDocument();
+    expect(await screen.findByText('Team gulab jamun 🍮')).toBeInTheDocument();
   });
 
   it('warns when the roster drifted from the last export', async () => {
@@ -187,7 +187,7 @@ describe('TagStudio', () => {
 
     // The printed set would no longer match who is coming.
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'roster updated since your last export',
+      'Roster updated since your last export',
     );
   });
 
@@ -212,7 +212,7 @@ describe('TagStudio', () => {
     renderStudio();
 
     await screen.findByText('1 guest without a table');
-    await userEvent.click(screen.getByLabelText('table number'));
+    await userEvent.click(screen.getByLabelText('Table number'));
 
     // Nothing to fix once the number is not being printed.
     expect(screen.queryByText('1 guest without a table')).not.toBeInTheDocument();
@@ -229,13 +229,13 @@ describe('TagStudio', () => {
     respond({ sessions: [session()], bookings: [] });
     renderStudio();
 
-    expect(await screen.findByRole('button', { name: /export print PDF/ })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: /Export print PDF/ })).toBeDisabled();
   });
 
   it('says so when there are no upcoming classes', async () => {
     respond({ sessions: [] });
     renderStudio();
 
-    expect(await screen.findByText('no upcoming classes')).toBeInTheDocument();
+    expect(await screen.findByText('No upcoming classes')).toBeInTheDocument();
   });
 });

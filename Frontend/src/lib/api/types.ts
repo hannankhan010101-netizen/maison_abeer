@@ -200,3 +200,107 @@ export interface BrandKit {
   accent_color: string | null;
   instagram_handle: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Messages (PRD §2.6)
+// ---------------------------------------------------------------------------
+
+export type MessageKind =
+  | 'guest_reminder'
+  | 'guest_thank_you'
+  | 'schedule_change'
+  | 'waitlist_invite'
+  | 'waitlist_position'
+  | 'credit_issued'
+  | 'birthday_offer'
+  | 'host_nudge';
+
+export type MessageStatus =
+  | 'scheduled'
+  | 'queued'
+  | 'sending'
+  | 'sent'
+  | 'delivered'
+  | 'failed'
+  | 'cancelled'
+  | 'skipped_opted_out'
+  | 'skipped_no_contact';
+
+/** A message the host can inspect before anything is queued. */
+export interface MessagePreview {
+  kind: MessageKind;
+  voice: VoicePreset;
+  body: string;
+  send_at: string | null;
+  will_send: boolean;
+  /** Why it will not send. Never null-and-silent: one of the skip reasons. */
+  skip_reason: string | null;
+  /** Quiet hours moved it — surfaced as "sends 9 am" rather than hidden. */
+  was_shifted: boolean;
+  /** Non-empty means the copy would go out with a literal `{placeholder}`. */
+  unresolved_placeholders: string[];
+}
+
+export interface ScheduledMessage {
+  id: string;
+  session_id: string | null;
+  guest_id: string | null;
+  kind: MessageKind;
+  channel: MessageChannel;
+  status: MessageStatus;
+  send_at: string;
+  sent_at: string | null;
+  body: string;
+  attempt_count: number;
+  last_error: string | null;
+}
+
+export interface MessageScheduleResult {
+  session_id: string;
+  queued: number;
+  skipped: number;
+  /** Reason → count, so the host can see *why* nobody was messaged. */
+  skips: Record<string, number>;
+  messages: ScheduledMessage[];
+}
+
+export interface Feedback {
+  id: string;
+  booking_id: string;
+  /** 1 = 😕, 2 = 🙂, 3 = 😍 */
+  rating: number;
+  one_word: string | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Name tags (PRD §2.3)
+// ---------------------------------------------------------------------------
+
+export interface TagSubject {
+  guest_id: string;
+  full_name: string;
+  table_number: number | null;
+  subtext: string | null;
+}
+
+export interface TagSheet {
+  session_id: string;
+  subjects: TagSubject[];
+  /** Fingerprint of what would print right now. */
+  roster_hash: string;
+  last_exported_at: string | null;
+  last_export_theme: string | null;
+  /** Drives the "roster updated since your last export" banner. */
+  roster_changed_since_export: boolean;
+}
+
+export interface ExportRecord {
+  id: string;
+  session_id: string;
+  theme: string;
+  layout: string;
+  roster_hash: string;
+  file_url: string | null;
+  created_at: string;
+}

@@ -55,9 +55,9 @@ function LoginForm() {
 
   return (
     <Card className="w-full max-w-[420px]">
-      <h1 className="font-display text-2xl">welcome back ✨</h1>
+      <h1 className="font-display text-2xl">Welcome back ✨</h1>
       <p className="text-latte mt-1 mb-5">
-        <HandNote>let&rsquo;s get you into the studio</HandNote>
+        <HandNote>Let&rsquo;s get you into the studio</HandNote>
       </p>
 
       <form onSubmit={handleSubmit} noValidate>
@@ -66,7 +66,7 @@ function LoginForm() {
             htmlFor="email"
             className="text-latte mb-1.5 block text-xs font-extrabold tracking-[0.06em] uppercase"
           >
-            email
+            Email
           </label>
           <input
             id="email"
@@ -85,7 +85,7 @@ function LoginForm() {
             htmlFor="password"
             className="text-latte mb-1.5 block text-xs font-extrabold tracking-[0.06em] uppercase"
           >
-            password
+            Password
           </label>
           <input
             id="password"
@@ -109,8 +109,8 @@ function LoginForm() {
           </p>
         ) : null}
 
-        <Button type="submit" loading={pending} loadingLabel="signing you in…" className="w-full">
-          sign in
+        <Button type="submit" loading={pending} loadingLabel="Signing you in…" className="w-full">
+          Sign in
         </Button>
       </form>
     </Card>

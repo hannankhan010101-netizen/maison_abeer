@@ -11,7 +11,7 @@ function Harness({ onClose = () => {} }: { onClose?: () => void }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)}>
-        open
+        Open
       </button>
       <Modal
         open={open}
@@ -19,10 +19,10 @@ function Harness({ onClose = () => {} }: { onClose?: () => void }) {
           setOpen(false);
           onClose();
         }}
-        title="new session"
-        footer={<button type="button">save</button>}
+        title="New session"
+        footer={<button type="button">Save</button>}
       >
-        <input aria-label="seats" />
+        <input aria-label="Seats" />
       </Modal>
     </>
   );
@@ -31,7 +31,7 @@ function Harness({ onClose = () => {} }: { onClose?: () => void }) {
 describe('Modal', () => {
   it('renders nothing while closed', () => {
     render(
-      <Modal open={false} onClose={() => {}} title="hidden">
+      <Modal open={false} onClose={() => {}} title="Hidden">
         <p>body</p>
       </Modal>,
     );
@@ -40,27 +40,27 @@ describe('Modal', () => {
 
   it('is a labelled modal dialog when open', () => {
     render(
-      <Modal open onClose={() => {}} title="new session">
+      <Modal open onClose={() => {}} title="New session">
         <p>body</p>
       </Modal>,
     );
 
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(dialog).toHaveAccessibleName('new session');
+    expect(dialog).toHaveAccessibleName('New session');
   });
 
   it('moves focus into the dialog on open', async () => {
     render(<Harness />);
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
 
     // A keyboard user must land inside, not be left behind the backdrop.
-    expect(screen.getByLabelText('seats')).toHaveFocus();
+    expect(screen.getByLabelText('Seats')).toHaveFocus();
   });
 
   it('returns focus to the trigger on close', async () => {
     render(<Harness />);
-    const trigger = screen.getByRole('button', { name: 'open' });
+    const trigger = screen.getByRole('button', { name: 'Open' });
 
     await userEvent.click(trigger);
     await userEvent.keyboard('{Escape}');
@@ -72,7 +72,7 @@ describe('Modal', () => {
     const onClose = vi.fn();
     render(<Harness onClose={onClose} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
     await userEvent.keyboard('{Escape}');
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -80,10 +80,10 @@ describe('Modal', () => {
 
   it('traps Tab inside the dialog', async () => {
     render(<Harness />);
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
 
-    const input = screen.getByLabelText('seats');
-    const save = screen.getByRole('button', { name: 'save' });
+    const input = screen.getByLabelText('Seats');
+    const save = screen.getByRole('button', { name: 'Save' });
 
     expect(input).toHaveFocus();
 
@@ -97,17 +97,17 @@ describe('Modal', () => {
 
   it('wraps backwards too', async () => {
     render(<Harness />);
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
 
     await userEvent.tab({ shift: true });
-    expect(screen.getByRole('button', { name: 'save' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus();
   });
 
   it('closes when the backdrop is clicked', async () => {
     const onClose = vi.fn();
     render(<Harness onClose={onClose} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
     const backdrop = screen.getByRole('dialog').parentElement!;
 
     await userEvent.click(backdrop);
@@ -118,7 +118,7 @@ describe('Modal', () => {
     const onClose = vi.fn();
     render(<Harness onClose={onClose} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
     await userEvent.click(screen.getByRole('dialog'));
 
     expect(onClose).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe('Modal', () => {
   it('locks page scroll while open and restores it after', async () => {
     render(<Harness />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'open' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
     expect(document.body.style.overflow).toBe('hidden');
 
     await userEvent.keyboard('{Escape}');

@@ -33,7 +33,7 @@ function session(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -107,7 +107,7 @@ describe('CalendarView', () => {
     respondWith([]);
     renderCalendar();
 
-    await screen.findAllByText(/nothing scheduled/);
+    await screen.findAllByText(/Nothing scheduled/);
 
     const url = new URL(String(fetchImpl.mock.calls[0]![0]));
     expect(new Date(url.searchParams.get('start')!).getDate()).toBe(3);
@@ -119,7 +119,7 @@ describe('CalendarView', () => {
     renderCalendar();
 
     // One agenda row and one grid cell, from a single dataset.
-    const chips = await screen.findAllByRole('button', { name: /bento cake/ });
+    const chips = await screen.findAllByRole('button', { name: /Bento cake/ });
     expect(chips).toHaveLength(2);
   });
 
@@ -127,7 +127,7 @@ describe('CalendarView', () => {
     respondWith([session()]);
     renderCalendar();
 
-    const [chip] = await screen.findAllByRole('button', { name: /bento cake/ });
+    const [chip] = await screen.findAllByRole('button', { name: /Bento cake/ });
     expect(chip).toHaveAccessibleName(/8 of 10 seats booked/);
   });
 
@@ -135,7 +135,7 @@ describe('CalendarView', () => {
     respondWith([session({ status: 'locked' })]);
     renderCalendar();
 
-    const [chip] = await screen.findAllByRole('button', { name: /bento cake/ });
+    const [chip] = await screen.findAllByRole('button', { name: /Bento cake/ });
     expect(chip).toHaveAccessibleName(/closed to new bookings/);
   });
 
@@ -144,22 +144,22 @@ describe('CalendarView', () => {
     renderCalendar();
 
     // Seven agenda days, all empty — and each offers to add a class.
-    expect(await screen.findAllByText(/nothing scheduled/)).toHaveLength(7);
+    expect(await screen.findAllByText(/Nothing scheduled/)).toHaveLength(7);
   });
 
   it('labels today', async () => {
     respondWith([]);
     renderCalendar();
 
-    expect(await screen.findByText(/tue 4 · today/)).toBeInTheDocument();
+    expect(await screen.findByText(/Tue 4 · today/)).toBeInTheDocument();
   });
 
   it('moves to the next week and refetches', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText(/nothing scheduled/);
+    await screen.findAllByText(/Nothing scheduled/);
 
-    await userEvent.click(screen.getByRole('button', { name: 'next →' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next →' }));
 
     const last = new URL(String(fetchImpl.mock.calls.at(-1)![0]));
     // Week of Mon 10th.
@@ -169,7 +169,7 @@ describe('CalendarView', () => {
   it('moves to the previous week', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText(/nothing scheduled/);
+    await screen.findAllByText(/Nothing scheduled/);
 
     await userEvent.click(screen.getByRole('button', { name: '← previous' }));
 
@@ -180,10 +180,10 @@ describe('CalendarView', () => {
   it('returns to the current week', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText(/nothing scheduled/);
+    await screen.findAllByText(/Nothing scheduled/);
 
-    await userEvent.click(screen.getByRole('button', { name: 'next →' }));
-    await userEvent.click(screen.getByRole('button', { name: 'this week' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next →' }));
+    await userEvent.click(screen.getByRole('button', { name: 'This week' }));
 
     const last = new URL(String(fetchImpl.mock.calls.at(-1)![0]));
     expect(new Date(last.searchParams.get('start')!).getDate()).toBe(3);
@@ -206,7 +206,7 @@ describe('CalendarView', () => {
   it('gives every control a 44px touch target', async () => {
     respondWith([]);
     renderCalendar();
-    await screen.findAllByText(/nothing scheduled/);
+    await screen.findAllByText(/Nothing scheduled/);
 
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveClass('min-h-[44px]');

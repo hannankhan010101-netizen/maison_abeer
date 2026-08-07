@@ -9,17 +9,19 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from app.api.providers import (
     provide_checklist_service,
     provide_guest_service,
     provide_session_service,
 )
-from app.api.v1 import checklist, guests, sessions
+from app.api.v1 import checklist, cron, guests, messages, public, sessions, tags
 from app.api.v1 import settings as settings_router
 from app.core.config import Settings, get_settings
 from app.core.db import reset_engine
 from app.core.errors import AppError
+from app.core.rate_limit import limiter
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
@@ -56,6 +58,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_age=600,
     )
 
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+
     _register_error_handlers(app)
     _register_security_headers(app)
 
@@ -69,12 +74,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(guests.router, prefix=API_PREFIX)
     app.include_router(checklist.router, prefix=API_PREFIX)
     app.include_router(settings_router.router, prefix=API_PREFIX)
+    app.include_router(messages.router, prefix=API_PREFIX)
+    app.include_router(tags.router, prefix=API_PREFIX)
+    app.include_router(public.router, prefix=API_PREFIX)
+    app.include_router(cron.router, prefix=API_PREFIX)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return app
+
+
+def _rate_limit_handler(_request: Request, _exc: Exception) -> JSONResponse:
+    """Match the app's error envelope rather than slowapi's own shape.
+
+    The UI parses one error format; a 429 arriving in a different one would
+    surface as an unexplained failure on the booking form.
+    """
+    return JSONResponse(
+        status_code=429,
+        content={
+            "code": "rate_limited",
+            "message": "That's a lot of requests — give it a minute and try again.",
+        },
+    )
 
 
 def _register_error_handlers(app: FastAPI) -> None:

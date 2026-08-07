@@ -43,12 +43,12 @@ function GuestListInner({ now }: { now: Date }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [adding, setAdding] = useState(false);
 
-  const window = useMemo(
+  const range = useMemo(
     () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
     [now],
   );
 
-  const sessions = useSessions(window.start, window.end);
+  const sessions = useSessions(range.start, range.end);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -65,19 +65,19 @@ function GuestListInner({ now }: { now: Date }) {
     <section>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-[clamp(26px,4vw,34px)]">guests</h1>
+          <h1 className="font-display text-[clamp(26px,4vw,34px)]">Guests</h1>
           <p className="text-latte">
-            <HandNote>your regulars are highlighted 💗</HandNote>
+            <HandNote>Your regulars are highlighted 💗</HandNote>
           </p>
         </div>
 
-        <Button onClick={() => setAdding(true)}>+ add a guest</Button>
+        <Button onClick={() => setAdding(true)}>+ Add a guest</Button>
       </div>
 
       {/* Seating, cancellations and the waitlist for one class. */}
       {sessions.isSuccess && (sessions.data?.length ?? 0) > 0 ? (
         <div className="mb-6">
-          <Eyebrow>this class</Eyebrow>
+          <Eyebrow>This class</Eyebrow>
           <SessionPicker
             sessions={sessions.data ?? []}
             value={selected?.id ?? null}
@@ -87,7 +87,7 @@ function GuestListInner({ now }: { now: Date }) {
         </div>
       ) : null}
 
-      <Eyebrow>everyone</Eyebrow>
+      <Eyebrow>Everyone</Eyebrow>
 
       <label htmlFor="guest-search" className="sr-only">
         Search guests
@@ -116,7 +116,7 @@ function GuestListInner({ now }: { now: Date }) {
                 : 'border-line bg-paper text-latte hover:border-pink',
             )}
           >
-            {value === 'all' ? 'everyone' : 'regulars 💗'}
+            {value === 'all' ? 'Everyone' : 'Regulars 💗'}
           </button>
         ))}
       </div>
@@ -148,7 +148,7 @@ function GuestListBody({
       <div role="status" aria-live="polite">
         <span className="sr-only">Loading guests…</span>
         <Icing value={0} max={1} label="Loading guests" aria-hidden="true" />
-        <p className="text-latte mt-3 text-sm">just a sec…</p>
+        <p className="text-latte mt-3 text-sm">Just a sec…</p>
       </div>
     );
   }
@@ -167,7 +167,7 @@ function GuestListBody({
           onClick={() => void query.refetch()}
           className="bg-blush text-rose-ink mt-3 min-h-[44px] rounded-[var(--radius-pill)] px-4 font-extrabold"
         >
-          try again
+          Try again
         </button>
       </div>
     );
@@ -178,22 +178,22 @@ function GuestListBody({
   if (guests.length === 0) {
     // Three different empties, because they mean three different things.
     if (searching) {
-      return <Empty title="no one by that name" note="try a shorter search?" />;
+      return <Empty title="No one by that name" note="Try a shorter search?" />;
     }
 
     if (regularsOnly) {
       return (
         <Empty
-          title="no regulars just yet"
-          note="they earn the badge on their third visit — it&rsquo;ll happen 💗"
+          title="No regulars just yet"
+          note="They earn the badge on their third visit — it&rsquo;ll happen 💗"
         />
       );
     }
 
     return (
       <Empty
-        title="no guests yet"
-        note="add someone from a DM or a phone call — a name is enough to start"
+        title="No guests yet"
+        note="Add someone from a DM or a phone call — a name is enough to start"
       />
     );
   }

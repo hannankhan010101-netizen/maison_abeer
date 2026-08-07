@@ -62,7 +62,7 @@ export function demoGuests(now: Date): Guest[] {
       visit_count: 4,
       visit_badge: '4th visit',
       is_regular: true,
-      memory_note: 'brought her mum last time · loved the matcha buttercream',
+      memory_note: 'Brought her mum last time · loved the matcha buttercream',
     }),
     guest({
       id: 'g-ayesha',
@@ -72,11 +72,11 @@ export function demoGuests(now: Date): Guest[] {
       visit_badge: '2nd visit',
       birthday: birthdayIn(4),
       days_until_birthday: 4,
-      memory_note: 'surprise from her sister — bring the candle',
+      memory_note: 'Surprise from her sister — bring the candle',
       allergies: [
         {
           id: 'a-nut',
-          label: 'nut allergy',
+          label: 'Nut allergy',
           severity: 'severe',
           notes: 'no traces, please',
           is_critical: true,
@@ -88,7 +88,7 @@ export function demoGuests(now: Date): Guest[] {
       full_name: 'Meerab A.',
       phone: '03003333333',
       visit_count: 1,
-      memory_note: 'found you on instagram',
+      memory_note: 'Found you on Instagram',
     }),
     guest({
       id: 'g-fatima',
@@ -97,7 +97,7 @@ export function demoGuests(now: Date): Guest[] {
       visit_count: 3,
       visit_badge: '3rd visit',
       is_regular: true,
-      memory_note: 'sits with sana, always early',
+      memory_note: 'Sits with Sana, always early',
     }),
     guest({
       id: 'g-zainab',
@@ -105,7 +105,7 @@ export function demoGuests(now: Date): Guest[] {
       phone: null,
       email: null,
       is_contactable: false,
-      memory_note: 'added from a DM — no number yet',
+      memory_note: 'Added from a DM — no number yet',
       available_credits: 1,
     }),
     guest({
@@ -122,7 +122,7 @@ export function demoSessions(now: Date): Session[] {
     {
       id: 's-bento',
       class_type_id: 'ct-bento',
-      class_type_name: 'bento cake decorating',
+      class_type_name: 'Bento cake decorating',
       color_token: 'pink',
       title: null,
       location: 'Studio A',
@@ -145,7 +145,7 @@ export function demoSessions(now: Date): Session[] {
     {
       id: 's-pottery',
       class_type_id: 'ct-pottery',
-      class_type_name: 'pottery & wheel throwing',
+      class_type_name: 'Pottery & wheel throwing',
       color_token: 'terra',
       title: null,
       location: 'Studio B',
@@ -167,7 +167,7 @@ export function demoSessions(now: Date): Session[] {
     {
       id: 's-ceramic',
       class_type_id: 'ct-ceramic',
-      class_type_name: 'ceramic painting',
+      class_type_name: 'Ceramic painting',
       color_token: 'sage',
       title: null,
       location: 'Studio A',
@@ -190,7 +190,7 @@ export function demoSessions(now: Date): Session[] {
       // Already finished, so "Your Week, Wrapped" has something to celebrate.
       id: 's-past',
       class_type_id: 'ct-bento',
-      class_type_name: 'bento cake decorating',
+      class_type_name: 'Bento cake decorating',
       color_token: 'pink',
       title: null,
       location: 'Studio A',
@@ -223,15 +223,15 @@ export function demoRoster(now: Date, sessionId: string): Roster {
       status: 'confirmed',
       table_number: 2,
       sit_with_note: null,
-      booking_answers: { flavour: 'team gulab jamun 🍮' },
+      booking_answers: { flavour: 'Team gulab jamun 🍮' },
     },
     {
       id: 'b-ayesha',
       guest: byId('g-ayesha'),
       status: 'confirmed',
       table_number: 2,
-      sit_with_note: 'with her sister',
-      booking_answers: { note: 'birthday girl 🎂' },
+      sit_with_note: 'With her sister',
+      booking_answers: { note: 'Birthday girl 🎂' },
     },
     {
       id: 'b-meerab',
@@ -239,14 +239,14 @@ export function demoRoster(now: Date, sessionId: string): Roster {
       status: 'confirmed',
       table_number: null,
       sit_with_note: null,
-      booking_answers: { note: 'first-timer, be nice ✨' },
+      booking_answers: { note: 'First-timer, be nice ✨' },
     },
     {
       id: 'b-fatima',
       guest: byId('g-fatima'),
       status: 'confirmed',
       table_number: 1,
-      sit_with_note: 'sits with Sana',
+      sit_with_note: 'Sits with Sana',
       booking_answers: { note: '3rd class, basically staff 💅' },
     },
     {
@@ -277,7 +277,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
   const items: ChecklistItem[] = [
     {
       id: 'c-bases',
-      text: 'bake 12 cake bases',
+      text: 'Bake 12 cake bases',
       quantity: 12,
       hours_before: 24,
       t_minus_label: 'T-24h',
@@ -292,7 +292,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-buttercream',
-      text: 'make buttercream · 3 batches',
+      text: 'Make buttercream · 3 batches',
       quantity: 3,
       hours_before: 24,
       t_minus_label: 'T-24h',
@@ -306,7 +306,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-piping',
-      text: 'mix pastel piping bags ×12',
+      text: 'Mix pastel piping bags ×12',
       quantity: 12,
       hours_before: 4,
       t_minus_label: 'T-4h',
@@ -320,7 +320,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-sprinkles',
-      text: 'set out the sprinkle bar',
+      text: 'Set out the sprinkle bar',
       quantity: null,
       hours_before: 1,
       t_minus_label: 'T-1h',
@@ -334,7 +334,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-candle',
-      text: "ayesha's birthday candle 🎂",
+      text: "Ayesha's birthday candle 🎂",
       quantity: null,
       hours_before: 1,
       t_minus_label: 'T-1h',
@@ -348,7 +348,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-kiln',
-      text: 'load the kiln for glaze pieces',
+      text: 'Load the kiln for glaze pieces',
       quantity: null,
       hours_before: 48,
       t_minus_label: 'T-48h',
@@ -363,7 +363,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-wash',
-      text: 'wash piping tips',
+      text: 'Wash piping tips',
       quantity: null,
       hours_before: -2,
       t_minus_label: 'T+2h',
@@ -377,7 +377,7 @@ export function demoChecklist(now: Date, sessionId: string): Checklist {
     },
     {
       id: 'c-aprons',
-      text: 'restock aprons',
+      text: 'Restock aprons',
       quantity: null,
       hours_before: -2,
       t_minus_label: 'T+2h',

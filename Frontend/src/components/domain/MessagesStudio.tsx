@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { ReminderQueue } from '@/components/domain/ReminderQueue';
+
 import { Button } from '@/components/ui/Button';
 import { Card, CardTitle, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
@@ -23,16 +25,16 @@ import {
  */
 
 const DENSITIES: { id: EmojiDensity; label: string }[] = [
-  { id: 'none', label: 'none' },
-  { id: 'light', label: 'light' },
-  { id: 'full', label: 'full ✨' },
+  { id: 'none', label: 'None' },
+  { id: 'light', label: 'Light' },
+  { id: 'full', label: 'Full ✨' },
 ];
 
 const PREVIEW_VARS = {
-  guest_name: 'sana',
-  class_name: 'bento cake',
+  guest_name: 'Sana',
+  class_name: 'Bento cake',
   time: '2 pm',
-  date: 'saturday',
+  date: 'Saturday',
 };
 
 export function MessagesStudio() {
@@ -42,12 +44,12 @@ export function MessagesStudio() {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">messages</h1>
+      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Messages</h1>
       <p className="text-latte mb-4">
-        <HandNote>every reminder re-writes itself to match ✍️</HandNote>
+        <HandNote>Every reminder re-writes itself to match ✍️</HandNote>
       </p>
 
-      <Eyebrow>voice</Eyebrow>
+      <Eyebrow>Voice</Eyebrow>
       <div role="radiogroup" aria-label="Message voice" className="mb-5 flex flex-wrap gap-2">
         {VOICES.map((option) => {
           const active = option.id === voice;
@@ -76,7 +78,7 @@ export function MessagesStudio() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div>
-          <Eyebrow>preview</Eyebrow>
+          <Eyebrow>Preview</Eyebrow>
 
           {/* aria-live: switching voice replaces this text, and a screen
               reader user should hear that it changed. */}
@@ -93,13 +95,13 @@ export function MessagesStudio() {
               text={renderMessage('thank_you', voice, density, PREVIEW_VARS)}
             />
 
-            <Eyebrow className="mt-4">how was it?</Eyebrow>
+            <Eyebrow className="mt-4">How was it?</Eyebrow>
             <div className="flex gap-2.5">
               {['😍', '🙂', '😕'].map((emoji, index) => (
                 <button
                   key={emoji}
                   type="button"
-                  aria-label={['loved it', 'it was fine', 'not great'][index]}
+                  aria-label={['Loved it', 'It was fine', 'Not great'][index]}
                   aria-pressed={rating === index}
                   onClick={() => setRating(index)}
                   className={cn(
@@ -112,14 +114,14 @@ export function MessagesStudio() {
               ))}
             </div>
             <HandNote className="mt-2 block">
-              one tap + one word. that&rsquo;s the whole survey.
+              One tap + one word. that&rsquo;s the whole survey.
             </HandNote>
           </div>
         </div>
 
         <div className="grid content-start gap-4">
           <Card>
-            <Eyebrow>send schedule</Eyebrow>
+            <Eyebrow>Send schedule</Eyebrow>
             <ol className="border-pink relative border-l-2 border-dashed pl-5">
               {SEND_SCHEDULE.map((step) => (
                 <li key={step.id} className="mb-4 last:mb-0">
@@ -127,7 +129,7 @@ export function MessagesStudio() {
                   <small className="text-latte">{step.detail}</small>
                   {step.audience === 'host' ? (
                     <Chip tone="neutral" className="mt-1">
-                      just for you
+                      Just for you
                     </Chip>
                   ) : null}
                 </li>
@@ -135,12 +137,14 @@ export function MessagesStudio() {
             </ol>
 
             <p className="text-latte mt-3 flex items-center gap-2 text-[13.5px]">
-              <Chip tone="sage">💤 quiet hours on</Chip> sends 9 am – 9 pm only
+              <Chip tone="sage">💤 quiet hours on</Chip> Sends 9 am – 9 pm only
             </p>
           </Card>
 
+          <ReminderQueue voice={voice} />
+
           <Card>
-            <Eyebrow>emoji density</Eyebrow>
+            <Eyebrow>Emoji density</Eyebrow>
             <div role="radiogroup" aria-label="Emoji density" className="flex flex-wrap gap-2">
               {DENSITIES.map((option) => (
                 <button
@@ -161,12 +165,12 @@ export function MessagesStudio() {
               ))}
             </div>
 
-            <CardTitle className="mt-4">before it goes out</CardTitle>
+            <CardTitle className="mt-4">Before it goes out</CardTitle>
             <p className="text-latte mt-1 text-[13.5px]">
-              nothing sends unseen — send yourself a test first.
+              Nothing sends unseen — send yourself a test first.
             </p>
             <Button variant="secondary" className="mt-3">
-              send a test to me
+              Send a test to me
             </Button>
           </Card>
         </div>

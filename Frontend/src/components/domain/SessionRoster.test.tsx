@@ -61,7 +61,7 @@ function session(overrides: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
     class_type_id: 'ct-1',
-    class_type_name: 'bento cake',
+    class_type_name: 'Bento cake',
     color_token: 'pink',
     title: null,
     location: null,
@@ -169,7 +169,7 @@ describe('SessionRoster', () => {
     respondRoster([]);
     renderRoster();
 
-    expect(await screen.findByText(/nobody booked in yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nobody booked in yet/)).toBeInTheDocument();
   });
 
   describe('waitlist', () => {
@@ -178,7 +178,7 @@ describe('SessionRoster', () => {
       renderRoster();
 
       await screen.findByText('Sana R.');
-      expect(screen.queryByRole('button', { name: 'invite next' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Invite next' })).not.toBeInTheDocument();
     });
 
     it('offers an invite once a seat frees up', async () => {
@@ -189,7 +189,7 @@ describe('SessionRoster', () => {
         }),
       );
 
-      expect(await screen.findByRole('button', { name: 'invite next' })).toBeEnabled();
+      expect(await screen.findByRole('button', { name: 'Invite next' })).toBeEnabled();
     });
 
     it('disables the invite while the class is still full', async () => {
@@ -200,7 +200,7 @@ describe('SessionRoster', () => {
         }),
       );
 
-      expect(await screen.findByRole('button', { name: 'invite next' })).toBeDisabled();
+      expect(await screen.findByRole('button', { name: 'Invite next' })).toBeDisabled();
     });
 
     it("shows the API's reason when nobody could be invited", async () => {
@@ -209,7 +209,7 @@ describe('SessionRoster', () => {
         session({ capacity: { ...session().capacity, waitlist_is_open: true, available: 1 } }),
       );
 
-      const invite = await screen.findByRole('button', { name: 'invite next' });
+      const invite = await screen.findByRole('button', { name: 'Invite next' });
 
       fetchImpl.mockImplementation(
         () =>
@@ -237,8 +237,8 @@ describe('SessionRoster', () => {
       await userEvent.click(await screen.findByRole('button', { name: /Cancel Sana R./ }));
 
       expect(screen.getByRole('dialog')).toHaveAccessibleName(/cancel Sana R./i);
-      expect(screen.getByLabelText(/save a class credit/)).toBeChecked();
-      expect(screen.getByLabelText(/refunded them/)).not.toBeChecked();
+      expect(screen.getByLabelText(/Save a class credit/)).toBeChecked();
+      expect(screen.getByLabelText(/Refunded them/)).not.toBeChecked();
     });
 
     it('sends the chosen resolution', async () => {
@@ -246,8 +246,8 @@ describe('SessionRoster', () => {
       renderRoster();
 
       await userEvent.click(await screen.findByRole('button', { name: /Cancel Sana R./ }));
-      await userEvent.click(screen.getByLabelText(/refunded them/));
-      await userEvent.click(screen.getByRole('button', { name: 'cancel the seat' }));
+      await userEvent.click(screen.getByLabelText(/Refunded them/));
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel the seat' }));
 
       await waitFor(() => {
         const post = fetchImpl.mock.calls.find((c) => String(c[0]).includes('/cancel'));
@@ -260,7 +260,7 @@ describe('SessionRoster', () => {
       renderRoster();
 
       await userEvent.click(await screen.findByRole('button', { name: /Cancel Sana R./ }));
-      await userEvent.click(screen.getByRole('button', { name: 'cancel the seat' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel the seat' }));
 
       await waitFor(() => {
         const post = fetchImpl.mock.calls.find((c) => String(c[0]).includes('/cancel'));
@@ -273,7 +273,7 @@ describe('SessionRoster', () => {
       renderRoster();
 
       await userEvent.click(await screen.findByRole('button', { name: /Cancel Sana R./ }));
-      await userEvent.click(screen.getByRole('button', { name: 'keep the booking' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Keep the booking' }));
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

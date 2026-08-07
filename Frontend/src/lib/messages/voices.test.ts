@@ -74,7 +74,7 @@ describe('renderMessage', () => {
 
   it('matches the prototype copy for soft & sweet', () => {
     expect(renderMessage('reminder_24h', 'soft_sweet', 'none', { time: '2 pm' })).toContain(
-      "we can't wait to see you tomorrow at 2 pm!",
+      "We can't wait to see you tomorrow at 2 pm!",
     );
   });
 

@@ -68,16 +68,16 @@ export function WeekWrapped({ stats }: { stats: WeekStats }) {
             aria-hidden="true"
             className="font-hand absolute -top-3.5 right-3.5 rotate-3 text-lg text-white drop-shadow"
           >
-            screenshot me! →
+            Screenshot me! →
           </span>
 
-          <h3 className="font-display mb-3 text-xl">your week, wrapped 🎀</h3>
+          <h3 className="font-display mb-3 text-xl">Your week, wrapped 🎀</h3>
 
           <dl className="grid grid-cols-2 gap-2.5">
-            <Stat value={stats.classesHosted} label="classes hosted" />
-            <Stat value={stats.guestsTaught} label="guests taught" />
-            <Stat value={stats.soldOut} label="sold-out classes" />
-            <Stat value={stats.totalGuestsEver} label="guests all together" />
+            <Stat value={stats.classesHosted} label="Classes hosted" />
+            <Stat value={stats.guestsTaught} label="Guests taught" />
+            <Stat value={stats.soldOut} label="Sold-out classes" />
+            <Stat value={stats.totalGuestsEver} label="Guests all together" />
           </dl>
 
           {stats.totalGuestsEver > 0 ? (
@@ -90,7 +90,7 @@ export function WeekWrapped({ stats }: { stats: WeekStats }) {
 
       {badges.length > 0 ? (
         <>
-          <Eyebrow className="mt-4">milestones</Eyebrow>
+          <Eyebrow className="mt-4">Milestones</Eyebrow>
           <ul className="flex flex-wrap gap-2.5">
             {badges.map((badge, index) => (
               <li key={badge}>
