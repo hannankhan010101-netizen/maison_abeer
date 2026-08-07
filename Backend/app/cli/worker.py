@@ -29,16 +29,23 @@ import argparse
 import logging
 import sys
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.db import get_session_factory, reset_engine
 from app.domain.scheduling import QuietHours
-from app.models.enums import MessageStatus
+from app.models.enums import MessageChannel, MessageStatus
+from app.models.guest import Guest
 from app.models.session import ScheduledMessage
 from app.models.studio import Studio, StudioSettings
+from app.services.transports import (
+    LoggingTransport,
+    Recipient,
+    Transport,
+    build_transport,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -49,31 +56,6 @@ logger = logging.getLogger("maison.worker")
 
 MAX_ATTEMPTS = 3
 """After this many failures a message stays `failed` for the host to decide."""
-
-
-class Transport(Protocol):
-    """Anything that can deliver one message."""
-
-    def send(self, *, channel: str, body: str, recipient_id: str | None) -> str:
-        """Deliver and return a provider message id. Raise to signal failure."""
-        ...
-
-
-class LoggingTransport:
-    """The default. Records what *would* be sent and never contacts anyone.
-
-    This is the safe default on purpose: the worker is most often run against
-    a real database while developing, and a misconfigured provider messaging
-    real guests is not a recoverable mistake.
-    """
-
-    def __init__(self) -> None:
-        self.sent: list[tuple[str, str]] = []
-
-    def send(self, *, channel: str, body: str, recipient_id: str | None) -> str:
-        logger.info("[dry-run] %s -> %s: %s", channel, recipient_id, body[:80])
-        self.sent.append((channel, body))
-        return f"dry-run-{len(self.sent)}"
 
 
 def _quiet_hours_for(db: SASession, studio_id: UUID) -> QuietHours:
@@ -115,14 +97,40 @@ def _claim_due(db: SASession, studio_id: UUID, now: datetime, limit: int) -> lis
     return due
 
 
-def _deliver(db: SASession, message: ScheduledMessage, transport: Transport) -> bool:
+def _address_for(db: SASession, message: ScheduledMessage) -> str | None:
+    """The phone or email this message should reach, for its channel.
+
+    Returns None when there is nothing to send to. The worker treats that as
+    a skip with a reason rather than a failure: the host cannot fix a
+    delivery error, but they can add a phone number.
+    """
+    if message.guest_id is None:
+        return None
+
+    guest = db.get(Guest, message.guest_id)
+    if guest is None:
+        return None
+
+    if message.channel in (MessageChannel.SMS, MessageChannel.WHATSAPP):
+        return guest.phone
+
+    if message.channel is MessageChannel.EMAIL:
+        return guest.email
+
+    return None
+
+
+def _deliver(db: SASession, message: ScheduledMessage, transport: Transport, address: str) -> bool:
     message.attempt_count += 1
 
     try:
         provider_id = transport.send(
             channel=message.channel.value,
             body=message.body,
-            recipient_id=str(message.guest_id) if message.guest_id else None,
+            recipient=Recipient(
+                address=address,
+                guest_id=str(message.guest_id) if message.guest_id else None,
+            ),
         )
     # Any provider failure is the same to us: record it and move on.
     except Exception as exc:
@@ -152,7 +160,7 @@ def drain(
     resolved_transport = transport or LoggingTransport()
     moment = now or datetime.now(UTC)
 
-    tally = {"sent": 0, "failed": 0, "held": 0}
+    tally = {"sent": 0, "failed": 0, "held": 0, "skipped": 0}
     factory = get_session_factory()
 
     with factory() as db:
@@ -177,7 +185,18 @@ def drain(
                     tally["failed"] += 1
                     continue
 
-                if _deliver(db, message, resolved_transport):
+                address = _address_for(db, message)
+
+                if address is None:
+                    # Not a failure the host can retry — record why and stop
+                    # re-attempting it every fifteen minutes.
+                    message.status = MessageStatus.SKIPPED_NO_CONTACT
+                    message.last_error = "No phone number or email on file."
+                    db.commit()
+                    tally["skipped"] += 1
+                    continue
+
+                if _deliver(db, message, resolved_transport, address):
                     tally["sent"] += 1
                 else:
                     tally["failed"] += 1
@@ -191,9 +210,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument(
         "--transport",
-        choices=["log"],
+        choices=["log", "configured"],
         default="log",
-        help="delivery provider; 'log' performs a dry run and contacts nobody",
+        help=(
+            "'log' performs a dry run and contacts nobody; 'configured' uses "
+            "MESSAGE_PROVIDER from the environment and will message real guests"
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -209,12 +231,16 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        tally = drain(limit=args.limit)
+        transport = build_transport(get_settings()) if args.transport == "configured" else None
+        tally = drain(limit=args.limit, transport=transport)
     finally:
         reset_engine()
 
-    logger.info("sent=%(sent)d failed=%(failed)d held=%(held)d", tally)
-    print(f"sent={tally['sent']} failed={tally['failed']} held={tally['held']}")
+    logger.info("sent=%(sent)d failed=%(failed)d held=%(held)d skipped=%(skipped)d", tally)
+    print(
+        f"sent={tally['sent']} failed={tally['failed']} "
+        f"held={tally['held']} skipped={tally['skipped']}"
+    )
     return 0
 
 

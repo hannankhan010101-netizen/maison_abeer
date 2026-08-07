@@ -72,9 +72,19 @@ Overlapping runs are safe: the worker claims rows with `SELECT … FOR UPDATE
 SKIP LOCKED` before contacting any provider, so a second invocation finds them
 already claimed.
 
-> **The default transport does not send anything.** It logs what it would
-> send. Wiring a real provider is a deliberate, separate step — see
-> `app/cli/worker.py`.
+### Message delivery
+
+The cron drain uses whatever `MESSAGE_PROVIDER` names. It defaults to `log`,
+which records what it would send and contacts nobody — so a deployed cron
+runs safely before a provider is wired.
+
+To send for real, set `MESSAGE_PROVIDER=twilio` plus `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN`, `TWILIO_FROM_SMS` and `TWILIO_FROM_WHATSAPP`. Partial
+credentials are refused at startup rather than half-configured: a provider
+that fails every send is worse than one that plainly did not try.
+
+Email has no implementation. A guest whose preferred channel is email will
+fail with a visible reason rather than silently never hearing from you.
 
 ---
 

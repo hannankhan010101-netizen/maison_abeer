@@ -19,6 +19,7 @@ from fastapi import APIRouter, Header
 from app.cli.worker import drain
 from app.core.config import get_settings
 from app.core.errors import NotAuthenticatedError, NotAuthorizedError
+from app.services.transports import build_transport
 
 router = APIRouter(prefix="/cron", tags=["cron"])
 
@@ -60,4 +61,7 @@ def drain_messages(
     them.
     """
     _authorise(authorization)
-    return drain()
+
+    # The configured provider, not the dry run: a scheduled drain that logs
+    # instead of sending would look healthy and deliver nothing.
+    return drain(transport=build_transport(get_settings()))

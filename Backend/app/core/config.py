@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
     db_pool_recycle_seconds: int = 1800
 
+    # ---- messaging --------------------------------------------------------
+    message_provider: str = "log"
+    """'log' contacts nobody. 'twilio' sends for real — see app/services/transports.py."""
+
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_sms: str = ""
+    twilio_from_whatsapp: str = ""
+
     cron_secret: str = ""
     """Shared secret for the scheduled-task endpoint. Empty disables it."""
 
