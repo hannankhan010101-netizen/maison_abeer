@@ -41,6 +41,14 @@ class Settings(BaseSettings):
 
     # ---- database ---------------------------------------------------------
     database_url: PostgresDsn
+    migration_database_url: str = ""
+    """Owner connection for Alembic only.
+
+    The application connects as a non-owner role so RLS applies to it, but
+    that role cannot ALTER TABLE. Empty falls back to `database_url`, which is
+    correct for a local database where one role does both.
+    """
+
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_recycle_seconds: int = 1800

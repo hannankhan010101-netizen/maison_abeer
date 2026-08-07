@@ -12,10 +12,11 @@ studio A cannot reach studio B.
 
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from sqlalchemy import Select, create_engine, event, select
+from sqlalchemy import Select, create_engine, event, select, text
 from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -128,6 +129,34 @@ class TenantSession:
     def __init__(self, session: SASession, studio_id: UUID) -> None:
         self._session = session
         self._studio_id = studio_id
+
+    def announce_tenant(self) -> None:
+        """Tell Postgres which studio this transaction belongs to.
+
+        Called when a request-scoped transaction opens, not from `__init__`:
+        constructing the wrapper must not require a live connection, or every
+        test that compiles SQL without a database would need one.
+
+        The RLS policies read `request.jwt.claims`, the GUC Supabase's own
+        PostgREST sets per connection. FastAPI is not PostgREST, so nothing
+        would set it and every policy would match zero rows.
+
+        `SET LOCAL`, not `SET`: it is scoped to the transaction and discarded
+        on commit or rollback. A plain `SET` would persist on a pooled
+        connection and hand the next request the previous tenant's identity —
+        which is worse than having no policy at all.
+
+        Bound as a parameter rather than interpolated. `studio_id` is a UUID
+        from a verified token and could not carry an injection today, but a
+        GUC assignment built by string concatenation is a bad habit to leave
+        lying next to the tenancy boundary.
+        """
+        claims = json.dumps({"studio_id": str(self._studio_id)})
+
+        self._session.execute(
+            text("SELECT set_config('request.jwt.claims', :claims, true)"),
+            {"claims": claims},
+        )
 
     @property
     def studio_id(self) -> UUID:

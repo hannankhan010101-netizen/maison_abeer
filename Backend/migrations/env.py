@@ -34,7 +34,11 @@ def _database_url() -> str:
     `%%23%%23`, unquote to `%#%#`, and fail authentication with a misleading
     "password authentication failed" against the wrong username.
     """
-    return str(get_settings().database_url)
+    settings = get_settings()
+
+    # Migrations need ownership; the application deliberately does not have
+    # it, so running them on the app's connection fails on the first ALTER.
+    return settings.migration_database_url or str(settings.database_url)
 
 
 def include_object(

@@ -46,6 +46,11 @@ def get_tenant_session(
         studio_id = _resolve_studio_id(session, principal.auth_user_id)
         scoped = TenantSession(session, studio_id)
 
+        # Identifies the tenant to Postgres for this transaction, so the RLS
+        # policies have a claim to match. Without it every policy matches zero
+        # rows and the API reads nothing.
+        scoped.announce_tenant()
+
         yield scoped
 
         session.commit()
