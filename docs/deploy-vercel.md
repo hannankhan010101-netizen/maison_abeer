@@ -41,10 +41,17 @@ enough concurrent invocations and the project stops accepting connections at
 all — including from the dashboard.
 
 `DB_SERVERLESS=true` switches the engine to `NullPool` and disables psycopg's
-prepared statements. Both are required with the transaction pooler, which
-hands each statement to a different backend: a cached plan will not be there,
-and you get `prepared statement "_pg3_0" does not exist` — under load only,
-which is the worst way to find out.
+prepared statements.
+
+`NullPool` is the load-bearing half, for the reason above.
+
+Disabling prepared statements is defensive. The classic transaction-pooler
+failure is `prepared statement "_pg3_0" does not exist`, because each
+statement can land on a different backend. **I could not reproduce it against
+Supabase's pooler** — Supavisor appears to handle named prepared statements in
+transaction mode — so treat this as belt-and-braces rather than a fix for an
+observed fault. It costs a little planning time per query and makes the config
+portable to PgBouncer, which does not.
 
 Use port **6543** (transaction), not 5432 (session), for this project.
 

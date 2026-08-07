@@ -49,11 +49,15 @@ def create_db_engine(settings: Settings | None = None) -> Engine:
     **Serverless** (Vercel): `NullPool`. A function instance handles one
     request and freezes, so a pool it holds is dead weight the database still
     counts against `max_connections` — enough concurrent invocations and the
-    project stops accepting connections entirely. Prepared statements are also
-    disabled, because a transaction-mode pooler hands each statement to a
-    different backend and psycopg's cached plan will not be there:
-    `prepared statement "_pg3_0" does not exist` under load, and only under
-    load, which is the worst way to find out.
+    project stops accepting connections entirely. That is the load-bearing
+    half of this branch.
+
+    Prepared statements are also disabled, which is defensive rather than a
+    fix for an observed fault: the classic transaction-pooler failure is
+    `prepared statement "_pg3_0" does not exist`, but Supabase's Supavisor
+    handles named prepared statements in transaction mode and it did not
+    reproduce there. It keeps the configuration portable to PgBouncer, which
+    does not.
     """
     resolved = settings or get_settings()
 
