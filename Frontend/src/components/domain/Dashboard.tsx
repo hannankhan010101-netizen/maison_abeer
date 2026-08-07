@@ -10,10 +10,15 @@ import { Card, CardTitle, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { WeekWrapped, summariseWeek } from '@/components/domain/WeekWrapped';
 import { ApiError } from '@/lib/api/errors';
-import { useSessions, useUpcomingBirthdays } from '@/lib/api/hooks';
+import {
+  useFailedMessages,
+  useRetryMessage,
+  useSessions,
+  useUpcomingBirthdays,
+} from '@/lib/api/hooks';
 import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks, formatDateLong, formatRange, humanCountdown, timeOfDay } from '@/lib/dates';
-import type { Session, UpcomingBirthday } from '@/lib/api/types';
+import type { ScheduledMessage, Session, UpcomingBirthday } from '@/lib/api/types';
 
 /**
  * The daily overview (PRD §2.1).
@@ -46,6 +51,7 @@ function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
 
   const sessions = useSessions(range.start, range.end);
   const birthdays = useUpcomingBirthdays();
+  const failedMessages = useFailedMessages();
 
   const upcoming = useMemo(() => {
     const list = [...(sessions.data ?? [])].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
@@ -89,7 +95,11 @@ function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
 
           <div className="grid content-start gap-3">
             <Eyebrow>Alerts &amp; nudges</Eyebrow>
-            <AlertFeed sessions={sessions.data} birthdays={birthdays.data ?? []} />
+            <AlertFeed
+              sessions={sessions.data}
+              birthdays={birthdays.data ?? []}
+              failedMessages={failedMessages.data ?? []}
+            />
 
             {/* Celebratory, and deliberately screenshot-shaped (PRD §2.1). */}
             <WeekWrapped stats={summariseWeek(sessions.data, now)} />
@@ -196,15 +206,43 @@ function NothingScheduled() {
  * Every one is actionable and links to where it can be resolved. Critical
  * items sort to the top, matching the PRD's two tiers.
  */
-export function buildAlerts(sessions: Session[], birthdays: UpcomingBirthday[]) {
+export function buildAlerts(
+  sessions: Session[],
+  birthdays: UpcomingBirthday[],
+  failedMessages: ScheduledMessage[] = [],
+) {
   const alerts: {
     id: string;
     tone: 'critical' | 'warning' | 'gentle';
     title: string;
     description: string;
-    href: string;
     icon: string;
+    /** Where to go to resolve it. Omitted when the fix happens in place. */
+    href?: string;
+    /** A message to retry, for the one alert resolved without navigating. */
+    retryMessageId?: string;
   }[] = [];
+
+  // First, and always critical. The PRD is explicit that a failed send must
+  // reach the host (§3.2) — a guest who was never told the class moved is a
+  // person standing outside a locked studio.
+  if (failedMessages.length > 0) {
+    const count = failedMessages.length;
+    const first = failedMessages[0];
+
+    alerts.push({
+      id: 'messages-failed',
+      tone: 'critical',
+      icon: '📵',
+      title: `${count} message${count === 1 ? '' : 's'} didn't send`,
+      description:
+        count === 1 && first?.last_error
+          ? first.last_error
+          : 'Tap retry, or reach them another way',
+      retryMessageId: count === 1 ? first?.id : undefined,
+      href: count === 1 ? undefined : '/messages',
+    });
+  }
 
   for (const session of sessions) {
     if (session.unassigned_guest_count > 0) {
@@ -262,11 +300,14 @@ export function buildAlerts(sessions: Session[], birthdays: UpcomingBirthday[]) 
 function AlertFeed({
   sessions,
   birthdays,
+  failedMessages,
 }: {
   sessions: Session[];
   birthdays: UpcomingBirthday[];
+  failedMessages: ScheduledMessage[];
 }) {
-  const alerts = buildAlerts(sessions, birthdays);
+  const retry = useRetryMessage();
+  const alerts = buildAlerts(sessions, birthdays, failedMessages);
 
   if (alerts.length === 0) {
     return (
@@ -288,9 +329,20 @@ function AlertFeed({
             title={alert.title}
             description={alert.description}
             action={
-              <Link href={alert.href} className={buttonClasses('secondary', 'sm')}>
-                Open
-              </Link>
+              alert.retryMessageId ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={retry.isPending}
+                  onClick={() => retry.mutate(alert.retryMessageId!)}
+                >
+                  {retry.isPending ? 'Retrying…' : 'Retry'}
+                </Button>
+              ) : alert.href ? (
+                <Link href={alert.href} className={buttonClasses('secondary', 'sm')}>
+                  Open
+                </Link>
+              ) : null
             }
           />
         </li>

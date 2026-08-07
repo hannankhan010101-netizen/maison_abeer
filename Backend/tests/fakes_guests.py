@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date, datetime
 from uuid import UUID, uuid4
@@ -114,13 +115,13 @@ class FakeGuestRepository:
     def waitlist_for_session(self, session_id: UUID) -> list[WaitlistEntry]:
         return self.waitlists.get(session_id, [])
 
-    def save_waitlist(self, session_id: UUID, entries: list[WaitlistEntry]) -> None:
+    def save_waitlist(self, session_id: UUID, entries: Sequence[WaitlistEntry]) -> None:
         self.waitlists[session_id] = list(entries)
 
     def quiet_hours(self) -> QuietHours:
         return self._quiet_hours
 
-    def sessions_with_bookings(self, guest_ids: list[UUID], after: date) -> set[UUID]:
+    def sessions_with_bookings(self, guest_ids: Sequence[UUID], after: date) -> set[UUID]:
         _ = after
         return {gid for gid in guest_ids if gid in self.upcoming_booked}
 

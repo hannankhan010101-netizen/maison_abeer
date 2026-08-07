@@ -1,12 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Dashboard, buildAlerts } from './Dashboard';
 import { ApiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/provider';
-import type { Session, UpcomingBirthday } from '@/lib/api/types';
+import type { ScheduledMessage, Session, UpcomingBirthday } from '@/lib/api/types';
 
 const fetchImpl = vi.fn();
 
@@ -59,16 +60,27 @@ function session(overrides: Partial<Session> = {}): Session {
   };
 }
 
-/** Routes the two dashboard queries to their own payloads. */
+/** Routes each dashboard query to its own payload.
+
+ * Matched on the URL rather than call order: the queries fire concurrently,
+ * so a positional mock would hand the sessions payload to whichever landed
+ * first and the failure would look like a component bug.
+ */
 function respond({
   sessions = [],
   birthdays = [],
+  failed = [],
 }: {
   sessions?: Session[];
   birthdays?: UpcomingBirthday[];
+  failed?: ScheduledMessage[];
 }) {
   fetchImpl.mockImplementation((url: string) => {
-    const body = String(url).includes('/birthdays') ? birthdays : sessions;
+    const path = String(url);
+
+    let body: unknown = sessions;
+    if (path.includes('/birthdays')) body = birthdays;
+    else if (path.includes('/messages/failed')) body = failed;
 
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -87,9 +99,72 @@ function renderDashboard(props = {}) {
   return render(<Dashboard now={NOW} {...props} />, { wrapper: Wrapper });
 }
 
+function failedMessage(overrides: Partial<ScheduledMessage> = {}): ScheduledMessage {
+  return {
+    id: 'msg-1',
+    session_id: 'session-1',
+    guest_id: 'guest-1',
+    kind: 'guest_reminder',
+    channel: 'whatsapp',
+    status: 'failed',
+    send_at: NOW.toISOString(),
+    sent_at: null,
+    body: 'See you tomorrow!',
+    attempt_count: 1,
+    last_error: 'Number unreachable',
+    ...overrides,
+  };
+}
+
 describe('buildAlerts', () => {
   it('is quiet when nothing needs attention', () => {
     expect(buildAlerts([session()], [])).toEqual([]);
+  });
+
+  // The PRD forbids a silent failure (§3.2). These are the guard.
+
+  it('raises a failed send as critical', () => {
+    const alerts = buildAlerts([session()], [], [failedMessage()]);
+
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.tone).toBe('critical');
+    expect(alerts[0]!.title).toBe("1 message didn't send");
+  });
+
+  it('shows the provider reason when there is exactly one', () => {
+    const alerts = buildAlerts([session()], [], [failedMessage()]);
+    expect(alerts[0]!.description).toBe('Number unreachable');
+  });
+
+  it('offers an in-place retry for a single failure', () => {
+    const alerts = buildAlerts([session()], [], [failedMessage({ id: 'msg-42' })]);
+
+    expect(alerts[0]!.retryMessageId).toBe('msg-42');
+    // Nothing to navigate to — the fix happens on the dashboard.
+    expect(alerts[0]!.href).toBeUndefined();
+  });
+
+  it('sends the host to the messages screen when several failed', () => {
+    const alerts = buildAlerts(
+      [session()],
+      [],
+      [failedMessage({ id: 'a' }), failedMessage({ id: 'b' })],
+    );
+
+    expect(alerts[0]!.title).toBe("2 messages didn't send");
+    expect(alerts[0]!.href).toBe('/messages');
+    // Retrying one of several in place would leave the rest silently failed.
+    expect(alerts[0]!.retryMessageId).toBeUndefined();
+  });
+
+  it('puts a failed send above every other alert', () => {
+    const alerts = buildAlerts(
+      [session({ unassigned_guest_count: 2, roster_changed_since_export: true })],
+      [],
+      [failedMessage()],
+    );
+
+    expect(alerts[0]!.id).toBe('messages-failed');
   });
 
   it('flags guests without a table', () => {
@@ -269,5 +344,27 @@ describe('Dashboard', () => {
 
     const alert = await screen.findByRole('alert');
     expect(within(alert).getByText('Give it a moment.')).toBeInTheDocument();
+  });
+
+  it('surfaces a failed send on the dashboard itself', async () => {
+    respond({ sessions: [session()], failed: [failedMessage()] });
+
+    renderDashboard();
+
+    expect(await screen.findByText("1 message didn't send")).toBeInTheDocument();
+  });
+
+  it('retries a failed send without leaving the page', async () => {
+    respond({ sessions: [session()], failed: [failedMessage({ id: 'msg-42' })] });
+
+    renderDashboard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+    const retried = fetchImpl.mock.calls.find((call) =>
+      String(call[0]).includes('/messages/msg-42/retry'),
+    );
+    expect(retried).toBeDefined();
+    expect((retried?.[1] as RequestInit).method).toBe('POST');
   });
 });

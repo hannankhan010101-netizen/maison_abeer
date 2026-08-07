@@ -8,6 +8,7 @@ quantity storage — not a general-purpose database.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -34,7 +35,7 @@ class FakeSessionRepository:
         self.guests: dict[UUID, tuple[int, int]] = {}
         self.sold_out_marks: dict[UUID, datetime] = {}
         self.reanchored: list[tuple[UUID, datetime]] = []
-        self.applied_quantity_changes: list[tuple[UUID, list[QuantityChange], int]] = []
+        self.applied_quantity_changes: list[tuple[UUID, Sequence[QuantityChange], int]] = []
 
     # -- helpers used by tests ---------------------------------------------
 
@@ -124,7 +125,7 @@ class FakeSessionRepository:
         return self.quantities.get(session_id, [])
 
     def apply_quantity_changes(
-        self, session_id: UUID, changes: list[QuantityChange], seats: int
+        self, session_id: UUID, changes: Sequence[QuantityChange], seats: int
     ) -> None:
         self.applied_quantity_changes.append((session_id, list(changes), seats))
 

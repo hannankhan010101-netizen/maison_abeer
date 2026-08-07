@@ -10,6 +10,7 @@ import json
 import re
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -71,11 +72,12 @@ def test_tzdata_ships() -> None:
 
 
 @pytest.fixture(scope="module")
-def vercel() -> dict:
-    return json.loads(VERCEL.read_text(encoding="utf-8"))
+def vercel() -> dict[str, Any]:
+    parsed: dict[str, Any] = json.loads(VERCEL.read_text(encoding="utf-8"))
+    return parsed
 
 
-def test_every_path_routes_to_the_asgi_entrypoint(vercel: dict) -> None:
+def test_every_path_routes_to_the_asgi_entrypoint(vercel: dict[str, Any]) -> None:
     """Without this rewrite only `/api/index` resolves and every route 404s."""
     rewrites = vercel["rewrites"]
     assert any(r["source"] == "/(.*)" and r["destination"] == "/api/index" for r in rewrites)
@@ -89,7 +91,7 @@ def test_the_entrypoint_exists_and_exposes_app() -> None:
     assert re.search(r"^app = create_app\(\)$", entry.read_text(encoding="utf-8"), re.M)
 
 
-def test_the_cron_target_is_a_real_route(vercel: dict) -> None:
+def test_the_cron_target_is_a_real_route(vercel: dict[str, Any]) -> None:
     """A typo here fails silently — the scheduler 404s and nobody is told."""
     from app.main import create_app
 
@@ -99,7 +101,7 @@ def test_the_cron_target_is_a_real_route(vercel: dict) -> None:
         assert job["path"] in paths, f"cron points at {job['path']}, which is not a route"
 
 
-def test_the_cron_route_accepts_the_method_vercel_sends(vercel: dict) -> None:
+def test_the_cron_route_accepts_the_method_vercel_sends(vercel: dict[str, Any]) -> None:
     """Vercel Cron issues GET. A POST-only handler would 405 forever."""
     from app.main import create_app
 
@@ -109,7 +111,7 @@ def test_the_cron_route_accepts_the_method_vercel_sends(vercel: dict) -> None:
         assert "get" in schema[job["path"]], f"{job['path']} must accept GET"
 
 
-def test_the_scheduler_runs_often_enough_to_respect_quiet_hours(vercel: dict) -> None:
+def test_the_scheduler_runs_often_enough_to_respect_quiet_hours(vercel: dict[str, Any]) -> None:
     """Messages held for quiet hours are only released on the next run.
 
     An hourly schedule means a message due at 09:00 can go out at 09:59, which

@@ -9,7 +9,7 @@ way to catch that on every future PR.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import Table
+from sqlalchemy import DateTime, Table
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
@@ -91,7 +91,11 @@ class TestTimestamps:
                 f"{table_name}.{name} must be server-generated — a client clock "
                 f"is not trustworthy audit data."
             )
-            assert columns[name].type.timezone is True, (
+            column_type = columns[name].type
+            assert isinstance(column_type, DateTime), (
+                f"{table_name}.{name} must be a timestamp column"
+            )
+            assert column_type.timezone is True, (
                 f"{table_name}.{name} must be timestamptz; naive timestamps in a "
                 f"scheduling product send reminders at the wrong hour."
             )
@@ -116,7 +120,9 @@ class TestDDLCompiles:
 
     @pytest.mark.parametrize("table_name", ALL_TABLES)
     def test_create_table_compiles(self, table_name: str) -> None:
-        sql = str(CreateTable(table(table_name)).compile(dialect=postgresql.dialect()))
+        # SQLAlchemy ships no annotations for the DDL compile step.
+        compiled = CreateTable(table(table_name)).compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
+        sql = str(compiled)
 
         assert "CREATE TABLE" in sql
         assert table_name in sql
@@ -124,7 +130,8 @@ class TestDDLCompiles:
     @pytest.mark.parametrize("table_name", ALL_TABLES)
     def test_indexes_compile(self, table_name: str) -> None:
         for index in table(table_name).indexes:
-            sql = str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+            compiled = CreateIndex(index).compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
+            sql = str(compiled)
             assert "INDEX" in sql
 
     def test_tables_sort_into_a_valid_dependency_order(self) -> None:

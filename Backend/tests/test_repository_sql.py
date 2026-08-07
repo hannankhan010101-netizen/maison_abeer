@@ -13,15 +13,17 @@ present in every statement the repositories build.
 from __future__ import annotations
 
 import ast
+from typing import Any
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session as SASession
 
 from app.core.db import TenantSession
 from app.models import (
+    Base,
     Booking,
     ChecklistItem,
     ClassType,
@@ -50,13 +52,14 @@ SCOPED_MODELS = [
 ]
 
 
-def compile_sql(statement: object) -> str:
-    return str(
-        statement.compile(  # type: ignore[attr-defined]
-            dialect=postgresql.dialect(),
-            compile_kwargs={"literal_binds": False},
-        )
+def compile_sql(statement: Select[Any]) -> str:
+    # SQLAlchemy ships no annotations for `compile`; mypy attributes the call
+    # to the line the arguments start on.
+    compiled = statement.compile(
+        dialect=postgresql.dialect(),  # type: ignore[no-untyped-call]
+        compile_kwargs={"literal_binds": False},
     )
+    return str(compiled)
 
 
 @pytest.fixture
@@ -66,14 +69,14 @@ def db() -> TenantSession:
 
 
 class TestTenantSessionScoping:
-    @pytest.mark.parametrize("model", SCOPED_MODELS, ids=lambda m: m.__tablename__)
-    def test_query_emits_a_studio_filter(self, db: TenantSession, model: type) -> None:
+    @pytest.mark.parametrize("model", SCOPED_MODELS, ids=lambda m: str(m.__tablename__))
+    def test_query_emits_a_studio_filter(self, db: TenantSession, model: type[Base]) -> None:
         sql = compile_sql(db.query(model))
 
         assert "studio_id" in sql, f"{model.__tablename__} query is not tenant-scoped"
         assert "WHERE" in sql
 
-    @pytest.mark.parametrize("model", SCOPED_MODELS, ids=lambda m: m.__tablename__)
+    @pytest.mark.parametrize("model", SCOPED_MODELS, ids=lambda m: str(m.__tablename__))
     def test_scoped_query_differs_from_an_unscoped_one(
         self, db: TenantSession, model: type
     ) -> None:
