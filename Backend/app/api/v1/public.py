@@ -44,13 +44,15 @@ from app.models.enums import (
     WaitlistStatus,
 )
 from app.models.guest import Guest, GuestAllergy
-from app.models.session import Booking, Session, WaitlistEntry
+from app.models.session import Booking, MessageFeedback, Session, WaitlistEntry
 from app.models.studio import BrandKit, Studio
 from app.schemas.public import (
     PublicBookingRequest,
     PublicBookingResult,
     PublicClass,
     PublicClassList,
+    PublicFeedbackPrompt,
+    PublicFeedbackRequest,
     PublicStudio,
 )
 
@@ -383,4 +385,96 @@ def book_public_class(
         starts_at=session.starts_at,
         location=session.location,
         waitlist_position=entry.position,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+#
+# Reached from the thank-you message, so there is no session to authenticate
+# against. The booking id is the credential: a random UUID, unguessable, and
+# scoped to exactly one booking — the same shape as a magic link.
+#
+# What that buys and what it does not: someone who intercepts the message can
+# leave feedback in the guest's name. They cannot enumerate other bookings,
+# learn who the guest is, or read anything back. For a one-tap sentiment
+# survey that trade is right; it would not be for anything consequential.
+
+
+@router.get("/feedback/{booking_id}", response_model=PublicFeedbackPrompt)
+@limiter.limit("30/minute")
+def feedback_prompt(
+    request: Request,  # noqa: ARG001 - slowapi reads the client address off it
+    booking_id: UUID,
+    db: Db,
+) -> PublicFeedbackPrompt:
+    """The class this link is about, and whether it has already been answered."""
+    row = db.execute(
+        select(Booking, Session)
+        .join(Session, Session.id == Booking.session_id)
+        .where(Booking.id == booking_id)
+    ).one_or_none()
+
+    if row is None:
+        raise NotFoundError("We couldn't find that.")
+
+    booking, session = row
+
+    answered = db.execute(
+        select(MessageFeedback.id).where(MessageFeedback.booking_id == booking.id)
+    ).scalar_one_or_none()
+
+    return PublicFeedbackPrompt(
+        class_name=session.title or (session.class_type.name if session.class_type else "Class"),
+        starts_at=session.starts_at,
+        already_answered=answered is not None,
+    )
+
+
+@router.put("/feedback/{booking_id}", response_model=PublicFeedbackPrompt)
+@limiter.limit("20/hour")
+def leave_feedback(
+    request: Request,  # noqa: ARG001 - slowapi reads the client address off it
+    booking_id: UUID,
+    payload: PublicFeedbackRequest,
+    db: Db,
+) -> PublicFeedbackPrompt:
+    """Record one tap and one word.
+
+    PUT, not POST: the table is unique on `booking_id`, and a guest who taps
+    again is correcting their answer rather than colliding with themselves.
+    """
+    row = db.execute(
+        select(Booking, Session)
+        .join(Session, Session.id == Booking.session_id)
+        .where(Booking.id == booking_id)
+    ).one_or_none()
+
+    if row is None:
+        raise NotFoundError("We couldn't find that.")
+
+    booking, session = row
+
+    if session.starts_at > datetime.now(UTC):
+        raise ConflictError("That class hasn't happened yet.")
+
+    existing = db.execute(
+        select(MessageFeedback).where(MessageFeedback.booking_id == booking.id)
+    ).scalar_one_or_none()
+
+    if existing is None:
+        # studio_id comes from the booking, never from the request — the same
+        # rule as everywhere else, and the reason this cannot cross tenants.
+        existing = MessageFeedback(studio_id=booking.studio_id, booking_id=booking.id)
+        db.add(existing)
+
+    existing.rating = payload.rating
+    existing.one_word = payload.one_word
+    db.flush()
+
+    return PublicFeedbackPrompt(
+        class_name=session.title or (session.class_type.name if session.class_type else "Class"),
+        starts_at=session.starts_at,
+        already_answered=True,
     )

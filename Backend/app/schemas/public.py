@@ -96,3 +96,30 @@ class PublicBookingResult(BaseModel):
 
     waitlist_position: int | None = None
     """Only set when waitlisted. Being told "you're 3rd" beats being told nothing."""
+
+
+class PublicFeedbackPrompt(BaseModel):
+    """Just enough context for a guest to know what they are rating.
+
+    The class name and date, and nothing else. No guest name — the link
+    arrives by message and the person holding it already knows who they are,
+    while anyone who intercepts it should learn nothing about them.
+    """
+
+    class_name: str
+    starts_at: datetime
+    already_answered: bool = False
+
+
+class PublicFeedbackRequest(BaseModel):
+    """One tap and one word (PRD §2.6)."""
+
+    rating: Annotated[int, Field(ge=1, le=3, description="1 = 😕, 2 = 🙂, 3 = 😍")]
+    one_word: Annotated[str | None, Field(default=None, max_length=60)] = None
+
+    @field_validator("one_word")
+    @classmethod
+    def _blank_word_to_none(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None

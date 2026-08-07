@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
     db_pool_recycle_seconds: int = 1800
 
+    public_web_url: str = ""
+    """Where guests land — the site hosting /book and /feedback.
+
+    Empty means the feedback link is omitted from the thank-you message
+    rather than sent as a broken URL.
+    """
+
     # ---- messaging --------------------------------------------------------
     message_provider: str = "log"
     """'log' contacts nobody. 'twilio' sends for real — see app/services/transports.py."""

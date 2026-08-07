@@ -20,6 +20,7 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import select
 
 from app.api.deps import Db
+from app.core.config import get_settings
 from app.core.errors import ConflictError
 from app.domain.guests import is_contactable
 from app.domain.messages import (
@@ -74,29 +75,53 @@ def _session_or_404(db: Db, session_id: UUID) -> Session:
     return db.get_or_404(Session, session_id)
 
 
-def _template_values(session: Session, guest: Guest | None) -> dict[str, str]:
+def _feedback_link(booking_id: UUID | None) -> str:
+    """The guest's one-tap survey link, or nothing.
+
+    Omitted rather than sent broken when no public URL is configured — a
+    message ending in a dead link is worse than one that simply asks.
+    """
+    base = get_settings().public_web_url.rstrip("/")
+
+    if not base or booking_id is None:
+        return ""
+
+    return f"{base}/feedback/{booking_id}"
+
+
+def _template_values(
+    session: Session, guest: Guest | None, booking_id: UUID | None = None
+) -> dict[str, str]:
     local = session.starts_at
     return {
         "class_name": session.class_type.name if session.class_type else "your class",
         "guest_name": guest.full_name.split()[0] if guest else "there",
         "time": local.strftime("%I:%M %p").lstrip("0").lower(),
         "date": local.strftime("%a %d %b"),
+        "feedback_link": _feedback_link(booking_id),
     }
 
 
-def _seated_guests(db: Db, session_id: UUID) -> list[Guest]:
-    """Everyone actually holding a seat. Cancellations get no reminders."""
-    statement = db.query(Booking).where(
-        Booking.session_id == session_id,
-        Booking.status != BookingStatus.CANCELLED,
+def _seated(db: Db, session_id: UUID) -> list[tuple[Booking, Guest]]:
+    """Everyone holding a seat, paired with their booking.
+
+    The booking comes along because the thank-you message links to a
+    per-booking feedback page; a guest alone is not enough to address it.
+    """
+    bookings = db.scalars(
+        db.query(Booking).where(
+            Booking.session_id == session_id,
+            Booking.status != BookingStatus.CANCELLED,
+        )
     )
-    bookings = db.scalars(statement)
 
     guest_ids = [booking.guest_id for booking in bookings]
     if not guest_ids:
         return []
 
-    return list(db.scalars(db.query(Guest).where(Guest.id.in_(guest_ids))))
+    guests = {g.id: g for g in db.scalars(db.query(Guest).where(Guest.id.in_(guest_ids)))}
+
+    return [(b, guests[b.guest_id]) for b in bookings if b.guest_id in guests]
 
 
 def _plan_for(guest: Guest, desired: datetime, now: datetime, quiet: QuietHours) -> MessagePlan:
@@ -136,9 +161,9 @@ def preview_messages(
     quiet = _quiet_hours(db)
     now = datetime.now(UTC)
 
-    guests = _seated_guests(db, session_id)
-    sample = guests[0] if guests else None
-    values = _template_values(session, sample)
+    seated = _seated(db, session_id)
+    sample_booking, sample = seated[0] if seated else (None, None)
+    values = _template_values(session, sample, sample_booking.id if sample_booking else None)
     schedule = reminder_schedule(session.starts_at)
 
     previews: list[MessagePreview] = []
@@ -202,7 +227,7 @@ def schedule_messages(
     now = datetime.now(UTC)
 
     schedule = reminder_schedule(session.starts_at)
-    guests = _seated_guests(db, session_id)
+    seated = _seated(db, session_id)
 
     existing = {
         (row.guest_id, row.kind)
@@ -219,8 +244,8 @@ def schedule_messages(
     queued: list[ScheduledMessage] = []
     skips: dict[str, int] = {}
 
-    for guest in guests:
-        values = _template_values(session, guest)
+    for booking, guest in seated:
+        values = _template_values(session, guest, booking.id)
 
         for kind in GUEST_KINDS:
             if (guest.id, MessageKind(kind)) in existing:

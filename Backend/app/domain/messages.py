@@ -68,13 +68,15 @@ TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("guest_thank_you", "soft_sweet"): (
         "Thank you for making with us, {guest_name} — tap an emoji and one "
-        "word to tell us how it felt?"
+        "word to tell us how it felt? {feedback_link}"
     ),
     ("guest_thank_you", "chaotic_bestie"): (
-        "{guest_name}!! You ATE that (literally) — one emoji + one word, how was it??"
+        "{guest_name}!! You ATE that (literally) — one emoji + one word, "
+        "how was it?? {feedback_link}"
     ),
     ("guest_thank_you", "clean_minimal"): (
-        "Thanks for joining, {guest_name}. One tap and one word — how was today's class?"
+        "Thanks for joining, {guest_name}. One tap and one word — how was "
+        "today's class? {feedback_link}"
     ),
     ("schedule_change", "soft_sweet"): (
         "Heads up lovely — {class_name} has moved to {date} at {time}. "

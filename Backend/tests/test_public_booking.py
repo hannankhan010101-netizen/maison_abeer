@@ -22,7 +22,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from app.core.db import get_session_factory
-from app.models import Booking, ClassType, Guest, Studio, WaitlistEntry
+from app.models import Booking, ClassType, Guest, MessageFeedback, Studio, WaitlistEntry
 from app.models import Session as SessionModel
 from app.models.enums import CraftKind, SessionStatus
 
@@ -304,3 +304,135 @@ def test_an_allergy_is_recorded_as_critical(studio_with_class: Any) -> None:
 
         assert guest.allergies
         assert guest.allergies[0].is_critical
+
+
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def past_booking(studio_with_class: Any) -> Any:
+    """A booking on a class that has already happened."""
+    factory = get_session_factory()
+
+    with factory() as db:
+        session = db.get(SessionModel, studio_with_class["session_id"])
+        assert session is not None
+        session.starts_at = datetime.now(UTC) - timedelta(days=2)
+        session.ends_at = session.starts_at + timedelta(hours=2)
+
+        guest = Guest(studio_id=studio_with_class["studio_id"], full_name="Feedback Guest")
+        db.add(guest)
+        db.flush()
+
+        booking = Booking(
+            studio_id=studio_with_class["studio_id"],
+            session_id=session.id,
+            guest_id=guest.id,
+        )
+        db.add(booking)
+        db.commit()
+
+        yield {"booking_id": booking.id, "studio_id": studio_with_class["studio_id"]}
+
+    with factory() as db:
+        db.execute(
+            delete(MessageFeedback).where(
+                MessageFeedback.studio_id == studio_with_class["studio_id"]
+            )
+        )
+        db.commit()
+
+
+def test_the_prompt_names_the_class_and_nothing_else(past_booking: Any) -> None:
+    """The link may be intercepted; it must not identify the guest."""
+    response = httpx.get(f"{API}/api/v1/public/feedback/{past_booking['booking_id']}", timeout=40)
+
+    assert response.status_code == 200
+    assert set(response.json()) == {"class_name", "starts_at", "already_answered"}
+    assert "Feedback Guest" not in response.text
+
+
+def test_an_unknown_link_is_a_404(past_booking: Any) -> None:
+    response = httpx.get(
+        f"{API}/api/v1/public/feedback/00000000-0000-0000-0000-000000000000", timeout=40
+    )
+    assert response.status_code == 404
+
+
+def test_one_tap_is_recorded(past_booking: Any) -> None:
+    response = httpx.put(
+        f"{API}/api/v1/public/feedback/{past_booking['booking_id']}",
+        json={"rating": 3, "one_word": "calm"},
+        timeout=40,
+    )
+    assert response.status_code == 200
+    assert response.json()["already_answered"] is True
+
+    with get_session_factory()() as db:
+        stored = db.execute(
+            select(MessageFeedback).where(MessageFeedback.booking_id == past_booking["booking_id"])
+        ).scalar_one()
+
+        assert stored.rating == 3
+        assert stored.one_word == "calm"
+        # Taken from the booking, never from the request.
+        assert stored.studio_id == past_booking["studio_id"]
+
+
+def test_tapping_again_corrects_rather_than_conflicts(past_booking: Any) -> None:
+    url = f"{API}/api/v1/public/feedback/{past_booking['booking_id']}"
+
+    httpx.put(url, json={"rating": 3, "one_word": "calm"}, timeout=40)
+    second = httpx.put(url, json={"rating": 1, "one_word": "messy"}, timeout=40)
+
+    assert second.status_code == 200
+
+    with get_session_factory()() as db:
+        rows = (
+            db.execute(
+                select(MessageFeedback).where(
+                    MessageFeedback.booking_id == past_booking["booking_id"]
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        assert len(rows) == 1, "a second tap must not create a second row"
+        assert rows[0].rating == 1
+
+
+def test_a_rating_outside_the_scale_is_rejected(past_booking: Any) -> None:
+    response = httpx.put(
+        f"{API}/api/v1/public/feedback/{past_booking['booking_id']}",
+        json={"rating": 9},
+        timeout=40,
+    )
+    assert response.status_code == 422
+
+
+def test_feedback_before_the_class_is_refused(studio_with_class: Any) -> None:
+    """The seeded class is three days out, so this asks about a future class."""
+    factory = get_session_factory()
+
+    with factory() as db:
+        guest = Guest(studio_id=studio_with_class["studio_id"], full_name="Too Early")
+        db.add(guest)
+        db.flush()
+        booking = Booking(
+            studio_id=studio_with_class["studio_id"],
+            session_id=studio_with_class["session_id"],
+            guest_id=guest.id,
+        )
+        db.add(booking)
+        db.commit()
+        booking_id = booking.id
+
+    response = httpx.put(
+        f"{API}/api/v1/public/feedback/{booking_id}", json={"rating": 3}, timeout=40
+    )
+
+    assert response.status_code == 409
+    assert "hasn't happened yet" in response.json()["message"]
