@@ -35,6 +35,7 @@ export const queryKeys = {
       ['guests', 'list', params.search ?? '', params.regularsOnly ?? false] as const,
     detail: (id: string) => ['guests', 'detail', id] as const,
     birthdays: ['guests', 'birthdays'] as const,
+    history: (id: string) => ['guests', 'history', id] as const,
   },
 } as const;
 

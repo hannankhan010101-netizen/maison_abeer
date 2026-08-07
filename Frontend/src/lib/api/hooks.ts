@@ -17,6 +17,7 @@ import type {
   ExportRecord,
   Feedback,
   Guest,
+  GuestHistory,
   InviteResult,
   MessagePreview,
   MessageScheduleResult,
@@ -495,5 +496,16 @@ export function useRecordExport(sessionId: string) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.tags(sessionId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.exports(sessionId) });
     },
+  });
+}
+
+/** A guest's own class history — the mini-CRM's data (PRD §2.4). */
+export function useGuestHistory(guestId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.guests.history(guestId),
+    queryFn: ({ signal }) => api.get<GuestHistory>(`/api/v1/guests/${guestId}/history`, { signal }),
+    enabled: enabled && Boolean(guestId),
   });
 }

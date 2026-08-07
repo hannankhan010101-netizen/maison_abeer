@@ -13,6 +13,12 @@ import { expect, test } from '@playwright/test';
  * standard.
  */
 
+// Axe walks the whole accessibility tree, and does it against an unoptimised
+// dev bundle. The default 30s is enough for a warm route and not enough for a
+// cold one, which shows up as a `frame.evaluate` timeout rather than as a
+// violation — a slow check misreported as a broken page.
+test.describe.configure({ timeout: 120_000 });
+
 const PAGES = ['/today', '/calendar', '/guests', '/prep', '/tags', '/messages', '/settings'];
 
 for (const path of PAGES) {

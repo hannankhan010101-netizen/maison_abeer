@@ -16,7 +16,16 @@ from app.api.providers import (
     provide_guest_service,
     provide_session_service,
 )
-from app.api.v1 import checklist, cron, guests, messages, public, sessions, tags
+from app.api.v1 import (
+    checklist,
+    cron,
+    guest_history,
+    guests,
+    messages,
+    public,
+    sessions,
+    tags,
+)
 from app.api.v1 import settings as settings_router
 from app.core.config import Settings, get_settings
 from app.core.db import reset_engine
@@ -72,6 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(sessions.router, prefix=API_PREFIX)
     app.include_router(guests.router, prefix=API_PREFIX)
+    app.include_router(guest_history.router, prefix=API_PREFIX)
     app.include_router(checklist.router, prefix=API_PREFIX)
     app.include_router(settings_router.router, prefix=API_PREFIX)
     app.include_router(messages.router, prefix=API_PREFIX)

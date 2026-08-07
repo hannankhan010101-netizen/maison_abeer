@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { Chip } from '@/components/ui/Chip';
 import { cn } from '@/lib/cn';
 import type { Guest } from '@/lib/api/types';
@@ -60,7 +62,14 @@ export function GuestRow({ guest, action, className }: GuestRowProps) {
 
       <div className="min-w-0 flex-1 basis-[150px]">
         <div className="flex flex-wrap items-center gap-1.5">
-          <b className="text-[14.5px]">{guest.full_name}</b>
+          <b className="text-[14.5px]">
+            <Link
+              href={`/guests/${guest.id}`}
+              className="hover:text-rose-ink focus-visible:outline-rose rounded focus-visible:outline-[3px] focus-visible:outline-offset-2"
+            >
+              {guest.full_name}
+            </Link>
+          </b>
 
           {guest.visit_badge ? <Chip tone="pink">{guest.visit_badge} 💗</Chip> : null}
 

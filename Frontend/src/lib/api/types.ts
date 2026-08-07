@@ -304,3 +304,38 @@ export interface ExportRecord {
   file_url: string | null;
   created_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Guest history (PRD §2.4 — the mini-CRM)
+// ---------------------------------------------------------------------------
+
+export type CreditStatus = 'available' | 'redeemed' | 'expired';
+
+export interface GuestVisit {
+  booking_id: string;
+  session_id: string;
+  class_name: string;
+  starts_at: string;
+  location: string | null;
+  status: BookingStatus;
+  table_number: number | null;
+  /** Decided server-side so the client and API agree on "now". */
+  is_upcoming: boolean;
+}
+
+export interface GuestCredit {
+  id: string;
+  status: CreditStatus;
+  note: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface GuestHistory {
+  guest_id: string;
+  visits: GuestVisit[];
+  credits: GuestCredit[];
+  attended_count: number;
+  upcoming_count: number;
+  available_credit_count: number;
+}

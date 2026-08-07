@@ -313,6 +313,47 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       return json(demoBirthdays(now));
     }
 
+    // Derived from the sessions the fixtures already define, rather than a
+    // second hand-written list that would drift out of step with them.
+    const historyMatch = /^\/api\/v1\/guests\/([^/]+)\/history$/.exec(path);
+    if (historyMatch && method === 'GET') {
+      const guestId = historyMatch[1]!;
+
+      const visits = store.sessions.flatMap((session) =>
+        demoRoster(now, session.id)
+          .bookings.filter((booking) => booking.guest.id === guestId)
+          .map((booking) => ({
+            booking_id: booking.id,
+            session_id: session.id,
+            class_name: session.class_type_name,
+            starts_at: session.starts_at,
+            location: session.location,
+            status: booking.status,
+            table_number: booking.table_number,
+            is_upcoming: new Date(session.starts_at).getTime() > now.getTime(),
+          })),
+      );
+
+      return json({
+        guest_id: guestId,
+        visits,
+        credits: [],
+        attended_count: visits.filter((v) => !v.is_upcoming && v.status !== 'cancelled').length,
+        upcoming_count: visits.filter((v) => v.is_upcoming).length,
+        available_credit_count: 0,
+      });
+    }
+
+    const messagesMatch = /^\/api\/v1\/guests\/([^/]+)\/messages$/.exec(path);
+    if (messagesMatch && method === 'GET') {
+      // Demo mode never queues anything, so an empty log is the honest answer.
+      return json([]);
+    }
+
+    if (path === '/api/v1/messages/failed' && method === 'GET') {
+      return json([]);
+    }
+
     if (path === '/api/v1/guests' && method === 'GET') {
       const search = url.searchParams.get('search')?.toLowerCase();
       const regularsOnly = url.searchParams.get('regulars_only') === 'true';
