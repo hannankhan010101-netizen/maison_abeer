@@ -21,10 +21,10 @@ import httpx
 import pytest
 from sqlalchemy import delete, select
 
-from app.core.db import get_session_factory
 from app.models import Booking, ClassType, Guest, MessageFeedback, Studio, WaitlistEntry
 from app.models import Session as SessionModel
 from app.models.enums import CraftKind, SessionStatus
+from tests.admin_db import admin_factory
 
 pytestmark = pytest.mark.integration
 
@@ -38,7 +38,7 @@ if not LIVE:
 @pytest.fixture
 def studio_with_class() -> Any:
     """A throwaway studio with one class holding exactly two seats."""
-    factory = get_session_factory()
+    factory = admin_factory
     slug = f"zzz-public-{uuid.uuid4().hex[:8]}"
 
     with factory() as db:
@@ -206,7 +206,7 @@ def test_concurrent_bookings_cannot_oversell_the_last_seat(studio_with_class: An
     assert outcomes.count("booked") == 2, f"oversold: {outcomes}"
     assert outcomes.count("waitlisted") == 4
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         seated = (
             db.execute(select(Booking).where(Booking.session_id == studio_with_class["session_id"]))
             .scalars()
@@ -248,7 +248,7 @@ def test_the_honeypot_writes_nothing(studio_with_class: Any) -> None:
         timeout=40,
     )
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         found = db.execute(
             select(Guest).where(
                 Guest.studio_id == studio_with_class["studio_id"],
@@ -261,7 +261,7 @@ def test_the_honeypot_writes_nothing(studio_with_class: Any) -> None:
 
 def test_a_class_belonging_to_another_studio_is_invisible(studio_with_class: Any) -> None:
     """The slug selects the studio; a session id from elsewhere must not resolve."""
-    factory = get_session_factory()
+    factory = admin_factory
 
     with factory() as db:
         other = (
@@ -293,7 +293,7 @@ def test_an_allergy_is_recorded_as_critical(studio_with_class: Any) -> None:
         timeout=40,
     )
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         guest = db.execute(
             select(Guest).where(
                 Guest.studio_id == studio_with_class["studio_id"],
@@ -314,7 +314,7 @@ def test_an_allergy_is_recorded_as_critical(studio_with_class: Any) -> None:
 @pytest.fixture
 def past_booking(studio_with_class: Any) -> Any:
     """A booking on a class that has already happened."""
-    factory = get_session_factory()
+    factory = admin_factory
 
     with factory() as db:
         session = db.get(SessionModel, studio_with_class["session_id"])
@@ -370,7 +370,7 @@ def test_one_tap_is_recorded(past_booking: Any) -> None:
     assert response.status_code == 200
     assert response.json()["already_answered"] is True
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         stored = db.execute(
             select(MessageFeedback).where(MessageFeedback.booking_id == past_booking["booking_id"])
         ).scalar_one()
@@ -389,7 +389,7 @@ def test_tapping_again_corrects_rather_than_conflicts(past_booking: Any) -> None
 
     assert second.status_code == 200
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         rows = (
             db.execute(
                 select(MessageFeedback).where(
@@ -415,7 +415,7 @@ def test_a_rating_outside_the_scale_is_rejected(past_booking: Any) -> None:
 
 def test_feedback_before_the_class_is_refused(studio_with_class: Any) -> None:
     """The seeded class is three days out, so this asks about a future class."""
-    factory = get_session_factory()
+    factory = admin_factory
 
     with factory() as db:
         guest = Guest(studio_id=studio_with_class["studio_id"], full_name="Too Early")

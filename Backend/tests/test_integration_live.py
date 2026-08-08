@@ -28,8 +28,8 @@ import pytest
 from sqlalchemy import delete, select
 
 from app.core.config import get_settings
-from app.core.db import get_session_factory
 from app.models import Guest, HostUser, Studio
+from tests.admin_db import admin_factory
 
 pytestmark = pytest.mark.integration
 
@@ -96,7 +96,7 @@ def test_the_subject_maps_to_exactly_one_studio(token: str) -> None:
     """`sub` → `host_user` → `studio_id` is the whole tenancy guarantee."""
     subject = uuid.UUID(_claims(token)["sub"])
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         hosts = db.execute(select(HostUser).where(HostUser.auth_user_id == subject)).scalars().all()
 
     assert len(hosts) == 1, "a subject resolving to 0 or 2 studios breaks isolation"
@@ -203,7 +203,7 @@ def other_studio() -> Any:
     to prove studio A's *token* cannot reach studio B's rows, and that does
     not require B to be able to sign in.
     """
-    factory = get_session_factory()
+    factory = admin_factory
     marker = f"zzz-isolation-{uuid.uuid4().hex[:8]}"
 
     with factory() as db:
@@ -250,7 +250,7 @@ def test_another_studios_guest_cannot_be_patched(client: httpx.Client, other_stu
     )
     assert response.status_code == 404
 
-    with get_session_factory()() as db:
+    with admin_factory() as db:
         guest = db.get(Guest, other_studio["guest_id"])
         assert guest is not None
         assert guest.memory_note is None
@@ -272,7 +272,7 @@ def test_creating_a_guest_persists_and_is_scoped(client: httpx.Client) -> None:
     try:
         assert client.get(f"/api/v1/guests/{guest_id}").status_code == 200
 
-        with get_session_factory()() as db:
+        with admin_factory() as db:
             row = db.get(Guest, uuid.UUID(guest_id))
             assert row is not None
             # Written from the token, never from the request body.
@@ -280,7 +280,7 @@ def test_creating_a_guest_persists_and_is_scoped(client: httpx.Client) -> None:
             host = db.execute(select(HostUser).where(HostUser.auth_user_id == subject)).scalar_one()
             assert row.studio_id == host.studio_id
     finally:
-        with get_session_factory()() as db:
+        with admin_factory() as db:
             db.execute(delete(Guest).where(Guest.id == uuid.UUID(guest_id)))
             db.commit()
 
@@ -299,12 +299,12 @@ def test_studio_id_in_the_body_is_ignored(client: httpx.Client) -> None:
     if created.status_code == 201:
         guest_id = uuid.UUID(created.json()["id"])
         try:
-            with get_session_factory()() as db:
+            with admin_factory() as db:
                 row = db.get(Guest, guest_id)
                 assert row is not None
                 assert str(row.studio_id) != forged
         finally:
-            with get_session_factory()() as db:
+            with admin_factory() as db:
                 db.execute(delete(Guest).where(Guest.id == guest_id))
                 db.commit()
 

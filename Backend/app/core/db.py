@@ -130,6 +130,20 @@ class TenantSession:
         self._session = session
         self._studio_id = studio_id
 
+    @staticmethod
+    def announce_subject(session: SASession, auth_user_id: UUID) -> None:
+        """Phase one: claim only the verified subject.
+
+        `host_user` is what tells us the studio, so it cannot itself require
+        the studio to be readable. Its policy therefore also matches on
+        `auth_user_id`, and this sets the one claim needed to bootstrap —
+        nothing else is reachable with it.
+        """
+        session.execute(
+            text("SELECT set_config('request.jwt.claims', :claims, true)"),
+            {"claims": json.dumps({"sub": str(auth_user_id)})},
+        )
+
     def announce_tenant(self) -> None:
         """Tell Postgres which studio this transaction belongs to.
 

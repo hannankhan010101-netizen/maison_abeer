@@ -43,6 +43,10 @@ def get_tenant_session(
     session = factory()
 
     try:
+        # Phase one: the verified subject, which is all `host_user`'s policy
+        # needs to let us read the row that names the studio.
+        TenantSession.announce_subject(session, principal.auth_user_id)
+
         studio_id = _resolve_studio_id(session, principal.auth_user_id)
         scoped = TenantSession(session, studio_id)
 

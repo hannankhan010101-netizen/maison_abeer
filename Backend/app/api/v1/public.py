@@ -25,12 +25,13 @@ spam target, and because the guest table is the studio's asset.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session as SASession
 
 from app.core.db import get_session_factory
@@ -91,10 +92,23 @@ Db = Annotated[SASession, Depends(public_session)]
 
 
 def _studio_or_404(db: SASession, slug: str) -> Studio:
+    """Resolve the studio and claim it for the rest of this transaction.
+
+    `studio` is readable without a claim — it holds a name and a slug, both
+    already shown to strangers on this very page. Everything downstream is
+    not, so the claim is set here, from the slug, before any of it is
+    touched. The slug chooses which public page you are on; it grants nothing
+    beyond what that page already displays.
+    """
     studio = db.execute(select(Studio).where(Studio.slug == slug)).scalar_one_or_none()
 
     if studio is None:
         raise NotFoundError("We couldn't find that studio.")
+
+    db.execute(
+        text("SELECT set_config('request.jwt.claims', :claims, true)"),
+        {"claims": json.dumps({"studio_id": str(studio.id)})},
+    )
 
     return studio
 
