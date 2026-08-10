@@ -78,6 +78,23 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /*
+   * Form controls never drop below 16px.
+   *
+   * Body copy is 15px, and a control inheriting that makes iOS Safari zoom
+   * the whole page the moment it is focused — leaving the user scrolled
+   * sideways, mid-form, on the one screen where that is most costly. It is
+   * invisible at desktop width and it is the most common mobile form defect
+   * there is.
+   *
+   * Set here rather than per-field so a form added later cannot forget it.
+   */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
   /* Visible focus everywhere — 3px rose, as in the prototype. */
   :focus-visible {
     outline: 3px solid var(--color-rose);

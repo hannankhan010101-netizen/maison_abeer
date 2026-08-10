@@ -65,7 +65,10 @@ export function GuestRow({ guest, action, className }: GuestRowProps) {
           <b className="text-[14.5px]">
             <Link
               href={`/guests/${guest.id}`}
-              className="hover:text-rose-ink focus-visible:outline-rose rounded focus-visible:outline-[3px] focus-visible:outline-offset-2"
+              // inline-flex + min-height, not padding: the name sits inline
+              // beside chips, and a 20px link is not reliably tappable with
+              // clay on your hands.
+              className="hover:text-rose-ink focus-visible:outline-rose inline-flex min-h-[44px] items-center rounded focus-visible:outline-[3px] focus-visible:outline-offset-2"
             >
               {guest.full_name}
             </Link>
