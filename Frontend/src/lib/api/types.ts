@@ -339,3 +339,52 @@ export interface GuestHistory {
   upcoming_count: number;
   available_credit_count: number;
 }
+
+// ---------------------------------------------------------------------------
+// Guest portal
+// ---------------------------------------------------------------------------
+
+export type WorkshopStatus = 'upcoming' | 'live' | 'completed' | 'cancelled';
+
+export interface PortalProfile {
+  guest_id: string;
+  full_name: string;
+  /** What other guests see — first name + initial unless they chose one. */
+  display_name: string;
+  email: string | null;
+  upcoming_count: number;
+  attended_count: number;
+}
+
+/** Another guest, as far as this guest is concerned. Nothing identifying. */
+export interface AttendeePeek {
+  guest_id: string;
+  display_name: string;
+  is_you: boolean;
+}
+
+export interface PortalWorkshop {
+  session_id: string;
+  booking_id: string;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  location: string | null;
+  color_token: string;
+  /** Decided server-side, so the chip and the countdown cannot disagree. */
+  status: WorkshopStatus;
+  attendee_count: number;
+}
+
+export interface PortalWorkshopDetail extends PortalWorkshop {
+  notes: string | null;
+  attendees: AttendeePeek[];
+  /** Attendees excluding you — what "+ 23 others" counts. */
+  others_count: number;
+}
+
+export interface ClaimResult {
+  claimed: boolean;
+  display_name: string | null;
+  message: string;
+}

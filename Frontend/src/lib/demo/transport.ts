@@ -354,6 +354,73 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       return json([]);
     }
 
+    // ---- guest portal ----------------------------------------------------
+    //
+    // Demo mode skips auth entirely, so the portal answers as though Sana is
+    // signed in. Enough for the mobile and accessibility checks to reach
+    // these screens, which they otherwise could not.
+
+    const asPortalWorkshop = (session: Session) => {
+      const starts = new Date(session.starts_at).getTime();
+      const ends = new Date(session.ends_at).getTime();
+
+      return {
+        session_id: session.id,
+        booking_id: `b-${session.id}`,
+        name: session.class_type_name,
+        starts_at: session.starts_at,
+        ends_at: session.ends_at,
+        location: session.location,
+        color_token: session.color_token,
+        status: ends <= now.getTime() ? 'completed' : starts <= now.getTime() ? 'live' : 'upcoming',
+        attendee_count: session.capacity.booked,
+      };
+    };
+
+    if (path === '/api/v1/portal/whoami' && method === 'GET') {
+      return json({ role: 'guest' });
+    }
+
+    if (path === '/api/v1/portal/claim' && method === 'POST') {
+      return json({ claimed: true, display_name: 'Sana R.', message: "You're in." });
+    }
+
+    if (path === '/api/v1/portal/me' && method === 'GET') {
+      return json({
+        guest_id: 'g-sana',
+        full_name: 'Sana R.',
+        display_name: 'Sana R.',
+        email: 'sana@example.com',
+        upcoming_count: store.sessions.filter(
+          (s) => new Date(s.starts_at).getTime() > now.getTime(),
+        ).length,
+        attended_count: 1,
+      });
+    }
+
+    if (path === '/api/v1/portal/workshops' && method === 'GET') {
+      return json(store.sessions.map(asPortalWorkshop));
+    }
+
+    const portalDetail = /^\/api\/v1\/portal\/workshops\/([^/]+)$/.exec(path);
+    if (portalDetail && method === 'GET') {
+      const session = store.sessions.find((s) => s.id === portalDetail[1]);
+      if (!session) return json({ code: 'not_found', message: 'Not found' }, 404);
+
+      const attendees = demoRoster(now, session.id).bookings.map((b, index) => ({
+        guest_id: b.guest.id,
+        display_name: b.guest.full_name,
+        is_you: index === 0,
+      }));
+
+      return json({
+        ...asPortalWorkshop(session),
+        notes: session.notes,
+        attendees,
+        others_count: attendees.filter((a) => !a.is_you).length,
+      });
+    }
+
     if (path === '/api/v1/guests' && method === 'GET') {
       const search = url.searchParams.get('search')?.toLowerCase();
       const regularsOnly = url.searchParams.get('regulars_only') === 'true';

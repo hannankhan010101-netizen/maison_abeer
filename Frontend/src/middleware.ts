@@ -79,10 +79,12 @@ export async function middleware(request: NextRequest) {
     return redirectToLogin(request);
   }
 
-  // A signed-in host has no reason to see the login form.
+  // A signed-in caller has no reason to see the login form. Sent to `/`
+  // rather than `/today`: there are two audiences now, and only the role
+  // router knows which home belongs to this token.
   if (user && pathname === '/login') {
     const home = request.nextUrl.clone();
-    home.pathname = '/today';
+    home.pathname = '/';
     home.search = '';
 
     return NextResponse.redirect(home);

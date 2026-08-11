@@ -8,7 +8,14 @@
  * Extracted from the page so the rule is testable on its own.
  */
 
-export const DEFAULT_DESTINATION = '/today';
+/*
+ * The role router, not the host dashboard.
+ *
+ * There are two audiences now. Defaulting to `/today` would drop every guest
+ * onto a screen they cannot read, and the failure would be a wall of 401s
+ * rather than anything that explains itself.
+ */
+export const DEFAULT_DESTINATION = '/';
 
 const DEL = 127;
 const FIRST_PRINTABLE = 32;

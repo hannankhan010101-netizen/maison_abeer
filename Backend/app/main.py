@@ -22,6 +22,7 @@ from app.api.v1 import (
     guest_history,
     guests,
     messages,
+    portal,
     public,
     sessions,
     tags,
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tags.router, prefix=API_PREFIX)
     app.include_router(public.router, prefix=API_PREFIX)
     app.include_router(cron.router, prefix=API_PREFIX)
+    app.include_router(portal.router, prefix=API_PREFIX)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:

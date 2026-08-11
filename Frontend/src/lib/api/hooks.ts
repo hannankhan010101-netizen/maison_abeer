@@ -16,8 +16,12 @@ import type {
   ChecklistItem,
   ExportRecord,
   Feedback,
+  ClaimResult,
   Guest,
   GuestHistory,
+  PortalProfile,
+  PortalWorkshop,
+  PortalWorkshopDetail,
   InviteResult,
   MessagePreview,
   MessageScheduleResult,
@@ -532,6 +536,57 @@ export function useLockSession(sessionId: string) {
       queryClient.setQueryData(queryKeys.sessions.detail(sessionId), updated);
       // The calendar and the dashboard both badge a locked class.
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Guest portal
+// ---------------------------------------------------------------------------
+
+/** The signed-in guest. Their own record, in full — it is theirs. */
+export function usePortalProfile() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.portal.me,
+    queryFn: ({ signal }) => api.get<PortalProfile>('/api/v1/portal/me', { signal }),
+    // A guest who has not claimed an account gets 401 here; retrying would
+    // just delay the sign-in prompt.
+    retry: false,
+  });
+}
+
+/** Only this guest's enrollments. There is no parameter that widens it. */
+export function usePortalWorkshops() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.portal.workshops,
+    queryFn: ({ signal }) => api.get<PortalWorkshop[]>('/api/v1/portal/workshops', { signal }),
+  });
+}
+
+export function usePortalWorkshop(sessionId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.portal.workshop(sessionId),
+    queryFn: ({ signal }) =>
+      api.get<PortalWorkshopDetail>(`/api/v1/portal/workshops/${sessionId}`, { signal }),
+    enabled: enabled && Boolean(sessionId),
+  });
+}
+
+/** Match a freshly authenticated identity to a guest record. Runs once. */
+export function useClaimAccount() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.post<ClaimResult>('/api/v1/portal/claim'),
+    onSuccess: (result) => {
+      if (result.claimed) void queryClient.invalidateQueries({ queryKey: queryKeys.portal.all });
     },
   });
 }

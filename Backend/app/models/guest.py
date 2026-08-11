@@ -77,6 +77,29 @@ class Guest(Base, TenantMixin, TimestampMixin, ArchiveMixin):
     birthday: Mapped[date | None] = mapped_column(Date)
     """Drives the 30-day birthday lookahead (PRD §2.4)."""
 
+    # ---- guest portal -----------------------------------------------------
+
+    auth_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), unique=True, index=True
+    )
+    """The Supabase `auth.users` id, once this guest has claimed an account.
+
+    Null for the many guests who never sign in — the host adds most of them
+    from a DM or a phone call, and they stay perfectly usable that way. This
+    is the guest-side mirror of `HostUser.auth_user_id`, and the only link
+    between a booking and someone who can log in.
+
+    Unique globally rather than per studio: one Supabase identity must not be
+    able to claim guest records in two different studios.
+    """
+
+    display_name: Mapped[str | None] = mapped_column(String(60))
+    """What *other guests* see. Never the full name unless the guest sets it.
+
+    Defaults to first name plus last initial when the portal renders it, so a
+    roster of real names does not become public to everyone in a chat room.
+    """
+
     # The mini-CRM note: "came with her sister; loved the matcha buttercream".
     # Surfaces automatically on their next booking and the day-of roster.
     memory_note: Mapped[str | None] = mapped_column(Text)

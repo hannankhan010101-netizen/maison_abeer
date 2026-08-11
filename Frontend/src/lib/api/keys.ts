@@ -37,6 +37,12 @@ export const queryKeys = {
     birthdays: ['guests', 'birthdays'] as const,
     history: (id: string) => ['guests', 'history', id] as const,
   },
+  portal: {
+    all: ['portal'] as const,
+    me: ['portal', 'me'] as const,
+    workshops: ['portal', 'workshops'] as const,
+    workshop: (id: string) => ['portal', 'workshops', id] as const,
+  },
 } as const;
 
 /**

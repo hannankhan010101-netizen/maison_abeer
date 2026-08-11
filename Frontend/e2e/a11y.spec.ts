@@ -19,7 +19,16 @@ import { expect, test } from '@playwright/test';
 // violation — a slow check misreported as a broken page.
 test.describe.configure({ timeout: 120_000 });
 
-const PAGES = ['/today', '/calendar', '/guests', '/prep', '/tags', '/messages', '/settings'];
+const PAGES = [
+  '/today',
+  '/calendar',
+  '/guests',
+  '/prep',
+  '/tags',
+  '/messages',
+  '/settings',
+  '/portal',
+];
 
 for (const path of PAGES) {
   test(`${path} has no accessibility violations`, async ({ page }) => {

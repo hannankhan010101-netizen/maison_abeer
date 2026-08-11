@@ -379,10 +379,35 @@ def seed_sessions(
     return created
 
 
+def _link_demo_guest(guest: Guest, email: str, password: str) -> None:
+    """Give one seeded guest an email and a Supabase identity.
+
+    The portal needs a guest who can actually sign in, and every guest in the
+    demo cast is phone-only — which is the real state of this product's data,
+    not an oversight in the fixtures. Rather than pretend otherwise, this
+    marks one of them as reachable by email.
+
+    Uses the same admin API as the host account, so the guest arrives already
+    confirmed and can sign in immediately instead of waiting on a magic link
+    during a demo.
+    """
+    settings = get_settings()
+
+    guest.email = email
+    guest.auth_user_id = ensure_auth_user(settings, email, password)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Seed a studio you can sign into.")
-    parser.add_argument("--email", required=True)
+    parser.add_argument("--email", required=True, help="the host's sign-in email")
     parser.add_argument("--password", required=True)
+    parser.add_argument(
+        "--guest-email",
+        help=(
+            "give Sana an email and a Supabase account so the guest portal is "
+            "testable; the seeded cast is otherwise phone-only and cannot sign in"
+        ),
+    )
     args = parser.parse_args(argv)
 
     settings = get_settings()
@@ -405,6 +430,11 @@ def main(argv: list[str] | None = None) -> int:
             guests = seed_guests(db, studio, now.date())
             sessions = seed_sessions(db, studio, class_types, guests, now)
             db.commit()
+
+            if args.guest_email:
+                _link_demo_guest(guests["Sana R."], args.guest_email, args.password)
+                db.commit()
+                print(f"  guest login {args.guest_email}")
 
             print(f"  studio      {studio.id}")
             print(f"  class types {len(class_types)}")

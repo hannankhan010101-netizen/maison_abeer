@@ -10,6 +10,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 const PORTAL = ['/today', '/calendar', '/guests', '/prep', '/tags', '/messages', '/settings'];
 
+// The guest side. Demo mode answers these as though a guest is signed in, so
+// the same touch-target and overflow rules are enforced on both audiences.
+const GUEST = ['/portal'];
+
 const PUBLIC_CLASSES = {
   studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
   classes: [
@@ -67,7 +71,7 @@ async function stubPublic(page: Page) {
 // ---------------------------------------------------------------------------
 
 test.describe('touch targets', () => {
-  for (const path of PORTAL) {
+  for (const path of [...PORTAL, ...GUEST]) {
     test(`${path} has no control smaller than 44px`, async ({ page }) => {
       await page.goto(path);
       await settled(page);
@@ -182,7 +186,7 @@ test.describe('form fields', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('layout at 375px', () => {
-  for (const path of [...PORTAL, '/book/maison-abeer']) {
+  for (const path of [...PORTAL, ...GUEST, '/book/maison-abeer']) {
     test(`${path} never scrolls sideways`, async ({ page }) => {
       if (path.startsWith('/book')) await stubPublic(page);
 
