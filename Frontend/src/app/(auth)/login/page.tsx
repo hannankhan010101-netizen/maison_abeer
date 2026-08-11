@@ -46,7 +46,12 @@ function LoginForm() {
       // to another site immediately after they authenticate.
       router.replace(safeDestination(searchParams.get('next')));
       router.refresh();
-    } catch {
+    } catch (caught) {
+      // A misconfigured client throws before any request is made, and
+      // reporting that as a connection problem sends whoever is debugging it
+      // to the wrong place entirely. Keep the reassuring copy for the host,
+      // put the real cause in the console for whoever is fixing it.
+      console.error('[login] sign-in failed before reaching Supabase:', caught);
       setError("We couldn't reach the studio. Check your connection and try again.");
     } finally {
       setPending(false);

@@ -13,8 +13,24 @@ import { createBrowserClient } from '@supabase/ssr';
 
 let browserClient: ReturnType<typeof createBrowserClient> | undefined;
 
-function readEnv(name: string): string {
-  const value = process.env[name];
+/*
+ * Read as static literals, never `process.env[name]`.
+ *
+ * Next inlines `NEXT_PUBLIC_*` at build time by substituting the literal
+ * expression. A dynamic key cannot be statically analysed, so it is left
+ * alone — and in the browser `process.env` is an empty object, so every
+ * lookup returns undefined however well the variable is configured.
+ *
+ * This is invisible in tests, which run in Node where `process.env` is real.
+ * Only a browser shows it.
+ */
+const PUBLIC_ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+} as const;
+
+function readEnv(name: keyof typeof PUBLIC_ENV): string {
+  const value = PUBLIC_ENV[name];
 
   if (!value) {
     // Failing loudly beats a login screen that silently never works.
