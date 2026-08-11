@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { NewSessionModal, classTypesFrom } from '@/components/domain/NewSessionModal';
 import { RescheduleModal, SeatModal } from '@/components/domain/SessionEditModals';
@@ -47,6 +48,7 @@ export function CalendarView({ now: nowProp }: CalendarViewProps) {
 function CalendarViewInner({ now }: { now: Date }) {
   const [anchor, setAnchor] = useState(now);
 
+  const router = useRouter();
   const range = useMemo(() => weekWindow(anchor), [anchor]);
   const query = useSessions(range.start, range.end);
 
@@ -116,7 +118,7 @@ function CalendarViewInner({ now }: { now: Date }) {
                 sessions={byDay.get(dayKey(day)) ?? []}
                 now={now}
                 onAdd={() => setAddingOn(day)}
-                onSelect={(session) => setEditing({ session, mode: 'seats' })}
+                onSelect={(session) => router.push(`/sessions/${session.id}`)}
               />
             ))}
           </ol>
@@ -140,7 +142,7 @@ function CalendarViewInner({ now }: { now: Date }) {
                   sessions={byDay.get(dayKey(day)) ?? []}
                   now={now}
                   onAdd={() => setAddingOn(day)}
-                  onSelect={(session) => setEditing({ session, mode: 'seats' })}
+                  onSelect={(session) => router.push(`/sessions/${session.id}`)}
                 />
               ))}
             </div>

@@ -5,6 +5,16 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CalendarView } from './CalendarView';
+
+// The calendar navigates to a class rather than opening an editor in place,
+// so it needs the app router, which this render tree does not mount.
+const push = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/calendar',
+}));
 import { toneFor } from './SessionChip';
 import { ApiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/provider';
@@ -211,5 +221,18 @@ describe('CalendarView', () => {
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveClass('min-h-[44px]');
     }
+  });
+
+  it('opens the class rather than jumping into a seat editor', async () => {
+    push.mockClear();
+    respondWith([session()]);
+
+    render(<CalendarView now={NOW} />, { wrapper: Wrapper });
+
+    await userEvent.click((await screen.findAllByRole('button', { name: /Bento cake/ }))[0]!);
+
+    // Tapping a class should show the class. The seat editor lives on that
+    // page, one tap away, rather than ambushing the host here.
+    expect(push).toHaveBeenCalledWith('/sessions/session-1');
   });
 });

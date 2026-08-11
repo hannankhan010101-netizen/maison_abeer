@@ -36,7 +36,9 @@ const PUBLIC_CLASSES = {
  * which is the worst kind of test to leave behind.
  */
 async function settled(page: Page) {
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // 30s, not the default 5: the dev server caches in memory on Windows (see
+  // next.config.mjs), so the first request to a route pays a full compile.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
 
   // The heading renders before the data does. Controls that only exist once a
   // query resolves would otherwise be measured mid-mount, which showed up as

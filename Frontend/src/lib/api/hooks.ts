@@ -509,3 +509,29 @@ export function useGuestHistory(guestId: string, enabled = true) {
     enabled: enabled && Boolean(guestId),
   });
 }
+
+/**
+ * Close or reopen a class.
+ *
+ * Locking is how a host stops new bookings without cancelling — the seats
+ * stay, the roster stays, the door just closes.
+ */
+export function useLockSession(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    // `locked` is a query parameter, not a body: the endpoint declares a bare
+    // bool, which FastAPI reads from the query string. Sending it as JSON
+    // would 422 with the flag silently ignored.
+    mutationFn: (locked: boolean) =>
+      api.patch<Session>(`/api/v1/sessions/${sessionId}/lock`, undefined, {
+        query: { locked },
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.sessions.detail(sessionId), updated);
+      // The calendar and the dashboard both badge a locked class.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+    },
+  });
+}
