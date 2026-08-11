@@ -15,7 +15,7 @@ from fastapi import Depends, Header
 
 from app.core.config import Settings, get_settings
 from app.core.db import TenantSession, get_session_factory
-from app.core.errors import NotAuthenticatedError
+from app.core.errors import NotAuthenticatedError, NotAuthorizedError
 from app.core.security import Principal, extract_bearer_token, verify_access_token
 from app.models.guest import Guest
 from app.models.studio import HostUser
@@ -77,6 +77,19 @@ def _resolve_studio_id(session: object, auth_user_id: UUID) -> UUID:
     studio_id = session.execute(statement).scalar_one_or_none()
 
     if studio_id is None:
+        # A signed-in *guest* reaching a host route is authenticated and simply
+        # not allowed — 403, not 401. Answering 401 would tell them to sign in
+        # again, which they have already done and which cannot help.
+        is_guest = session.execute(
+            select(Guest.id).where(
+                Guest.auth_user_id == auth_user_id,
+                Guest.archived_at.is_(None),
+            )
+        ).scalar_one_or_none()
+
+        if is_guest is not None:
+            raise NotAuthorizedError("That part of the studio isn't yours to open.")
+
         # Authenticated with Supabase but no studio record — the account was
         # never finished setting up. Treated as unauthenticated rather than
         # forbidden, because there is nothing to be forbidden from yet.

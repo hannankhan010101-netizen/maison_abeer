@@ -26,7 +26,13 @@ from sqlalchemy import func, select
 from app.api.deps import GuestDb
 from app.api.v1.portal import SEAT_HOLDING, display_name_for
 from app.core.errors import NotFoundError
-from app.models.chat import ChatMembership, ChatMessage, ChatRoom, MessageReaction
+from app.models.chat import (
+    ChatBanner,
+    ChatMembership,
+    ChatMessage,
+    ChatRoom,
+    MessageReaction,
+)
 from app.models.enums import ChatRoomKind
 from app.models.guest import Guest
 from app.models.session import Booking, Session
@@ -252,6 +258,13 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
 
         rooms.extend(_room_for_session(caller, session) for session in sessions)
 
+    banners = {
+        banner.room_id: banner.body
+        for banner in caller.db.raw.execute(
+            select(ChatBanner).where(ChatBanner.studio_id == caller.studio_id)
+        ).scalars()
+    }
+
     out: list[ChatRoomRead] = []
 
     for room in rooms:
@@ -277,6 +290,7 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
                 unread_count=_unread_count(caller, room, membership.last_read_at),
                 last_message_at=latest.created_at if latest else None,
                 last_message_preview=latest.body[:80] if latest else None,
+                banner=banners.get(room.id),
             )
         )
 

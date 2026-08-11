@@ -8,7 +8,17 @@ import { expect, test, type Page } from '@playwright/test';
  * only exists once real CSS lays out at a real width.
  */
 
-const PORTAL = ['/today', '/calendar', '/guests', '/prep', '/tags', '/messages', '/settings'];
+const PORTAL = [
+  '/today',
+  '/calendar',
+  '/guests',
+  '/prep',
+  '/tags',
+  '/messages',
+  '/settings',
+  '/chat',
+  '/chat/broadcast',
+];
 
 // The guest side. Demo mode answers these as though a guest is signed in, so
 // the same touch-target and overflow rules are enforced on both audiences.

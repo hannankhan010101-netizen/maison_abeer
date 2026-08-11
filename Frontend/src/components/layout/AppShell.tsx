@@ -31,6 +31,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/guests', label: 'Guests', icon: '💌' },
   { href: '/prep', label: 'Prep', icon: '✅' },
   { href: '/messages', label: 'Messages', icon: '💬' },
+  { href: '/chat', label: 'Chats', icon: '👀' },
   { href: '/wrapped', label: 'Receipts', icon: '📊' },
   { href: '/settings', label: 'Settings', icon: '🎨' },
 ] as const;

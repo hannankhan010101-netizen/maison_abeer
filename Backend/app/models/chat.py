@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -161,3 +161,46 @@ class MessageReaction(Base, TenantMixin, TimestampMixin):
     skin tones and ZWJ sequences are longer than they look."""
 
     message: Mapped[ChatMessage] = relationship(back_populates="reactions")
+
+
+class ChatBanner(Base, TenantMixin, TimestampMixin):
+    """A pinned announcement at the top of one room.
+
+    One per room, enforced by the unique constraint rather than by the
+    application remembering to replace rather than insert. Editing overwrites;
+    removing deletes the row, because a banner nobody can see is not a banner
+    worth keeping history for.
+    """
+
+    __tablename__ = "chat_banner"
+    __table_args__ = (UniqueConstraint("room_id", name="uq_chat_banner_room_id"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+
+    room_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("chat_room.id", ondelete="CASCADE"), nullable=False
+    )
+
+    body: Mapped[str] = mapped_column(String(280), nullable=False)
+    """Short on purpose. A banner that needs scrolling is a message."""
+
+
+class Broadcast(Base, TenantMixin, TimestampMixin):
+    """One announcement, fanned out to every room.
+
+    Kept as its own row rather than inferred from the messages it produced:
+    the host needs to know they sent it once, to how many rooms, and when —
+    and counting `chat_message` rows tagged `is_broadcast` would lose that the
+    moment one of them is deleted.
+    """
+
+    __tablename__ = "broadcast"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+
+    room_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    """How many rooms it reached, recorded at send time."""
+
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

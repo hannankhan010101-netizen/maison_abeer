@@ -9,7 +9,14 @@ from __future__ import annotations
 
 from app.models.base import ArchiveMixin, Base, TenantMixin, TimestampMixin
 from app.models.catalog import ChecklistTemplateItem, ClassType
-from app.models.chat import ChatMembership, ChatMessage, ChatRoom, MessageReaction
+from app.models.chat import (
+    Broadcast,
+    ChatBanner,
+    ChatMembership,
+    ChatMessage,
+    ChatRoom,
+    MessageReaction,
+)
 from app.models.enums import (
     AllergySeverity,
     BookingStatus,
@@ -45,7 +52,9 @@ __all__ = [
     "Booking",
     "BookingStatus",
     "BrandKit",
+    "Broadcast",
     "CelebrationKind",
+    "ChatBanner",
     "ChatMembership",
     "ChatMessage",
     "ChatRoom",

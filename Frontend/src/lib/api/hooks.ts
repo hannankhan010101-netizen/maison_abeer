@@ -16,6 +16,11 @@ import type {
   ChecklistItem,
   ExportRecord,
   Feedback,
+  AdminMessage,
+  AdminRoom,
+  BroadcastPreview,
+  BroadcastResult,
+  ChatBanner,
   ChatMessage,
   ChatRoom,
   ClaimResult,
@@ -669,5 +674,86 @@ export function useToggleReaction(roomId: string) {
     mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
       api.put<ChatMessage>(`/api/v1/portal/messages/${messageId}/reactions`, { emoji }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.portal.room(roomId) }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Admin chat (host only)
+// ---------------------------------------------------------------------------
+
+/** Every room in the studio. 403s for a guest — the server is the gate. */
+export function useAdminRooms() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.adminChat.rooms,
+    queryFn: ({ signal }) => api.get<AdminRoom[]>('/api/v1/chat/rooms', { signal }),
+  });
+}
+
+export function useAdminRoomMessages(roomId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.adminChat.room(roomId),
+    queryFn: ({ signal }) =>
+      api.get<AdminMessage[]>(`/api/v1/chat/rooms/${roomId}/messages`, { signal }),
+    enabled: enabled && Boolean(roomId),
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function usePinBanner(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: string) =>
+      api.put<ChatBanner>(`/api/v1/chat/rooms/${roomId}/banner`, { body }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.all }),
+  });
+}
+
+export function useRemoveBanner(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete<void>(`/api/v1/chat/rooms/${roomId}/banner`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.all }),
+  });
+}
+
+export function useDeleteMessage(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId: string) => api.delete<void>(`/api/v1/chat/messages/${messageId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.room(roomId) }),
+  });
+}
+
+/** What a broadcast would reach, before it is sent. */
+export function usePreviewBroadcast() {
+  const api = useApi();
+
+  return useMutation({
+    mutationFn: (body: string) =>
+      api.post<BroadcastPreview>('/api/v1/broadcasts/preview', { body }),
+  });
+}
+
+export function useSendBroadcast() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    // `confirmed` is a field rather than a second endpoint, so the confirm
+    // step cannot be skipped by calling a different route.
+    mutationFn: (body: string) =>
+      api.post<BroadcastResult>('/api/v1/broadcasts', { body, confirmed: true }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.all }),
   });
 }

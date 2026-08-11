@@ -421,3 +421,48 @@ export interface ChatRoom {
   last_message_at: string | null;
   last_message_preview: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Admin chat (host only)
+// ---------------------------------------------------------------------------
+
+export interface ChatBanner {
+  body: string;
+  updated_at: string;
+}
+
+export interface AdminRoom {
+  id: string;
+  kind: 'workshop' | 'lounge';
+  name: string;
+  session_id: string | null;
+  message_count: number;
+  last_message_at: string | null;
+  banner: ChatBanner | null;
+}
+
+export interface AdminMessage {
+  id: string;
+  body: string;
+  created_at: string;
+  author_id: string | null;
+  author_name: string;
+  is_host: boolean;
+  is_broadcast: boolean;
+  /** Shown struck through rather than hidden — there has to be a record. */
+  is_deleted: boolean;
+}
+
+export interface BroadcastPreview {
+  body: string;
+  room_count: number;
+  room_names: string[];
+  guest_count: number;
+}
+
+export interface BroadcastResult {
+  id: string;
+  body: string;
+  room_count: number;
+  sent_at: string | null;
+}

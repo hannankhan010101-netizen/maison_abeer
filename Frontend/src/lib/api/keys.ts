@@ -20,6 +20,11 @@ export const queryKeys = {
     tags: (id: string) => ['sessions', 'tags', id] as const,
     exports: (id: string) => ['sessions', 'exports', id] as const,
   },
+  adminChat: {
+    all: ['admin-chat'] as const,
+    rooms: ['admin-chat', 'rooms'] as const,
+    room: (id: string) => ['admin-chat', 'rooms', id] as const,
+  },
   messages: {
     all: ['messages'] as const,
     failed: ['messages', 'failed'] as const,

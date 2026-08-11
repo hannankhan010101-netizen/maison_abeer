@@ -18,6 +18,7 @@ import type {
 
 /** Demo chat, module-scoped so a sent message survives to the next poll. */
 const demoChat: ChatMessage[] = [];
+let demoBanner: string | null = null;
 
 /**
  * A `fetch` that answers the API from memory.
@@ -392,6 +393,68 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
     // Held in module scope so a message sent during a test is still there on
     // the next poll — a store that reset per request would make the thread
     // look broken.
+
+    // ---- admin chat ------------------------------------------------------
+
+    if (path === '/api/v1/chat/rooms' && method === 'GET') {
+      return json([
+        {
+          id: 'room-lounge',
+          kind: 'lounge',
+          name: 'The lounge',
+          session_id: null,
+          message_count: demoChat.length,
+          last_message_at: demoChat.at(-1)?.created_at ?? null,
+          banner: demoBanner ? { body: demoBanner, updated_at: now.toISOString() } : null,
+        },
+      ]);
+    }
+
+    const adminRoom = /^\/api\/v1\/chat\/rooms\/([^/]+)\/messages$/.exec(path);
+    if (adminRoom && method === 'GET') {
+      return json(
+        demoChat.map((m) => ({
+          id: m.id,
+          body: m.body,
+          created_at: m.created_at,
+          author_id: m.author_id,
+          author_name: m.author_name,
+          is_host: m.is_host,
+          is_broadcast: m.is_broadcast,
+          is_deleted: false,
+        })),
+      );
+    }
+
+    const adminBanner = /^\/api\/v1\/chat\/rooms\/([^/]+)\/banner$/.exec(path);
+    if (adminBanner && method === 'PUT') {
+      demoBanner = String(body.body ?? '');
+      return json({ body: demoBanner, updated_at: now.toISOString() });
+    }
+    if (adminBanner && method === 'DELETE') {
+      demoBanner = null;
+      return new Response(null, { status: 204 });
+    }
+
+    if (/^\/api\/v1\/chat\/messages\/[^/]+$/.test(path) && method === 'DELETE') {
+      return new Response(null, { status: 204 });
+    }
+
+    if (path === '/api/v1/broadcasts/preview' && method === 'POST') {
+      return json({
+        body: String(body.body ?? ''),
+        room_count: 3,
+        room_names: ['The lounge', 'Bento cake decorating', 'Pottery & wheel throwing'],
+        guest_count: store.guests.length,
+      });
+    }
+
+    if (path === '/api/v1/broadcasts' && method === 'POST') {
+      return json(
+        { id: 'bc-1', body: String(body.body ?? ''), room_count: 3, sent_at: now.toISOString() },
+        201,
+      );
+    }
 
     if (path === '/api/v1/portal/rooms' && method === 'GET') {
       return json([

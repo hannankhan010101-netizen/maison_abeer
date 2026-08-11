@@ -135,6 +135,10 @@ class ChatRoomRead(BaseModel):
     last_message_at: datetime | None = None
     last_message_preview: str | None = None
 
+    banner: str | None = None
+    """The host's pinned announcement, if there is one. Read-only here — a
+    guest can see it and never touch it."""
+
 
 class SendMessage(BaseModel):
     body: Annotated[str, Field(min_length=1, max_length=2000)]
