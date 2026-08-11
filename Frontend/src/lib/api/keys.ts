@@ -42,6 +42,8 @@ export const queryKeys = {
     me: ['portal', 'me'] as const,
     workshops: ['portal', 'workshops'] as const,
     workshop: (id: string) => ['portal', 'workshops', id] as const,
+    rooms: ['portal', 'rooms'] as const,
+    room: (id: string) => ['portal', 'rooms', id] as const,
   },
 } as const;
 

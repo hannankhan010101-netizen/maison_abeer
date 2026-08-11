@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from app.models.base import ArchiveMixin, Base, TenantMixin, TimestampMixin
 from app.models.catalog import ChecklistTemplateItem, ClassType
+from app.models.chat import ChatMembership, ChatMessage, ChatRoom, MessageReaction
 from app.models.enums import (
     AllergySeverity,
     BookingStatus,
     CelebrationKind,
+    ChatRoomKind,
     ChecklistPhase,
     CraftKind,
     CreditStatus,
@@ -44,6 +46,10 @@ __all__ = [
     "BookingStatus",
     "BrandKit",
     "CelebrationKind",
+    "ChatMembership",
+    "ChatMessage",
+    "ChatRoom",
+    "ChatRoomKind",
     "ChecklistItem",
     "ChecklistPhase",
     "ChecklistTemplateItem",
@@ -61,6 +67,7 @@ __all__ = [
     "MessageChannel",
     "MessageFeedback",
     "MessageKind",
+    "MessageReaction",
     "MessageStatus",
     "ScheduledMessage",
     "Session",

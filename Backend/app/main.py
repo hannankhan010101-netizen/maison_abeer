@@ -17,6 +17,7 @@ from app.api.providers import (
     provide_session_service,
 )
 from app.api.v1 import (
+    chat,
     checklist,
     cron,
     guest_history,
@@ -90,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(public.router, prefix=API_PREFIX)
     app.include_router(cron.router, prefix=API_PREFIX)
     app.include_router(portal.router, prefix=API_PREFIX)
+    app.include_router(chat.router, prefix=API_PREFIX)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:

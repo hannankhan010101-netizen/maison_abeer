@@ -184,3 +184,38 @@ class TestBusinessInvariants:
         # rather than cascade away the host's history.
         fk = next(iter(table("session").columns["class_type_id"].foreign_keys))
         assert fk.ondelete == "RESTRICT"
+
+
+def test_every_enum_column_is_labelled_by_value() -> None:
+    """Postgres enum labels must match the JSON the API sends.
+
+    SQLAlchemy labels an enum type with the member *names* by default, so
+    `ChatRoomKind.LOUNGE` would be stored as `LOUNGE` while the API serialises
+    `lounge`. That already broke a partial index once, in migration 0001.
+
+    `Base.type_annotation_map` fixes it — but only for enums declared in
+    `models/enums.py`, because that is the module it scans. Declaring one
+    anywhere else silently reverts to names, which is exactly what happened
+    with `ChatRoomKind`. This asserts the outcome rather than the mechanism,
+    so it catches the next one wherever it is declared.
+    """
+    import sqlalchemy as sa
+
+    from app.models import Base
+
+    wrong: list[str] = []
+
+    for table in Base.metadata.sorted_tables:
+        for column in table.columns:
+            if not isinstance(column.type, sa.Enum):
+                continue
+
+            # A value-labelled type has lowercase labels; a name-labelled one
+            # carries the SCREAMING_CASE member names.
+            if any(label.isupper() for label in column.type.enums):
+                wrong.append(f"{table.name}.{column.name} -> {column.type.enums}")
+
+    assert not wrong, (
+        "these enum columns are labelled by member name, not value: "
+        f"{wrong}. Declare the enum in app/models/enums.py."
+    )

@@ -15,10 +15,10 @@ The allowlist is the boundary. Two rules hold everywhere below:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 WorkshopStatus = Literal["upcoming", "live", "completed", "cancelled"]
 
@@ -90,3 +90,63 @@ class WhoAmI(BaseModel):
     """Which side of the app a token belongs to."""
 
     role: Literal["host", "guest", "unknown"]
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+
+class ReactionSummary(BaseModel):
+    """One emoji, aggregated across everyone who tapped it."""
+
+    emoji: str
+    count: int
+    reacted: bool
+    """Whether *this* guest is one of them, so the pill renders active."""
+
+
+class ChatMessageRead(BaseModel):
+    """One message as a guest sees it."""
+
+    id: UUID
+    body: str
+    created_at: datetime
+
+    author_id: UUID | None = None
+    """Null when the host wrote it."""
+
+    author_name: str
+    is_you: bool = False
+    is_host: bool = False
+    is_broadcast: bool = False
+    """Rendered in the official style so an announcement is not lost."""
+
+    reactions: list[ReactionSummary] = Field(default_factory=list)
+
+
+class ChatRoomRead(BaseModel):
+    id: UUID
+    kind: Literal["workshop", "lounge"]
+    name: str
+    session_id: UUID | None = None
+
+    unread_count: int = 0
+    last_message_at: datetime | None = None
+    last_message_preview: str | None = None
+
+
+class SendMessage(BaseModel):
+    body: Annotated[str, Field(min_length=1, max_length=2000)]
+
+    @field_validator("body")
+    @classmethod
+    def _not_only_whitespace(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Say something first.")
+        return cleaned
+
+
+class ToggleReaction(BaseModel):
+    emoji: Annotated[str, Field(min_length=1, max_length=16)]

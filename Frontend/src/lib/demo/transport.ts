@@ -7,7 +7,17 @@ import {
   demoSessions,
   demoSettings,
 } from './fixtures';
-import type { Checklist, Guest, Roster, Session, StudioSettings } from '@/lib/api/types';
+import type {
+  ChatMessage,
+  Checklist,
+  Guest,
+  Roster,
+  Session,
+  StudioSettings,
+} from '@/lib/api/types';
+
+/** Demo chat, module-scoped so a sent message survives to the next poll. */
+const demoChat: ChatMessage[] = [];
 
 /**
  * A `fetch` that answers the API from memory.
@@ -376,6 +386,75 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
         attendee_count: session.capacity.booked,
       };
     };
+
+    // ---- chat ------------------------------------------------------------
+    //
+    // Held in module scope so a message sent during a test is still there on
+    // the next poll — a store that reset per request would make the thread
+    // look broken.
+
+    if (path === '/api/v1/portal/rooms' && method === 'GET') {
+      return json([
+        {
+          id: 'room-lounge',
+          kind: 'lounge',
+          name: 'The lounge',
+          session_id: null,
+          unread_count: demoChat.length > 0 ? 0 : 2,
+          last_message_at: demoChat.at(-1)?.created_at ?? null,
+          last_message_preview: demoChat.at(-1)?.body ?? 'Say hi first',
+        },
+        ...store.sessions.slice(0, 2).map((s) => ({
+          id: `room-${s.id}`,
+          kind: 'workshop' as const,
+          name: s.class_type_name,
+          session_id: s.id,
+          unread_count: 0,
+          last_message_at: null,
+          last_message_preview: null,
+        })),
+      ]);
+    }
+
+    const roomMessages = /^\/api\/v1\/portal\/rooms\/([^/]+)\/messages$/.exec(path);
+    if (roomMessages && method === 'GET') {
+      return json(roomMessages[1] === 'room-lounge' ? demoChat : []);
+    }
+
+    if (roomMessages && method === 'POST') {
+      const message = {
+        id: `m-${demoChat.length + 1}`,
+        body: String(body.body ?? ''),
+        created_at: new Date().toISOString(),
+        author_id: 'g-sana',
+        author_name: 'Sana R.',
+        is_you: true,
+        is_host: false,
+        is_broadcast: false,
+        reactions: [],
+      };
+      demoChat.push(message);
+      return json(message, 201);
+    }
+
+    if (/^\/api\/v1\/portal\/rooms\/[^/]+\/read$/.test(path) && method === 'POST') {
+      return new Response(null, { status: 204 });
+    }
+
+    const reactionPath = /^\/api\/v1\/portal\/messages\/([^/]+)\/reactions$/.exec(path);
+    if (reactionPath && method === 'PUT') {
+      const message = demoChat.find((m) => m.id === reactionPath[1]);
+      if (!message) return json({ code: 'not_found', message: 'Not found' }, 404);
+
+      const emoji = String(body.emoji ?? '');
+      const existing = message.reactions.find((r) => r.emoji === emoji);
+
+      message.reactions = existing
+        ? message.reactions.filter((r) => r.emoji !== emoji)
+        : [...message.reactions, { emoji, count: 1, reacted: true }];
+
+      return json(message);
+    }
 
     if (path === '/api/v1/portal/whoami' && method === 'GET') {
       return json({ role: 'guest' });

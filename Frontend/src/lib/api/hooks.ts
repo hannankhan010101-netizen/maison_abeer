@@ -16,6 +16,8 @@ import type {
   ChecklistItem,
   ExportRecord,
   Feedback,
+  ChatMessage,
+  ChatRoom,
   ClaimResult,
   Guest,
   GuestHistory,
@@ -588,5 +590,84 @@ export function useClaimAccount() {
     onSuccess: (result) => {
       if (result.claimed) void queryClient.invalidateQueries({ queryKey: queryKeys.portal.all });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
+/**
+ * The rooms this guest belongs to.
+ *
+ * Refetched on a slow interval so an unread badge appears without the guest
+ * sitting inside a room. Ten seconds rather than three: a badge is ambient,
+ * and polling the list as hard as an open conversation is wasted traffic.
+ */
+export function useChatRooms() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.portal.rooms,
+    queryFn: ({ signal }) => api.get<ChatRoom[]>('/api/v1/portal/rooms', { signal }),
+    refetchInterval: 10_000,
+    // Pauses when the tab is hidden. A phone in a pocket should not poll.
+    refetchIntervalInBackground: false,
+  });
+}
+
+/**
+ * One room's messages, polled while it is open.
+ *
+ * Three seconds is the near-real-time the architecture buys us without moving
+ * access control onto RLS, which is not yet enforced. It reads as instant in a
+ * group of a dozen people.
+ */
+export function useChatMessages(roomId: string, enabled = true) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.portal.room(roomId),
+    queryFn: ({ signal }) =>
+      api.get<ChatMessage[]>(`/api/v1/portal/rooms/${roomId}/messages`, { signal }),
+    enabled: enabled && Boolean(roomId),
+    refetchInterval: 3_000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useSendMessage(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: string) =>
+      api.post<ChatMessage>(`/api/v1/portal/rooms/${roomId}/messages`, { body }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portal.room(roomId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portal.rooms });
+    },
+  });
+}
+
+export function useMarkRoomRead(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.post<void>(`/api/v1/portal/rooms/${roomId}/read`),
+    // Only the room list changes — the thread itself is unaffected.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.portal.rooms }),
+  });
+}
+
+export function useToggleReaction(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
+      api.put<ChatMessage>(`/api/v1/portal/messages/${messageId}/reactions`, { emoji }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.portal.room(roomId) }),
   });
 }

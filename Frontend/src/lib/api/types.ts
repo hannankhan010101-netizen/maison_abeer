@@ -388,3 +388,36 @@ export interface ClaimResult {
   display_name: string | null;
   message: string;
 }
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  /** Whether *you* tapped it, so the pill renders active. */
+  reacted: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  body: string;
+  created_at: string;
+  author_id: string | null;
+  author_name: string;
+  is_you: boolean;
+  is_host: boolean;
+  is_broadcast: boolean;
+  reactions: ReactionSummary[];
+}
+
+export interface ChatRoom {
+  id: string;
+  kind: 'workshop' | 'lounge';
+  name: string;
+  session_id: string | null;
+  unread_count: number;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+}

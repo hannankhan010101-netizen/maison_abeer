@@ -28,6 +28,7 @@ const PAGES = [
   '/messages',
   '/settings',
   '/portal',
+  '/portal/chat',
 ];
 
 for (const path of PAGES) {

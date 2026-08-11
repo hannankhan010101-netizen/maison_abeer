@@ -21,8 +21,7 @@ import { cn } from '@/lib/cn';
 
 const NAV = [
   { href: '/portal', label: 'Workshops', icon: '🌷' },
-  // Chat lands in Phase 2; the slot is left out rather than stubbed, so
-  // nothing here promises something that does not exist yet.
+  { href: '/portal/chat', label: 'Chats', icon: '💬' },
 ] as const;
 
 export function GuestShell({ children }: { children: ReactNode }) {
@@ -97,10 +96,6 @@ function SignOut() {
 function GuestNav() {
   const pathname = usePathname();
 
-  // One destination today, so the bar is hidden rather than shown with a
-  // single lonely tab. It returns in Phase 2 alongside chat.
-  if (NAV.length < 2) return null;
-
   return (
     <nav
       aria-label="Main"
@@ -108,7 +103,10 @@ function GuestNav() {
     >
       <ul className="mx-auto flex max-w-[720px]">
         {NAV.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active =
+            item.href === '/portal'
+              ? pathname === '/portal' || pathname.startsWith('/portal/workshops')
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <li key={item.href} className="flex-1">

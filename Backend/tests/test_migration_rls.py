@@ -19,20 +19,32 @@ from pathlib import Path
 
 from app.models import Base
 
-MIGRATION = (
-    Path(__file__).resolve().parents[1] / "migrations" / "versions" / "0001_initial_schema.py"
-)
+VERSIONS = Path(__file__).resolve().parents[1] / "migrations" / "versions"
+MIGRATION = VERSIONS / "0001_initial_schema.py"
 
 SOURCE = MIGRATION.read_text(encoding="utf-8")
+
+# Every migration, because a table added later carries its policy in the
+# migration that creates it. The invariant is "every tenant table is covered",
+# not "0001 lists them all" — scoping this to one file made it fail the moment
+# the chat tables landed in 0005, which was the guard being narrow rather than
+# the schema being wrong.
+ALL_MIGRATIONS = "\n".join(
+    path.read_text(encoding="utf-8") for path in sorted(VERSIONS.glob("*.py"))
+)
 
 # The tenant root scopes on `id`; every other table scopes on `studio_id`.
 TENANT_ROOT = "studio"
 
 
 def _declared_tenant_tables() -> set[str]:
-    block = re.search(r"TENANT_TABLES = \((.*?)\)", SOURCE, re.S)
-    assert block is not None, "TENANT_TABLES tuple not found in the migration"
-    return set(re.findall(r'"([a-z_]+)"', block.group(1)))
+    """Every table named in a TENANT_TABLES tuple, across all migrations."""
+    named: set[str] = set()
+
+    for block in re.findall(r"TENANT_TABLES = \((.*?)\)", ALL_MIGRATIONS, re.S):
+        named.update(re.findall(r'"([a-z_]+)"', block))
+
+    return named
 
 
 def _model_tenant_tables() -> set[str]:
@@ -62,7 +74,7 @@ def test_the_tenant_root_is_not_scoped_by_studio_id() -> None:
 
 
 def test_row_level_security_is_enabled_for_every_table() -> None:
-    enabled = set(re.findall(r"ALTER TABLE ([a-z_]+) ENABLE ROW LEVEL SECURITY", SOURCE))
+    enabled = set(re.findall(r"ALTER TABLE ([a-z_]+) ENABLE ROW LEVEL SECURITY", ALL_MIGRATIONS))
     # The loop covers the tenant tables; `studio` is enabled on its own line.
     assert TENANT_ROOT in enabled
     assert 'f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY"' in SOURCE

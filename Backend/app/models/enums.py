@@ -129,3 +129,10 @@ class AllergySeverity(StrEnum):
 class CelebrationKind(StrEnum):
     BIRTHDAY = "birthday"
     ANNIVERSARY = "anniversary"
+
+
+class ChatRoomKind(StrEnum):
+    """A workshop's own room, or the studio-wide lounge."""
+
+    WORKSHOP = "workshop"
+    LOUNGE = "lounge"
