@@ -61,12 +61,16 @@ Use port **6543** (transaction), not 5432 (session), for this project.
 
 ### Cron
 
-`vercel.json` schedules `/api/v1/cron/drain-messages` every 15 minutes. Vercel
-issues a `GET` with `Authorization: Bearer $CRON_SECRET`.
+`vercel.json` schedules `/api/v1/cron/drain-messages`. Vercel issues a `GET`
+with `Authorization: Bearer $CRON_SECRET`.
 
-Fifteen minutes is deliberate. A message held for quiet hours is only released
-on the next run, so an hourly schedule would let a 09:00 send land at 09:59 —
-close enough to be indistinguishable from a bug.
+Fifteen minutes is the intended cadence — a message held for quiet hours is
+only released on the next run, so an hourly schedule would let a 09:00 send
+land at 09:59, close enough to be indistinguishable from a bug. **Vercel's
+Hobby plan only allows a cron to run once a day**, so `vercel.json` currently
+runs it at `0 9 * * *` (09:00 UTC) instead. Every message still queues
+correctly; they just sit until the next daily drain rather than sending
+promptly. Restore `*/15 * * * *` once the project is on a paid plan.
 
 Overlapping runs are safe: the worker claims rows with `SELECT … FOR UPDATE
 SKIP LOCKED` before contacting any provider, so a second invocation finds them
