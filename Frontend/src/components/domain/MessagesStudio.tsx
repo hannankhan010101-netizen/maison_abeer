@@ -44,7 +44,7 @@ export function MessagesStudio() {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Messages</h1>
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">Messages</h1>
       <p className="text-latte mb-4">
         <HandNote>Every reminder re-writes itself to match ✍️</HandNote>
       </p>

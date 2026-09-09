@@ -21,12 +21,36 @@ test.describe('the daily path', () => {
   });
 
   test('every nav destination resolves', async ({ page }) => {
+    /*
+     * Six routes, each compiled on first visit by the dev server this suite
+     * starts. That server keeps its own build directory (`NEXT_DIST_DIR`), so
+     * a fresh checkout or a cleaned cache compiles all six inside one test —
+     * comfortably past the default budget, and it fails as "the link did not
+     * navigate" rather than "this was still building".
+     */
+    test.slow();
+
     await page.goto('/today');
 
-    // Located by href, not by label: the nav renders an emoji beside each
-    // word, so an accessible-name match is fragile in a way the route is not.
+    /*
+     * Located by href, not by label: the nav renders an emoji beside each
+     * word, so an accessible-name match is fragile in a way the route is not.
+     *
+     * On a phone only four destinations sit in the tab bar and the rest are
+     * behind "More", so anything not already visible is reached by opening
+     * that first. The guarantee is unchanged — every destination resolves —
+     * but there is now a tap in front of some of them.
+     */
     for (const href of ['/calendar', '/guests', '/prep', '/tags', '/messages', '/settings']) {
-      await page.locator(`nav a[href="${href}"]:visible`).first().click();
+      const link = page.locator(`nav a[href="${href}"]:visible`).first();
+
+      if (!(await link.count())) {
+        await page.getByRole('button', { name: /more sections/i }).click();
+        await page.getByRole('menu').locator(`a[href="${href}"]`).click();
+      } else {
+        await link.click();
+      }
+
       await expect(page).toHaveURL(new RegExp(`${href}$`));
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     }

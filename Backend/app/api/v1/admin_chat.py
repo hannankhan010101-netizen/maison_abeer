@@ -22,6 +22,7 @@ from app.api.deps import Db
 from app.api.v1.portal import display_name_for
 from app.core.errors import ConflictError, NotFoundError
 from app.models.chat import Broadcast, ChatBanner, ChatMessage, ChatRoom
+from app.models.enums import ChatRoomKind
 from app.models.guest import Guest
 from app.schemas.admin_chat import (
     AdminMessageRead,
@@ -31,6 +32,7 @@ from app.schemas.admin_chat import (
     BroadcastPreview,
     BroadcastRequest,
     BroadcastResult,
+    HostReply,
 )
 
 router = APIRouter(tags=["admin-chat"])
@@ -54,37 +56,40 @@ def _room_or_404(db: Db, room_id: UUID) -> ChatRoom:
 
 @router.get("/chat/rooms", response_model=list[AdminRoomRead])
 def list_all_rooms(db: Db) -> list[AdminRoomRead]:
-    """Every room in the studio, busiest first."""
-    rooms = db.scalars(db.query(ChatRoom).order_by(ChatRoom.created_at))
+    """Every room in the studio, busiest first.
+
+    Counts and last-message times come back in **one** grouped query rather
+    than two per room. The loop version issued twenty-one round trips for ten
+    rooms, and against a hosted database that is four to six seconds of
+    "Loading rooms…" every time the host opens this page — slow enough that
+    it reads as broken rather than slow.
+    """
+    rooms = list(db.scalars(db.query(ChatRoom).order_by(ChatRoom.created_at)))
 
     banners = {banner.room_id: banner for banner in db.scalars(db.query(ChatBanner))}
+
+    # Deleted messages are excluded: the host cares how busy a room is, not
+    # how much has been moderated out of it.
+    stats = {
+        row[0]: (row[1], row[2])
+        for row in db.raw.execute(
+            select(
+                ChatMessage.room_id,
+                func.count(ChatMessage.id),
+                func.max(ChatMessage.created_at),
+            )
+            .where(
+                ChatMessage.studio_id == db.studio_id,
+                ChatMessage.deleted_at.is_(None),
+            )
+            .group_by(ChatMessage.room_id)
+        ).all()
+    }
 
     out: list[AdminRoomRead] = []
 
     for room in rooms:
-        # Deleted messages are excluded from the count: the host cares how
-        # busy a room is, not how much has been moderated out of it.
-        total = int(
-            db.raw.execute(
-                select(func.count(ChatMessage.id)).where(
-                    ChatMessage.studio_id == db.studio_id,
-                    ChatMessage.room_id == room.id,
-                    ChatMessage.deleted_at.is_(None),
-                )
-            ).scalar_one()
-        )
-
-        latest = db.raw.execute(
-            select(ChatMessage.created_at)
-            .where(
-                ChatMessage.studio_id == db.studio_id,
-                ChatMessage.room_id == room.id,
-                ChatMessage.deleted_at.is_(None),
-            )
-            .order_by(ChatMessage.created_at.desc())
-            .limit(1)
-        ).scalar_one_or_none()
-
+        total, latest = stats.get(room.id, (0, None))
         banner = banners.get(room.id)
 
         out.append(
@@ -93,7 +98,7 @@ def list_all_rooms(db: Db) -> list[AdminRoomRead]:
                 kind=room.kind.value,
                 name=room.name,
                 session_id=room.session_id,
-                message_count=total,
+                message_count=int(total),
                 last_message_at=latest,
                 banner=BannerRead(body=banner.body, updated_at=banner.updated_at)
                 if banner
@@ -148,6 +153,109 @@ def read_room(room_id: UUID, db: Db) -> list[AdminMessageRead]:
         )
         for message in messages
     ]
+
+
+@router.post(
+    "/guests/{guest_id}/chat",
+    response_model=AdminRoomRead,
+    status_code=status.HTTP_200_OK,
+)
+def open_direct_room(guest_id: UUID, db: Db) -> AdminRoomRead:
+    """Open the private thread with one guest, creating it on first use.
+
+    Get-or-create rather than create, so the button on a guest's profile can
+    be pressed twice without splitting the conversation in two. The partial
+    unique index backs that up in the database — this is the polite path, not
+    the only guard.
+
+    Returns 200 rather than 201 for the same reason: after the first press,
+    nothing is created, and reporting otherwise would be a lie the client
+    might act on.
+
+    Only the host can start one. A guest opening a thread the host never asked
+    for would put an empty conversation at the top of their list, and give
+    every guest a channel straight to the studio owner whether or not that is
+    wanted — which is a product decision, not a default.
+    """
+    guest = db.get_or_404(Guest, guest_id)
+
+    existing = db.scalars(
+        db.query(ChatRoom).where(
+            ChatRoom.kind == ChatRoomKind.DIRECT,
+            ChatRoom.guest_id == guest.id,
+        )
+    )
+    room = existing[0] if existing else None
+
+    if room is None:
+        room = ChatRoom(
+            studio_id=db.studio_id,
+            kind=ChatRoomKind.DIRECT,
+            guest_id=guest.id,
+            # Stored under the guest's name because that is what the host
+            # needs in their room list. The guest is shown the studio's name
+            # instead — from their side the thread is with the studio.
+            name=display_name_for(guest),
+        )
+        db.add(room)
+        db.flush()
+
+    return AdminRoomRead(
+        id=room.id,
+        kind=room.kind.value,
+        name=room.name,
+        session_id=None,
+        message_count=0,
+        last_message_at=None,
+        banner=None,
+    )
+
+
+@router.post(
+    "/chat/rooms/{room_id}/messages",
+    response_model=AdminMessageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def reply_in_room(room_id: UUID, payload: HostReply, db: Db) -> AdminMessageRead:
+    """Say something in one room, as the host.
+
+    The counterpart to the guest's own send. Until this existed the host could
+    read every conversation and answer none of them: the only ways to speak
+    were a banner pinned to the top of a room, or a broadcast that went into
+    every other class as well. A guest asking "should I bring an apron?" in
+    their workshop chat could not be answered in that workshop chat.
+
+    Deliberately **not** `is_broadcast`. That flag means "an announcement sent
+    to everybody" and is styled to stand out from the conversation precisely
+    so it is not missed. A reply is part of the conversation, and dressing one
+    up as the other would make every answer shout and, worse, make real
+    announcements ordinary.
+
+    `guest_id` stays null, which is already how the schema records a host
+    message — so the guest side renders it as "Your host" with no change.
+    """
+    _room_or_404(db, room_id)
+
+    message = ChatMessage(
+        studio_id=db.studio_id,
+        room_id=room_id,
+        guest_id=None,
+        body=payload.body,
+        is_broadcast=False,
+    )
+    db.add(message)
+    db.flush()
+
+    return AdminMessageRead(
+        id=message.id,
+        body=message.body,
+        created_at=message.created_at,
+        author_id=None,
+        author_name="You",
+        is_host=True,
+        is_broadcast=False,
+        is_deleted=False,
+    )
 
 
 @router.delete("/chat/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)

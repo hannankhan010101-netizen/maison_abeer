@@ -22,6 +22,7 @@ class FakeGuestRepository:
         self.waitlists: dict[UUID, list[WaitlistEntry]] = {}
         self.credits: list[tuple[UUID, UUID, str | None]] = []
         self.upcoming_booked: set[UUID] = set()
+        self.scheduled_invites: list[tuple[UUID, UUID, datetime]] = []
         self._quiet_hours = quiet_hours or QuietHours(timezone="UTC")
 
     # -- seeding ------------------------------------------------------------
@@ -117,6 +118,9 @@ class FakeGuestRepository:
 
     def save_waitlist(self, session_id: UUID, entries: Sequence[WaitlistEntry]) -> None:
         self.waitlists[session_id] = list(entries)
+
+    def schedule_waitlist_invite(self, session_id: UUID, guest_id: UUID, send_at: datetime) -> None:
+        self.scheduled_invites.append((session_id, guest_id, send_at))
 
     def quiet_hours(self) -> QuietHours:
         return self._quiet_hours

@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 
 import { cn } from '@/lib/cn';
+import { apiBaseUrl } from '@/lib/api/base-url';
 
 /**
  * The whole survey: one tap and one word (PRD §2.6).
@@ -28,7 +29,7 @@ interface Prompt {
 }
 
 function baseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
+  return apiBaseUrl();
 }
 
 export interface FeedbackFlowProps {

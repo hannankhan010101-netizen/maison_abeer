@@ -8,17 +8,25 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import NotFoundError
 from app.domain.capacity import Capacity
+from app.domain.messages import render
 from app.domain.scheduling import QuietHours
 from app.domain.waitlist import WaitlistEntry as DomainWaitlistEntry
 from app.domain.waitlist import WaitlistStatus as DomainWaitlistStatus
-from app.models.enums import BookingStatus, CreditStatus, SessionStatus, WaitlistStatus
+from app.models.enums import (
+    BookingStatus,
+    CreditStatus,
+    MessageKind,
+    MessageStatus,
+    SessionStatus,
+    WaitlistStatus,
+)
 from app.models.guest import Guest, GuestCredit
-from app.models.session import Booking, Session, WaitlistEntry
+from app.models.session import Booking, ScheduledMessage, Session, WaitlistEntry
 from app.models.studio import StudioSettings
 from app.services.guests import (
     AllergySnapshot,
@@ -47,7 +55,14 @@ class SqlGuestRepository:
 
     # -- guests -------------------------------------------------------------
 
-    def _snapshot(self, guest: Guest) -> GuestSnapshot:
+    def _snapshot(self, guest: Guest, credits: int | None = None) -> GuestSnapshot:
+        """One guest as the service sees them.
+
+        `credits` is passed in by the list path, which counts every guest's
+        credits in a single grouped query. Left None — the single-guest path —
+        it falls back to one query, which is correct when there is one guest
+        to ask about.
+        """
         return GuestSnapshot(
             id=guest.id,
             full_name=guest.full_name,
@@ -58,7 +73,9 @@ class SqlGuestRepository:
             visit_count=guest.visit_count,
             birthday=guest.birthday,
             memory_note=guest.memory_note,
-            available_credits=self._available_credits(guest.id),
+            available_credits=(
+                credits if credits is not None else self._available_credits(guest.id)
+            ),
             allergies=tuple(
                 AllergySnapshot(
                     id=allergy.id,
@@ -82,15 +99,47 @@ class SqlGuestRepository:
         )
         return len(self._db.scalars(statement))
 
+    def _credits_by_guest(self) -> dict[UUID, int]:
+        """Every guest's available credit count, in one grouped query.
+
+        The per-guest version cost one round trip each. At thirty-four guests
+        against a hosted database that was five to six seconds to open the
+        roster — the slowest screen in the app, and the one the host opens
+        most.
+        """
+        # `raw.execute` bypasses the tenant scoping that `self._db.query()`
+        # applies, so `studio_id` has to be named here explicitly. Without it
+        # this counts credits belonging to every studio — which is exactly
+        # what `test_every_hand_written_select_names_studio_id` exists to
+        # catch, and did.
+        rows = self._db.raw.execute(
+            select(GuestCredit.guest_id, func.count(GuestCredit.id))
+            .where(
+                GuestCredit.studio_id == self._db.studio_id,
+                GuestCredit.status == CreditStatus.AVAILABLE,
+            )
+            .group_by(GuestCredit.guest_id)
+        ).all()
+
+        return {row[0]: int(row[1]) for row in rows}
+
     def list_guests(self) -> Sequence[GuestSnapshot]:
         # selectinload, not lazy loading: the roster renders every guest's
         # allergy chips, so the default would fire one query per guest.
+        #
+        # Credits needed the same treatment and had not had it — see
+        # `_credits_by_guest`.
         statement = (
             self._db.query(Guest)
             .where(Guest.archived_at.is_(None))
             .options(selectinload(Guest.allergies))
         )
-        return [self._snapshot(guest) for guest in self._db.scalars(statement)]
+
+        credits = self._credits_by_guest()
+
+        return [
+            self._snapshot(guest, credits.get(guest.id, 0)) for guest in self._db.scalars(statement)
+        ]
 
     def get_guest(self, guest_id: UUID) -> GuestSnapshot | None:
         guest = self._db.get(Guest, guest_id)
@@ -279,6 +328,35 @@ class SqlGuestRepository:
 
             _ = _UUID  # kept explicit: ids are compared as strings above
 
+        self._db.flush()
+
+    def schedule_waitlist_invite(self, session_id: UUID, guest_id: UUID, send_at: datetime) -> None:
+        session = self._db.get_or_404(Session, session_id)
+        guest = self._db.get_or_404(Guest, guest_id)
+
+        settings = self._db.scalars(self._db.query(StudioSettings))
+        voice = settings[0].default_voice.value if settings else "soft_sweet"
+
+        body = render(
+            "waitlist_invite",
+            voice,
+            {
+                "class_name": session.class_type.name if session.class_type else "your class",
+                "date": session.starts_at.strftime("%a %d %b"),
+            },
+        )
+
+        self._db.add(
+            ScheduledMessage(
+                session_id=session_id,
+                guest_id=guest_id,
+                kind=MessageKind.WAITLIST_INVITE,
+                channel=guest.preferred_channel,
+                status=MessageStatus.SCHEDULED,
+                send_at=send_at,
+                body=body,
+            )
+        )
         self._db.flush()
 
     # -- studio -------------------------------------------------------------

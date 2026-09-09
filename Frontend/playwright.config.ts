@@ -58,6 +58,21 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
+      /*
+       * Its own build directory.
+       *
+       * `next dev` writes compiled routes into `.next` as it goes. Two dev
+       * servers sharing that directory — the one you are working in and the
+       * one this suite starts — interleave their writes and leave it in a
+       * state neither can serve: chunks 404, and React reports a *hydration
+       * failure*, because the client bundle no longer matches the HTML it
+       * was given. On Windows it happens almost every run.
+       *
+       * The symptom sends you hunting for a rendering bug that does not
+       * exist. Giving the suite its own directory removes the collision.
+       */
+      NEXT_DIST_DIR: '.next-e2e',
+
       // Fixtures rather than a live API, so the suite is hermetic.
       NEXT_PUBLIC_DEMO_MODE: '1',
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',

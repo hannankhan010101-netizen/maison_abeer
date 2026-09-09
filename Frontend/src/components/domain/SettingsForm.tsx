@@ -41,6 +41,26 @@ export function SettingsForm() {
   const [draft, setDraft] = useState<StudioSettings | null>(null);
   const [handle, setHandle] = useState('');
 
+  /**
+   * Timezone suggestions, resolved after mount and de-duplicated.
+   *
+   * Two problems with reading `Intl…resolvedOptions().timeZone` inline. It is
+   * often already one of the fixed entries — a host in Karachi got
+   * `Asia/Karachi` twice, which React reports as a duplicate key and may then
+   * drop or double the option. And the server resolves a different zone from
+   * the browser, so the two renders disagree: a hydration mismatch that only
+   * appears for hosts outside the server's timezone.
+   *
+   * Empty on the server, filled on the client. The datalist is a convenience
+   * on a free-text field, so having it a beat late costs nothing.
+   */
+  const [timezoneSuggestions, setTimezoneSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setTimezoneSuggestions([...new Set([local, 'UTC', 'Asia/Karachi'].filter(Boolean))]);
+  }, []);
+
   // Seed the form once the server answers; afterwards the draft is the source
   // of truth so typing is never overwritten by a background refetch.
   useEffect(() => {
@@ -161,11 +181,9 @@ export function SettingsForm() {
             list="timezones"
           />
           <datalist id="timezones">
-            {[Intl.DateTimeFormat().resolvedOptions().timeZone, 'UTC', 'Asia/Karachi'].map(
-              (zone) => (
-                <option key={zone} value={zone} />
-              ),
-            )}
+            {timezoneSuggestions.map((zone) => (
+              <option key={zone} value={zone} />
+            ))}
           </datalist>
         </Field>
       </Card>

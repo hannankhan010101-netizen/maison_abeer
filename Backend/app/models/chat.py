@@ -47,6 +47,17 @@ class ChatRoom(Base, TenantMixin, TimestampMixin):
             unique=True,
             postgresql_where="kind = 'lounge'",
         ),
+        # One private thread per guest, enforced by the database rather than
+        # by the application remembering to look first. Two rooms for one
+        # guest would split their conversation in half with no way to tell
+        # which one the host is reading.
+        Index(
+            "uq_chat_room_direct_guest",
+            "studio_id",
+            "guest_id",
+            unique=True,
+            postgresql_where="kind = 'direct'",
+        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -56,6 +67,21 @@ class ChatRoom(Base, TenantMixin, TimestampMixin):
         PGUUID(as_uuid=True), ForeignKey("session.id", ondelete="CASCADE"), index=True
     )
     """Null for the lounge, which belongs to the studio rather than a class."""
+
+    guest_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("guest.id", ondelete="CASCADE"), index=True
+    )
+    """The one guest a `direct` room belongs to. Null for every other kind.
+
+    This is the authorisation fact for a DM, deliberately kept here rather
+    than inferred from `chat_membership`. Membership rows are created lazily
+    on first read — so deriving permission from them would mean the act of
+    opening a room could grant the right to open it.
+
+    `ON DELETE CASCADE`: a deleted guest takes their private thread with them.
+    A workshop room survives a guest leaving because it belongs to everyone
+    else too; this one belongs to nobody once they are gone.
+    """
 
     name: Mapped[str] = mapped_column(String(120), nullable=False)
 

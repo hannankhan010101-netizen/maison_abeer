@@ -7,6 +7,8 @@
  * sign in.
  */
 
+import { apiBaseUrl } from '@/lib/api/base-url';
+
 export interface PublicStudio {
   name: string;
   instagram_handle: string | null;
@@ -45,6 +47,18 @@ export interface BookingResult {
   starts_at: string;
   location: string | null;
   waitlist_position: number | null;
+
+  /**
+   * A single-use login, so the confirmation screen can open their portal.
+   *
+   * Null when the server could not mint one — the booking still succeeded and
+   * the confirmation still reads as a success; the button is simply not shown.
+   *
+   * This is a credential. Keep it in memory: it must not reach a URL, be
+   * written to storage, or be logged.
+   */
+  portal_token?: string | null;
+  portal_token_type?: 'signup' | 'magiclink' | null;
 }
 
 export class BookingError extends Error {
@@ -58,7 +72,7 @@ export class BookingError extends Error {
 }
 
 function baseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
+  return apiBaseUrl();
 }
 
 /**

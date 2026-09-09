@@ -82,7 +82,7 @@ export function SessionDetail({ sessionId }: SessionDetailProps) {
       </Link>
 
       <header className="mb-4">
-        <h1 className="font-display text-[clamp(26px,4vw,34px)]">
+        <h1 className="font-display text-[clamp(21px,4vw,34px)]">
           {item.title ?? item.class_type_name}
         </h1>
         <p className="text-latte">

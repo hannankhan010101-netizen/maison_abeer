@@ -499,6 +499,8 @@ function Confirmation({ result }: { result: BookingResult }) {
   useEffect(() => headingRef.current?.focus(), []);
 
   const waitlisted = result.outcome === 'waitlisted';
+  const token = result.portal_token;
+  const tokenType = result.portal_token_type;
 
   return (
     <section className="text-center" aria-live="polite">
@@ -542,7 +544,91 @@ function Confirmation({ result }: { result: BookingResult }) {
         </p>
       )}
 
-      <p className="font-hand text-latte mt-5 text-lg">Can&rsquo;t wait to see you ♡</p>
+      {token && tokenType ? (
+        <PortalHandoff token={token} tokenType={tokenType} waitlisted={waitlisted} />
+      ) : (
+        <p className="font-hand text-latte mt-5 text-lg">Can&rsquo;t wait to see you ♡</p>
+      )}
     </section>
+  );
+}
+
+/**
+ * The way in.
+ *
+ * Until now the confirmation screen was where a guest and this app said
+ * goodbye. One tap here signs them in instead — no password to invent, no
+ * inbox to go and find, because the token came back with the booking itself.
+ *
+ * It is single-use, so there is exactly one attempt. That shapes everything:
+ * the button disables on press (a double-tap would spend the token and then
+ * fail on its own retry), and failure offers the login page rather than a
+ * "try again" that cannot work.
+ */
+function PortalHandoff({
+  token,
+  tokenType,
+  waitlisted,
+}: {
+  token: string;
+  tokenType: 'signup' | 'magiclink';
+  waitlisted: boolean;
+}) {
+  const [state, setState] = useState<'idle' | 'opening' | 'failed'>('idle');
+
+  async function open() {
+    setState('opening');
+
+    const { redeemPortalToken } = await import('@/lib/supabase/client');
+
+    if (await redeemPortalToken(token, tokenType)) {
+      // A hard navigation, not a router push. The session was just written to
+      // a cookie, and the portal is server-rendered behind middleware that
+      // reads it — a client transition can outrun that and land on /login.
+      window.location.assign('/portal');
+      return;
+    }
+
+    setState('failed');
+  }
+
+  if (state === 'failed') {
+    return (
+      <div className="mt-6">
+        <p role="alert" className="text-latte mx-auto max-w-[38ch] text-sm">
+          We couldn&rsquo;t open your portal just now — but your{' '}
+          {waitlisted ? 'place in the queue' : 'seat'} is saved and safe.
+        </p>
+        <a
+          href="/login"
+          className="text-rose-ink mt-2 inline-flex min-h-[44px] items-center font-extrabold underline"
+        >
+          Try signing in instead
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6">
+      <button
+        type="button"
+        onClick={() => void open()}
+        disabled={state === 'opening'}
+        className={cn(
+          'bg-pink text-on-pink inline-flex min-h-[52px] w-full max-w-[320px] items-center justify-center',
+          'rounded-[var(--radius-pill)] px-6 text-[17px] font-extrabold',
+          'shadow-[var(--shadow-soft)] transition-transform motion-reduce:transition-none',
+          'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
+          'active:scale-[0.98] disabled:opacity-70',
+        )}
+      >
+        {state === 'opening' ? 'Opening…' : 'Open my portal ✨'}
+      </button>
+
+      <p className="text-latte mx-auto mt-3 max-w-[38ch] text-sm">
+        See who else is coming{waitlisted ? ' and keep an eye on your spot' : ''} — and say hi 👋
+      </p>
+    </div>
   );
 }

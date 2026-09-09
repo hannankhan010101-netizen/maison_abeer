@@ -81,7 +81,7 @@ function WrappedPageInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Your receipts</h1>
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">Your receipts</h1>
       <p className="text-latte mb-5">
         <HandNote>Proof that people keep showing up 💗</HandNote>
       </p>

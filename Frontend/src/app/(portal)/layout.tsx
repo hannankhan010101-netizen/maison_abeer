@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 
 import { AppShell } from '@/components/layout/AppShell';
 import { DemoBanner } from '@/components/layout/DemoBanner';
+import { HostOnly } from '@/components/layout/HostOnly';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import { MochaToggle } from '@/components/ui/MochaToggle';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -20,16 +21,18 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     <ApiProvider>
       <ToastProvider>
         <DemoBanner />
-        <AppShell
-          topBar={
-            <div className="flex items-center gap-2">
-              <MochaToggle />
-              <SignOutButton />
-            </div>
-          }
-        >
-          {children}
-        </AppShell>
+        <HostOnly>
+          <AppShell
+            topBar={
+              <div className="flex items-center gap-2">
+                <MochaToggle />
+                <SignOutButton />
+              </div>
+            }
+          >
+            {children}
+          </AppShell>
+        </HostOnly>
       </ToastProvider>
     </ApiProvider>
   );

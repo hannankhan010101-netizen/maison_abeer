@@ -36,8 +36,17 @@ export function MyWorkshops() {
   }
 
   const all = workshops.data ?? [];
-  const upcoming = all.filter((w) => w.status === 'upcoming' || w.status === 'live');
+
+  // Waitlisted classes sit with the upcoming ones — they are still ahead of
+  // the guest, and their own chip says they are a queue rather than a seat.
+  //
+  // Listing the two groups by name rather than by "everything else" was how a
+  // waitlisted class disappeared entirely: it matched neither filter, so a
+  // guest who had just been told "you're on the list" opened their portal to
+  // "Nothing here yet". Anything unrecognised now surfaces instead of
+  // vanishing.
   const past = all.filter((w) => w.status === 'completed' || w.status === 'cancelled');
+  const upcoming = all.filter((w) => !past.includes(w));
 
   return (
     <section>

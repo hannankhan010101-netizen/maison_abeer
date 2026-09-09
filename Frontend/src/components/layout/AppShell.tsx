@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
@@ -23,6 +24,20 @@ export interface NavItem {
   label: string;
   icon: string;
 }
+
+/**
+ * The five that live in the tab bar on a phone.
+ *
+ * Not a ranking of importance — a ranking of *frequency*. Today and the
+ * calendar are opened daily, guests and chats several times a week. Name
+ * tags, prep, messages, receipts and settings are either occasional or
+ * reached from the class you are already looking at, so they sit behind
+ * "More" rather than competing for a thumb-sized slot.
+ *
+ * Five is the ceiling: below about 68px a tab is hard to hit accurately, and
+ * five is what fits across the narrowest phone this has to work on.
+ */
+export const PRIMARY_NAV: readonly string[] = ['/today', '/calendar', '/guests', '/chat'] as const;
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/today', label: 'Today', icon: '🌷' },
@@ -107,28 +122,132 @@ export function AppShell({ children, topBar }: AppShellProps) {
       </aside>
 
       <div className="min-w-0">
-        <header className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-6 lg:px-10">
+        <header className="flex items-center justify-between gap-3 px-4 pt-3 sm:px-6 lg:px-10 lg:pt-4">
           <span className="font-display text-lg lg:hidden">
             Maison Abeer<span className="text-rose-ink">.</span>
           </span>
           {topBar}
         </header>
 
-        {/* Mobile navigation: one-handed, thumb-reachable, scrolls sideways
-            rather than wrapping into a tall block that pushes content down. */}
-        <nav
-          aria-label="Main"
-          className="flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:hidden [&::-webkit-scrollbar]:hidden"
-        >
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} />
-          ))}
-        </nav>
-
-        <main id="main" className="px-4 pb-24 sm:px-6 lg:px-10 lg:pb-16">
+        <main id="main" className="px-4 pb-28 sm:px-6 lg:px-10 lg:pb-16">
           {children}
         </main>
+
+        <MobileTabs pathname={pathname} />
       </div>
     </div>
+  );
+}
+
+/**
+ * The phone navigation.
+ *
+ * Was a horizontally scrolling strip of all nine destinations. On a 390px
+ * screen three of them fitted, and nothing indicated the other six existed —
+ * so the app looked like it had three sections, and Guests, Prep, Messages,
+ * Chats, Receipts and Settings were effectively undiscoverable.
+ *
+ * A fixed bottom bar fixes both halves of that: every primary destination is
+ * visible at once, and it sits under the thumb rather than at the top of a
+ * page you have to scroll back up through.
+ */
+function MobileTabs({ pathname }: { pathname: string }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const primary = PRIMARY_NAV.map((href) => NAV_ITEMS.find((item) => item.href === href)!).filter(
+    Boolean,
+  );
+
+  const rest = NAV_ITEMS.filter((item) => !PRIMARY_NAV.includes(item.href));
+  const restIsActive = rest.some((item) => isActive(pathname, item.href));
+
+  return (
+    <>
+      {moreOpen ? (
+        <>
+          {/* Tapping away closes it — the gesture people try first. */}
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setMoreOpen(false)}
+            className="bg-cocoa/30 fixed inset-0 z-30 lg:hidden"
+          />
+
+          <div
+            className="border-line bg-paper fixed inset-x-0 bottom-[68px] z-40 border-t-[1.5px] px-3 py-3 lg:hidden"
+            role="menu"
+            aria-label="More"
+          >
+            <ul className="grid grid-cols-2 gap-2">
+              {rest.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMoreOpen(false)}
+                    aria-current={isActive(pathname, item.href) ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-[52px] items-center gap-2.5 rounded-[var(--radius-md)] px-3 font-bold',
+                      isActive(pathname, item.href)
+                        ? 'bg-blush text-rose-ink'
+                        : 'bg-buttercream text-cocoa',
+                    )}
+                  >
+                    <span aria-hidden="true">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      ) : null}
+
+      <nav
+        aria-label="Main"
+        className="border-line bg-paper fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        <ul className="mx-auto flex max-w-[560px]">
+          {primary.map((item) => {
+            const active = isActive(pathname, item.href);
+
+            return (
+              <li key={item.href} className="flex-1">
+                <Link
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'flex min-h-[64px] flex-col items-center justify-center gap-0.5 px-1 text-[12px] font-extrabold',
+                    active ? 'text-rose-ink' : 'text-latte',
+                  )}
+                >
+                  <span aria-hidden="true" className="text-lg leading-none">
+                    {item.icon}
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+
+          <li className="flex-1">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((open) => !open)}
+              aria-expanded={moreOpen}
+              aria-label="More sections"
+              className={cn(
+                'flex min-h-[64px] w-full flex-col items-center justify-center gap-0.5 px-1 text-[12px] font-extrabold',
+                moreOpen || restIsActive ? 'text-rose-ink' : 'text-latte',
+              )}
+            >
+              <span aria-hidden="true" className="text-lg leading-none">
+                {moreOpen ? '✕' : '⋯'}
+              </span>
+              More
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </>
   );
 }

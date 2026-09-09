@@ -240,6 +240,13 @@ class TestWaitlistEndpoint:
         assert body["invited_guest_id"] == str(guest.id)
         assert "held until they reply" in body["message"]
 
+        # The invite is a real, queued message — not just a status flip and a
+        # claim in the response body.
+        assert len(repo.scheduled_invites) == 1
+        scheduled_session, scheduled_guest, _send_at = repo.scheduled_invites[0]
+        assert scheduled_session == session_id
+        assert scheduled_guest == guest.id
+
     def test_reports_when_nobody_is_waiting(
         self, client: TestClient, repo: FakeGuestRepository
     ) -> None:

@@ -20,7 +20,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-WorkshopStatus = Literal["upcoming", "live", "completed", "cancelled"]
+WorkshopStatus = Literal["upcoming", "live", "completed", "cancelled", "waitlisted", "invited"]
+"""`waitlisted` is not a seat — it is a place in a queue, shown so a guest who
+joined one is not told they have nothing. `invited` is a seat on hold: a spot
+opened up and this guest has until `invite_expires_at` to claim it before it
+passes to the next person."""
 
 
 class PortalProfile(BaseModel):
@@ -67,6 +71,12 @@ class PortalWorkshop(BaseModel):
     attendee_count: int
     """Everyone holding a seat, including this guest."""
 
+    waitlist_position: int | None = None
+    """Set only when `status` is `waitlisted`. "You are 3rd" beats silence."""
+
+    invite_expires_at: datetime | None = None
+    """Set only when `status` is `invited` — when the hold on this seat runs out."""
+
 
 class PortalWorkshopDetail(PortalWorkshop):
     """The detail page: the same workshop, plus who else is going."""
@@ -76,6 +86,13 @@ class PortalWorkshopDetail(PortalWorkshop):
 
     others_count: int = 0
     """Attendees excluding this guest — what "+ 23 others" counts."""
+
+
+class DeclineResult(BaseModel):
+    """The outcome of turning down a held seat."""
+
+    declined: bool
+    message: str
 
 
 class ClaimResult(BaseModel):
@@ -127,7 +144,7 @@ class ChatMessageRead(BaseModel):
 
 class ChatRoomRead(BaseModel):
     id: UUID
-    kind: Literal["workshop", "lounge"]
+    kind: Literal["workshop", "lounge", "direct"]
     name: str
     session_id: UUID | None = None
 
@@ -138,6 +155,15 @@ class ChatRoomRead(BaseModel):
     banner: str | None = None
     """The host's pinned announcement, if there is one. Read-only here — a
     guest can see it and never touch it."""
+
+    starts_at: datetime | None = None
+    """When the workshop this room belongs to runs. Null for the lounge and
+    for a private thread.
+
+    Sent so the list can tell two rooms apart. A studio that runs the same
+    class weekly gets several rooms called "Pottery & wheel throwing", and
+    without a date they are indistinguishable — you cannot tell which one you
+    are about to open."""
 
 
 class SendMessage(BaseModel):

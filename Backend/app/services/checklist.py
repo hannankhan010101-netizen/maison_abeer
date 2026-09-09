@@ -62,6 +62,13 @@ class ChecklistRepository(Protocol):
 
     def items_for_session(self, session_id: UUID) -> Sequence[ChecklistItemSnapshot]: ...
 
+    def instantiate_template(self, session_id: UUID) -> int:
+        """Copy the class type's template onto a session with no steps yet.
+
+        Returns how many were created; zero when there is nothing to do.
+        """
+        ...
+
     def get_item(self, item_id: UUID) -> ChecklistItemSnapshot | None: ...
 
     def set_completed(
@@ -95,6 +102,13 @@ class ChecklistService:
             raise NotFoundError("We couldn't find that class.")
 
         items = list(self._repo.items_for_session(session_id))
+
+        # First read of a class builds its checklist from the class type's
+        # template. Without this the Prep module renders "no steps yet" for
+        # every session forever — the templates exist, but nothing had ever
+        # turned them into steps.
+        if not items and self._repo.instantiate_template(session_id):
+            items = list(self._repo.items_for_session(session_id))
 
         return ChecklistSummary(
             items=items,

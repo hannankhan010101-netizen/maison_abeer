@@ -19,6 +19,7 @@ from app.core.errors import NotAuthenticatedError, NotAuthorizedError
 from app.core.security import Principal, extract_bearer_token, verify_access_token
 from app.models.guest import Guest
 from app.models.studio import HostUser
+from app.services.portal_tokens import PortalTokenIssuer, build_issuer
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -170,6 +171,26 @@ def _resolve_guest(session: object, auth_user_id: UUID) -> tuple[UUID, UUID]:
     return row[0], row[1]
 
 
+# ---------------------------------------------------------------------------
+# Portal logins
+# ---------------------------------------------------------------------------
+
+
+def get_portal_token_issuer(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PortalTokenIssuer:
+    """Mints the one-time logins the booking confirmation hands out.
+
+    A dependency rather than a direct call so tests can substitute a fake. The
+    alternative — calling Supabase from inside the route — means every booking
+    test makes a live outbound request to whatever the configured URL resolves
+    to, which is slow, flaky, and quietly sends guest data somewhere real if a
+    placeholder hostname ever gets registered.
+    """
+    return build_issuer(settings)
+
+
 CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
 Db = Annotated[TenantSession, Depends(get_tenant_session)]
 GuestDb = Annotated[GuestCaller, Depends(get_guest_session)]
+Issuer = Annotated[PortalTokenIssuer, Depends(get_portal_token_issuer)]

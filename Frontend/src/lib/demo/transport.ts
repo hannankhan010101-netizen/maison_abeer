@@ -10,15 +10,22 @@ import {
 import type {
   ChatMessage,
   Checklist,
+  ChecklistItem,
+  ExportRecord,
   Guest,
+  MessagePreview,
   Roster,
+  ScheduledMessage,
   Session,
   StudioSettings,
+  TagSheet,
 } from '@/lib/api/types';
 
 /** Demo chat, module-scoped so a sent message survives to the next poll. */
 const demoChat: ChatMessage[] = [];
 let demoBanner: string | null = null;
+
+const GUEST_MESSAGE_KINDS = ['guest_reminder', 'guest_thank_you'] as const;
 
 /**
  * A `fetch` that answers the API from memory.
@@ -40,6 +47,8 @@ interface Store {
   checklists: Map<string, Checklist>;
   settings: StudioSettings;
   brandKit: typeof demoBrandKit;
+  messages: ScheduledMessage[];
+  exports: ExportRecord[];
 }
 
 function createStore(now: Date): Store {
@@ -52,6 +61,8 @@ function createStore(now: Date): Store {
     checklists: new Map(sessions.map((s) => [s.id, demoChecklist(now, s.id)])),
     settings: { ...demoSettings },
     brandKit: { ...demoBrandKit },
+    messages: [],
+    exports: [],
   };
 }
 
@@ -256,6 +267,23 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       return json({ preview: false, session: updated, impact });
     }
 
+    const lockMatch = /^\/api\/v1\/sessions\/([^/]+)\/lock$/.exec(path);
+    if (lockMatch && method === 'PATCH') {
+      const index = store.sessions.findIndex((s) => s.id === lockMatch[1]);
+      if (index < 0) return error(404, 'not_found', "We couldn't find that class.");
+
+      const locked = url.searchParams.get('locked') === 'true';
+      const session = store.sessions[index]!;
+
+      const updated = recalculate({
+        ...session,
+        status: locked ? 'locked' : 'scheduled',
+      });
+
+      store.sessions[index] = updated;
+      return json(updated);
+    }
+
     const rosterMatch = /^\/api\/v1\/sessions\/([^/]+)\/roster$/.exec(path);
     if (rosterMatch && method === 'GET') {
       return json(
@@ -318,6 +346,108 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       return error(404, 'not_found', "We couldn't find that prep step.");
     }
 
+    const addItemMatch = /^\/api\/v1\/sessions\/([^/]+)\/checklist$/.exec(path);
+    if (addItemMatch && method === 'POST') {
+      const checklist = store.checklists.get(addItemMatch[1]!);
+      if (!checklist) return error(404, 'not_found', "We couldn't find that class.");
+
+      const session = store.sessions.find((s) => s.id === addItemMatch[1]);
+      const hoursBefore = Number(body.hours_before ?? 1);
+      const deadline = new Date(
+        (session ? new Date(session.starts_at).getTime() : now.getTime()) -
+          hoursBefore * 3_600_000,
+      ).toISOString();
+
+      const item: ChecklistItem = {
+        id: `c-new-${checklist.items.length}-${Date.now()}`,
+        text: String(body.text ?? ''),
+        quantity: null,
+        hours_before: hoursBefore,
+        t_minus_label: `T-${hoursBefore}h`,
+        deadline_at: deadline,
+        status: 'upcoming',
+        phase: body.phase ?? 'prep',
+        is_high_priority: false,
+        is_one_off: true,
+        completed_at: null,
+        needs_attention: false,
+      };
+
+      checklist.items.push(item);
+      checklist.total_count = checklist.items.length;
+
+      return json(item, 201);
+    }
+
+    // ---- tags & exports ----------------------------------------------------
+
+    // Shared by the sheet read and the export write, so a record just made
+    // from this roster always reads back as fresh rather than immediately
+    // stale from a differently-ordered hash.
+    const rosterHash = (sessionId: string) =>
+      (store.rosters.get(sessionId)?.bookings ?? [])
+        .filter((b) => b.status !== 'cancelled')
+        .map((b) => `${b.guest.id}:${b.table_number}`)
+        .sort()
+        .join('|');
+
+    const tagSheetMatch = /^\/api\/v1\/sessions\/([^/]+)\/tags$/.exec(path);
+    if (tagSheetMatch && method === 'GET') {
+      const session = store.sessions.find((s) => s.id === tagSheetMatch[1]);
+      if (!session) return error(404, 'not_found', "We couldn't find that class.");
+
+      const roster = store.rosters.get(session.id);
+      const bookings = (roster?.bookings ?? []).filter((b) => b.status !== 'cancelled');
+
+      const subjects = bookings
+        .map((b) => ({
+          guest_id: b.guest.id,
+          full_name: b.guest.full_name,
+          table_number: b.table_number,
+          subtext: b.booking_answers ? Object.values(b.booking_answers)[0] ?? null : null,
+        }))
+        .sort((a, b) =>
+          a.table_number === b.table_number
+            ? a.full_name.localeCompare(b.full_name)
+            : (a.table_number ?? Infinity) - (b.table_number ?? Infinity),
+        );
+
+      const hash = rosterHash(session.id);
+      const latest = store.exports
+        .filter((e) => e.session_id === session.id)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+
+      const sheet: TagSheet = {
+        session_id: session.id,
+        subjects,
+        roster_hash: hash,
+        last_exported_at: latest?.created_at ?? null,
+        last_export_theme: latest?.theme ?? null,
+        roster_changed_since_export: Boolean(latest && latest.roster_hash !== hash),
+      };
+
+      return json(sheet);
+    }
+
+    const recordExportMatch = /^\/api\/v1\/sessions\/([^/]+)\/exports$/.exec(path);
+    if (recordExportMatch && method === 'POST') {
+      const session = store.sessions.find((s) => s.id === recordExportMatch[1]);
+      if (!session) return error(404, 'not_found', "We couldn't find that class.");
+
+      const record: ExportRecord = {
+        id: `exp-${store.exports.length}`,
+        session_id: session.id,
+        theme: String(body.theme ?? ''),
+        layout: String(body.layout ?? ''),
+        roster_hash: rosterHash(session.id),
+        file_url: body.file_url ?? null,
+        created_at: now.toISOString(),
+      };
+
+      store.exports.push(record);
+      return json(record, 201);
+    }
+
     // ---- guests ----------------------------------------------------------
 
     if (path === '/api/v1/guests/birthdays' && method === 'GET') {
@@ -357,12 +487,116 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
 
     const messagesMatch = /^\/api\/v1\/guests\/([^/]+)\/messages$/.exec(path);
     if (messagesMatch && method === 'GET') {
-      // Demo mode never queues anything, so an empty log is the honest answer.
-      return json([]);
+      return json(store.messages.filter((m) => m.guest_id === messagesMatch[1]));
     }
 
     if (path === '/api/v1/messages/failed' && method === 'GET') {
-      return json([]);
+      return json(store.messages.filter((m) => m.status === 'failed'));
+    }
+
+    const previewMatch = /^\/api\/v1\/sessions\/([^/]+)\/messages\/preview$/.exec(path);
+    if (previewMatch && method === 'POST') {
+      const session = store.sessions.find((s) => s.id === previewMatch[1]);
+      if (!session) return error(404, 'not_found', "We couldn't find that class.");
+
+      const voice = body.voice ?? store.settings.default_voice;
+      const sendAt = new Date(new Date(session.starts_at).getTime() - 24 * 3_600_000).toISOString();
+
+      const previews: MessagePreview[] = GUEST_MESSAGE_KINDS.map((kind) => ({
+        kind,
+        voice,
+        body:
+          kind === 'guest_reminder'
+            ? `See you at ${session.class_type_name} tomorrow! 🌷`
+            : `Thanks for coming to ${session.class_type_name} — hope you loved it!`,
+        send_at: sendAt,
+        will_send: true,
+        skip_reason: null,
+        was_shifted: false,
+        unresolved_placeholders: [],
+      }));
+
+      return json(previews);
+    }
+
+    const scheduleMatch = /^\/api\/v1\/sessions\/([^/]+)\/messages$/.exec(path);
+    if (scheduleMatch && method === 'POST') {
+      const session = store.sessions.find((s) => s.id === scheduleMatch[1]);
+      if (!session) return error(404, 'not_found', "We couldn't find that class.");
+
+      const roster = store.rosters.get(session.id);
+      const bookings = (roster?.bookings ?? []).filter((b) => b.status !== 'cancelled');
+      const sendAt = new Date(new Date(session.starts_at).getTime() - 24 * 3_600_000).toISOString();
+
+      const existing = new Set(
+        store.messages
+          .filter((m) => m.session_id === session.id)
+          .map((m) => `${m.guest_id}:${m.kind}`),
+      );
+
+      const queued: ScheduledMessage[] = [];
+
+      for (const booking of bookings) {
+        for (const kind of GUEST_MESSAGE_KINDS) {
+          const key = `${booking.guest.id}:${kind}`;
+          if (existing.has(key)) continue;
+
+          const message: ScheduledMessage = {
+            id: `msg-${store.messages.length}-${queued.length}`,
+            session_id: session.id,
+            guest_id: booking.guest.id,
+            kind,
+            channel: booking.guest.preferred_channel,
+            status: 'scheduled',
+            send_at: sendAt,
+            sent_at: null,
+            body:
+              kind === 'guest_reminder'
+                ? `See you at ${session.class_type_name} tomorrow! 🌷`
+                : `Thanks for coming to ${session.class_type_name} — hope you loved it!`,
+            attempt_count: 0,
+            last_error: null,
+          };
+
+          store.messages.push(message);
+          queued.push(message);
+        }
+      }
+
+      return json(
+        {
+          session_id: session.id,
+          queued: queued.length,
+          skipped: 0,
+          skips: {},
+          messages: queued,
+        },
+        201,
+      );
+    }
+
+    if (scheduleMatch && method === 'GET') {
+      return json(store.messages.filter((m) => m.session_id === scheduleMatch[1]));
+    }
+
+    const retryMatch = /^\/api\/v1\/messages\/([^/]+)\/retry$/.exec(path);
+    if (retryMatch && method === 'POST') {
+      const message = store.messages.find((m) => m.id === retryMatch[1]);
+      if (!message) return error(404, 'not_found', "We couldn't find that message.");
+
+      message.status = 'scheduled';
+      message.last_error = null;
+      return json(message);
+    }
+
+    const cancelMatch2 = /^\/api\/v1\/messages\/([^/]+)\/cancel$/.exec(path);
+    if (cancelMatch2 && method === 'POST') {
+      const message = store.messages.find((m) => m.id === cancelMatch2[1]);
+      if (!message) return error(404, 'not_found', "We couldn't find that message.");
+
+      message.status = 'cancelled';
+      if (body.reason) message.last_error = body.reason;
+      return json(message);
     }
 
     // ---- guest portal ----------------------------------------------------
@@ -410,6 +644,19 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       ]);
     }
 
+    const openDirect = /^\/api\/v1\/guests\/([^/]+)\/chat$/.exec(path);
+    if (openDirect && method === 'POST') {
+      return json({
+        id: `room-direct-${openDirect[1]}`,
+        kind: 'direct',
+        name: 'Sana R.',
+        session_id: null,
+        message_count: 0,
+        last_message_at: null,
+        banner: null,
+      });
+    }
+
     const adminRoom = /^\/api\/v1\/chat\/rooms\/([^/]+)\/messages$/.exec(path);
     if (adminRoom && method === 'GET') {
       return json(
@@ -424,6 +671,26 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
           is_deleted: false,
         })),
       );
+    }
+
+    if (adminRoom && method === 'POST') {
+      // The host replying in one room. Pushed into the same list the reads
+      // come from, so the demo behaves like the real thing: send it and it is
+      // there on the next poll.
+      const reply = {
+        id: `demo-host-${demoChat.length}`,
+        body: String(body.body ?? ''),
+        created_at: now.toISOString(),
+        author_id: null,
+        author_name: 'You',
+        is_you: false,
+        is_host: true,
+        is_broadcast: false,
+        reactions: [],
+      };
+      demoChat.push(reply);
+
+      return json({ ...reply, is_deleted: false }, 201);
     }
 
     const adminBanner = /^\/api\/v1\/chat\/rooms\/([^/]+)\/banner$/.exec(path);

@@ -8,6 +8,7 @@
 # ---------- node ----------
 node_modules/
 .next/
+.next-build/
 out/
 build/
 dist/
@@ -43,3 +44,4 @@ desktop.ini
 # ---------- logs ----------
 *.log
 npm-debug.log*
+.next-e2e/

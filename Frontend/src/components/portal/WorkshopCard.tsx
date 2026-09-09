@@ -24,6 +24,12 @@ const STATUS: Record<
   live: { label: 'Happening now', tone: 'sage' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'butter' },
+  // Not a seat — a place in a queue. Distinct from "Upcoming" so nobody turns
+  // up to a class they are only waiting for.
+  waitlisted: { label: 'On the waitlist', tone: 'butter' },
+  // A seat is being held, not yet claimed — the most urgent state a card can
+  // be in, so it gets the same tone as "happening now".
+  invited: { label: 'Seat held for you', tone: 'sage' },
 };
 
 /**
@@ -107,6 +113,16 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
             suppressHydrationWarning
           >
             {countdownFrom(workshop.starts_at, now)}
+          </span>
+        ) : null}
+
+        {/* Waiting is a state worth naming. A guest who joined a queue should
+            see where they are in it, not a bare "12 going" that reads as if
+            they were one of them. Not shown once invited — "#1 in the queue"
+            would read as still-waiting for someone who is one tap from a seat. */}
+        {workshop.status === 'waitlisted' && workshop.waitlist_position ? (
+          <span className="bg-butter-soft text-butter-ink rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold">
+            #{workshop.waitlist_position} in the queue
           </span>
         ) : null}
 

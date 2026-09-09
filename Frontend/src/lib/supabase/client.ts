@@ -1,5 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+import { AUTH_COOKIE_OPTIONS } from './cookies';
+
 /**
  * Browser Supabase client.
  *
@@ -47,9 +49,41 @@ export function getSupabaseBrowserClient() {
   browserClient ??= createBrowserClient(
     readEnv('NEXT_PUBLIC_SUPABASE_URL'),
     readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+    { cookieOptions: AUTH_COOKIE_OPTIONS },
   );
 
   return browserClient;
+}
+
+/**
+ * Trade a one-time booking token for a signed-in session.
+ *
+ * The token came back in the response to the guest's own booking request and
+ * has never been in a URL, so there is nothing to replay from history or a
+ * shared link. Supabase consumes it on use — a second attempt gets
+ * `otp_expired`, which is why the caller must not retry on failure.
+ *
+ * Returns true when the guest is signed in.
+ */
+export async function redeemPortalToken(
+  tokenHash: string,
+  type: 'signup' | 'magiclink',
+): Promise<boolean> {
+  const { data, error } = await getSupabaseBrowserClient().auth.verifyOtp({
+    type,
+    token_hash: tokenHash,
+  });
+
+  if (error) {
+    // The message only ever describes the failure ("Token has expired or is
+    // invalid") — it never contains the token. Worth logging: without it, a
+    // failure here is indistinguishable from any other and the only symptom
+    // is a guest who cannot get in.
+    console.error('portal sign-in failed:', error.message);
+    return false;
+  }
+
+  return data.session !== null;
 }
 
 /** Test seam — drops the memoised client. */

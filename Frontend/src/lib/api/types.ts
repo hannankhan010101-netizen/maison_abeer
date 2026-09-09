@@ -344,7 +344,14 @@ export interface GuestHistory {
 // Guest portal
 // ---------------------------------------------------------------------------
 
-export type WorkshopStatus = 'upcoming' | 'live' | 'completed' | 'cancelled';
+export type WorkshopStatus =
+  | 'upcoming'
+  | 'live'
+  | 'completed'
+  | 'cancelled'
+  | 'waitlisted'
+  /** A seat opened up and is held for this guest until `invite_expires_at`. */
+  | 'invited';
 
 export interface PortalProfile {
   guest_id: string;
@@ -373,6 +380,11 @@ export interface PortalWorkshop {
   color_token: string;
   /** Decided server-side, so the chip and the countdown cannot disagree. */
   status: WorkshopStatus;
+
+  /** Set only when waitlisted. "You're 3rd" beats an unexplained wait. */
+  waitlist_position?: number | null;
+  /** Set only when `status` is `invited` — when the hold on the seat runs out. */
+  invite_expires_at?: string | null;
   attendee_count: number;
 }
 
@@ -386,6 +398,11 @@ export interface PortalWorkshopDetail extends PortalWorkshop {
 export interface ClaimResult {
   claimed: boolean;
   display_name: string | null;
+  message: string;
+}
+
+export interface DeclineResult {
+  declined: boolean;
   message: string;
 }
 
@@ -414,12 +431,23 @@ export interface ChatMessage {
 
 export interface ChatRoom {
   id: string;
-  kind: 'workshop' | 'lounge';
+  kind: 'workshop' | 'lounge' | 'direct';
   name: string;
   session_id: string | null;
   unread_count: number;
   last_message_at: string | null;
   last_message_preview: string | null;
+
+  /**
+   * The host's pinned announcement, if there is one. Read-only for a guest.
+   *
+   * The API has always sent this; it was missing here, so a banner the host
+   * pinned was never rendered on the guest side at all.
+   */
+  banner: string | null;
+
+  /** When the workshop runs. Null for the lounge and private threads. */
+  starts_at?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -433,7 +461,7 @@ export interface ChatBanner {
 
 export interface AdminRoom {
   id: string;
-  kind: 'workshop' | 'lounge';
+  kind: 'workshop' | 'lounge' | 'direct';
   name: string;
   session_id: string | null;
   message_count: number;

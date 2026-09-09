@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
+import { apiBaseUrl } from './base-url';
 import { ApiClient } from './client';
 import { ApiError } from './errors';
 import { getAccessToken } from '@/lib/supabase/client';
@@ -50,7 +51,21 @@ export function createQueryClient(): QueryClient {
   });
 }
 
-export function ApiProvider({ children }: { children: ReactNode }) {
+export function ApiProvider({
+  children,
+  unauthorizedRedirectTo = '/login',
+}: {
+  children: ReactNode;
+  /**
+   * Where a rejected token sends the caller.
+   *
+   * Defaults to the host's `/login`. The guest shell overrides this to
+   * `/enter` — guests are provisioned with a random, immediately-forgotten
+   * password (see `portal_tokens.py`), so `/login` is a dead end for them;
+   * see `middleware.ts`'s PUBLIC_PATHS note for the same invariant.
+   */
+  unauthorizedRedirectTo?: string;
+}) {
   const router = useRouter();
 
   // useState, not useMemo: the client must survive re-renders, and useMemo is
@@ -69,14 +84,14 @@ export function ApiProvider({ children }: { children: ReactNode }) {
     }
 
     return new ApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000',
+      baseUrl: apiBaseUrl(),
       getToken: getAccessToken,
       onUnauthorized: () => {
         queryClient.clear();
-        router.replace('/login');
+        router.replace(unauthorizedRedirectTo);
       },
     });
-  }, [queryClient, router]);
+  }, [queryClient, router, unauthorizedRedirectTo]);
 
   return (
     <QueryClientProvider client={queryClient}>

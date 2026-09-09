@@ -97,6 +97,20 @@ class PublicBookingResult(BaseModel):
     waitlist_position: int | None = None
     """Only set when waitlisted. Being told "you're 3rd" beats being told nothing."""
 
+    portal_token: str | None = None
+    """A single-use login, so the confirmation screen can open their portal.
+
+    Null when minting failed — the confirmation still reads as a success,
+    because the booking *was* one, and the button simply is not offered.
+
+    This is a credential. It is returned only here, in the response to the
+    guest's own booking request; it must never reach a URL, a log line, or
+    anywhere it could be replayed from.
+    """
+
+    portal_token_type: Literal["signup", "magiclink"] | None = None
+    """Which OTP type the browser must verify the token as."""
+
 
 class PublicFeedbackPrompt(BaseModel):
     """Just enough context for a guest to know what they are rating.

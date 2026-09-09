@@ -1,7 +1,17 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// The Message button routes into the guest's private thread, so the profile
+// now needs a router. Same shape as CalendarView's mock.
+const push = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/guests',
+}));
 
 import { GuestProfile } from './GuestProfile';
 import { ApiClient } from '@/lib/api/client';
@@ -79,6 +89,8 @@ function respond({
     let body: unknown = person;
     if (path.includes('/history')) body = past;
     else if (path.includes('/messages')) body = messages;
+    else if (path.endsWith('/chat'))
+      body = { id: 'room-direct-1', kind: 'direct', name: 'Sana R.' };
 
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -230,5 +242,29 @@ describe('GuestProfile', () => {
     render(<GuestProfile guestId="nope" />, { wrapper: Wrapper });
 
     expect(await screen.findByRole('link', { name: 'Back to guests' })).toBeInTheDocument();
+  });
+
+  it('opens a private thread and lands the host in it', async () => {
+    // The whole point of the button: one press should end with the host
+    // looking at that guest's conversation, not back on the room list.
+    respond();
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+
+    const button = await screen.findByRole('button', { name: /Message Ayesha K. privately/i });
+    await userEvent.click(button);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/chat?room=room-direct-1'));
+  });
+
+  it('names the guest in the button label, not just the icon', async () => {
+    // A row of identical ✿ buttons is unusable on a screen reader.
+    respond();
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+
+    expect(
+      await screen.findByRole('button', { name: /Message Ayesha K. privately/i }),
+    ).toBeInTheDocument();
   });
 });

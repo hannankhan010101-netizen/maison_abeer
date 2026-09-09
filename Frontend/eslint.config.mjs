@@ -10,7 +10,11 @@ const compat = new FlatCompat({
 const config = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
-    ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'],
+    // `.next-*` covers the build directories the e2e suite and production
+    // builds write to (see `NEXT_DIST_DIR` in next.config.mjs). Without the
+    // wildcard, linting the repo means linting generated bundles — over a
+    // thousand errors in code nobody wrote.
+    ignores: ['.next/**', '.next-*/**', 'node_modules/**', 'next-env.d.ts'],
   },
   {
     rules: {

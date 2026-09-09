@@ -36,6 +36,7 @@ from app.models.chat import (
 from app.models.enums import ChatRoomKind
 from app.models.guest import Guest
 from app.models.session import Booking, Session
+from app.models.studio import Studio
 from app.schemas.guest_portal import (
     ChatMessageRead,
     ChatRoomRead,
@@ -109,9 +110,22 @@ def _booked_session_ids(caller: GuestDb) -> set[UUID]:
 
 
 def _may_read(caller: GuestDb, room: ChatRoom) -> bool:
-    """Everyone in the studio gets the lounge; a workshop room needs a seat."""
+    """Everyone in the studio gets the lounge; a workshop room needs a seat.
+
+    A private thread is matched on `chat_room.guest_id` and nothing else. Not
+    on membership — those rows are written lazily on first read, so a rule
+    that trusted them would be granted by the act of asking.
+
+    The `direct` branch has to be explicit. Falling through to the workshop
+    test would compare `room.session_id`, which is null on a DM, against the
+    booked ids — false for everyone including the guest whose thread it is.
+    Fail-safe, but silently broken rather than private.
+    """
     if room.kind is ChatRoomKind.LOUNGE:
         return True
+
+    if room.kind is ChatRoomKind.DIRECT:
+        return room.guest_id == caller.guest_id
 
     return room.session_id in _booked_session_ids(caller)
 
@@ -237,8 +251,22 @@ def _names_for(caller: GuestDb, messages: list[ChatMessage]) -> dict[UUID, str]:
 
 @router.get("/rooms", response_model=list[ChatRoomRead])
 def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
-    """The lounge, plus a room for every workshop this guest holds a seat on."""
+    """The lounge, their private thread if one exists, and every workshop they hold a seat on."""
     rooms = [_lounge(caller)]
+
+    # Their thread with the host, if the host has started one. Never created
+    # here: a room the guest opened themselves would be an empty conversation
+    # the host never asked for, sitting at the top of the list.
+    direct = caller.db.raw.execute(
+        select(ChatRoom).where(
+            ChatRoom.studio_id == caller.studio_id,
+            ChatRoom.kind == ChatRoomKind.DIRECT,
+            ChatRoom.guest_id == caller.guest_id,
+        )
+    ).scalar_one_or_none()
+
+    if direct is not None:
+        rooms.append(direct)
 
     session_ids = _booked_session_ids(caller)
     if session_ids:
@@ -258,12 +286,33 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
 
         rooms.extend(_room_for_session(caller, session) for session in sessions)
 
+    # One query for the dates rather than one per room.
+    dated_rooms = [r.session_id for r in rooms if r.session_id is not None]
+    starts: dict[UUID, datetime] = {}
+    if dated_rooms:
+        starts = {
+            row[0]: row[1]
+            for row in caller.db.raw.execute(
+                select(Session.id, Session.starts_at).where(Session.id.in_(dated_rooms))
+            ).all()
+        }
+
     banners = {
         banner.room_id: banner.body
         for banner in caller.db.raw.execute(
             select(ChatBanner).where(ChatBanner.studio_id == caller.studio_id)
         ).scalars()
     }
+
+    # A private room is stored under the guest's own name, because that is
+    # what the host needs to see in their list. Showing a guest their own name
+    # as the title of a conversation would be baffling — from their side the
+    # thread is with the studio.
+    studio_name: str | None = None
+    if any(room.kind is ChatRoomKind.DIRECT for room in rooms):
+        studio_name = caller.db.raw.execute(
+            select(Studio.name).where(Studio.id == caller.studio_id)
+        ).scalar_one_or_none()
 
     out: list[ChatRoomRead] = []
 
@@ -285,12 +334,15 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
             ChatRoomRead(
                 id=room.id,
                 kind=room.kind.value,
-                name=room.name,
+                name=(
+                    (studio_name or "Your host") if room.kind is ChatRoomKind.DIRECT else room.name
+                ),
                 session_id=room.session_id,
                 unread_count=_unread_count(caller, room, membership.last_read_at),
                 last_message_at=latest.created_at if latest else None,
                 last_message_preview=latest.body[:80] if latest else None,
                 banner=banners.get(room.id),
+                starts_at=starts.get(room.session_id) if room.session_id else None,
             )
         )
 

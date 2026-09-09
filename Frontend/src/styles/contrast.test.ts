@@ -37,6 +37,10 @@ const PAIRS: readonly Pair[] = [
   ['rose accent text on app background', '--color-rose-ink', '--color-buttercream'],
   ['rose accent text on blush fill', '--color-rose-ink', '--color-blush'],
 
+  // chat: the host's own messages sit on a blush fill so their voice is
+  // recognisable without borrowing the broadcast gradient
+  ['host message body on blush bubble', '--color-cocoa', '--color-blush'],
+
   // filled controls — the prototype used white here and failed badly
   ['primary button label', '--color-on-rose', '--color-rose'],
   ['active nav label', '--color-on-pink', '--color-pink'],

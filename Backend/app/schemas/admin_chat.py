@@ -31,9 +31,29 @@ class BannerWrite(BaseModel):
         return cleaned
 
 
+class HostReply(BaseModel):
+    """One message from the host into one room.
+
+    2000 characters, matching the guest's own `SendMessage` rather than the
+    banner's 280 — this is a message in the conversation, and holding the host
+    to a quarter of what a guest can write would be a strange way to answer a
+    question.
+    """
+
+    body: Annotated[str, Field(min_length=1, max_length=2000)]
+
+    @field_validator("body")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Write something to send.")
+        return cleaned
+
+
 class AdminRoomRead(BaseModel):
     id: UUID
-    kind: Literal["workshop", "lounge"]
+    kind: Literal["workshop", "lounge", "direct"]
     name: str
     session_id: UUID | None = None
 

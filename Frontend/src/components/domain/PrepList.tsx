@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 import { SessionPicker } from '@/components/domain/SessionPicker';
 import { AlertCard } from '@/components/ui/AlertCard';
@@ -10,7 +10,12 @@ import { Chip } from '@/components/ui/Chip';
 import { FrostingCheckbox } from '@/components/ui/FrostingCheckbox';
 import { Icing } from '@/components/ui/Icing';
 import { ApiError } from '@/lib/api/errors';
-import { useChecklist, useSessions, useToggleChecklistItem } from '@/lib/api/hooks';
+import {
+  useAddChecklistItem,
+  useChecklist,
+  useSessions,
+  useToggleChecklistItem,
+} from '@/lib/api/hooks';
 import { useResolvedNow } from '@/lib/useNow';
 import { addWeeks, formatTime } from '@/lib/dates';
 import type { ChecklistItem } from '@/lib/api/types';
@@ -77,7 +82,7 @@ function PrepListInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Prep</h1>
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">Prep</h1>
       <p className="text-latte mb-4">
         <HandNote>Quantities auto-scale with seats</HandNote>
       </p>
@@ -154,6 +159,8 @@ function PrepListInner({ now }: { now: Date }) {
                 ))}
               </div>
             ))}
+
+            {selected ? <AddStep sessionId={selected.id} /> : null}
           </Card>
 
           <div className="grid content-start gap-4">
@@ -247,5 +254,56 @@ function TimeGateSkeleton() {
         className="border-line h-48 rounded-[var(--radius-lg)] border-[1.5px] border-dashed"
       />
     </div>
+  );
+}
+
+/**
+ * Add a step to this class only.
+ *
+ * A one-off never touches the class type's template, so using it to patch
+ * today does not quietly rewrite every future class (PRD §2.5). It is also
+ * the only way to get a checklist at all for a class type that has no
+ * template — which, until this existed, meant no checklist ever.
+ */
+function AddStep({ sessionId }: { sessionId: string }) {
+  const add = useAddChecklistItem(sessionId);
+  const [text, setText] = useState('');
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const value = text.trim();
+    if (!value || add.isPending) return;
+
+    setText('');
+    add.mutate(value);
+  }
+
+  return (
+    <form onSubmit={submit} className="border-line mt-4 border-t-[1.5px] border-dashed pt-3">
+      <label htmlFor="new-step" className="sr-only">
+        Add a prep step
+      </label>
+
+      <div className="flex gap-2">
+        <input
+          id="new-step"
+          value={text}
+          maxLength={200}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="Add a step — e.g. chill the buttercream"
+          className="border-line bg-paper text-cocoa min-h-[48px] flex-1 rounded-[var(--radius-pill)] border-[1.5px] px-4"
+        />
+        <Button type="submit" disabled={!text.trim() || add.isPending}>
+          {add.isPending ? 'Adding…' : 'Add'}
+        </Button>
+      </div>
+
+      {add.isError ? (
+        <p role="alert" className="text-danger mt-2 text-sm font-bold">
+          {add.error instanceof ApiError ? add.error.displayMessage : "That didn't save."}
+        </p>
+      ) : null}
+    </form>
   );
 }

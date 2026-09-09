@@ -282,6 +282,63 @@ class TestWaitlist:
         with pytest.raises(NotFoundError):
             service.invite_next_guest(uuid4())
 
+    def test_accepting_turns_the_offer_into_a_booking(
+        self, service: GuestService, repo: FakeGuestRepository
+    ) -> None:
+        session_id, first = self._seed(repo)
+        service.invite_next_guest(session_id)  # type: ignore[arg-type]
+
+        booking = service.accept_waitlist_offer(session_id, first.id)  # type: ignore[arg-type, attr-defined]
+
+        assert booking.guest_id == first.id  # type: ignore[attr-defined]
+        # Accepting settles the entry — it moves out of the live queue, so it
+        # is no longer at the front position, but its own status is final.
+        accepted = next(e for e in repo.waitlists[session_id] if e.guest_id == str(first.id))  # type: ignore[index]
+        assert accepted.status is WaitlistStatus.ACCEPTED
+
+    def test_cannot_accept_without_an_open_invite(
+        self, service: GuestService, repo: FakeGuestRepository
+    ) -> None:
+        session_id, first = self._seed(repo)
+        # Never invited — still just waiting.
+
+        with pytest.raises(NotFoundError):
+            service.accept_waitlist_offer(session_id, first.id)  # type: ignore[arg-type, attr-defined]
+
+    def test_cannot_accept_an_expired_invite(
+        self, service: GuestService, repo: FakeGuestRepository
+    ) -> None:
+        session_id = uuid4()
+        repo.capacities[session_id] = Capacity(seats=10, booked=9)
+        guest = repo.add_guest()
+
+        repo.waitlists[session_id] = [
+            WaitlistEntry(
+                entry_id="w1",
+                guest_id=str(guest.id),
+                position=0,
+                status=WaitlistStatus.INVITED,
+                invite_expires_at=NOW - timedelta(hours=1),
+            )
+        ]
+
+        with pytest.raises(ConflictError):
+            service.accept_waitlist_offer(session_id, guest.id)  # type: ignore[arg-type, attr-defined]
+
+    def test_declining_passes_the_offer_to_the_next_person(
+        self, service: GuestService, repo: FakeGuestRepository
+    ) -> None:
+        session_id, first = self._seed(repo)
+        service.invite_next_guest(session_id)  # type: ignore[arg-type]
+
+        service.decline_waitlist_offer(session_id, first.id)  # type: ignore[arg-type, attr-defined]
+
+        entries = repo.waitlists[session_id]  # type: ignore[index]
+        declined = next(e for e in entries if e.guest_id == str(first.id))
+        assert declined.status is WaitlistStatus.WITHDRAWN
+        # The second person was offered the freed seat automatically.
+        assert any(e.status is WaitlistStatus.INVITED for e in entries)
+
 
 class TestBirthdayRadar:
     def test_lists_upcoming_birthdays_soonest_first(

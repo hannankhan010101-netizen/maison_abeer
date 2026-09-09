@@ -3,11 +3,11 @@
 import Link from 'next/link';
 
 import { countdownFrom } from '@/components/portal/WorkshopCard';
-import { buttonClasses } from '@/components/ui/Button';
+import { Button, buttonClasses } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { ApiError } from '@/lib/api/errors';
-import { usePortalWorkshop } from '@/lib/api/hooks';
+import { useAcceptInvite, useDeclineInvite, usePortalWorkshop } from '@/lib/api/hooks';
 import { useResolvedNow } from '@/lib/useNow';
 import { cn } from '@/lib/cn';
 import { formatDateLong, formatRange } from '@/lib/dates';
@@ -113,6 +113,8 @@ export function WorkshopDetail({ sessionId }: WorkshopDetailProps) {
         ) : null}
       </header>
 
+      {item.status === 'invited' ? <InviteOffer sessionId={sessionId} /> : null}
+
       {item.notes ? (
         <Card className="mb-4">
           <Eyebrow>Good to know</Eyebrow>
@@ -125,6 +127,62 @@ export function WorkshopDetail({ sessionId }: WorkshopDetailProps) {
         <AttendeeStack attendees={item.attendees} othersCount={item.others_count} />
       </Card>
     </section>
+  );
+}
+
+/**
+ * A held seat, waiting on a tap.
+ *
+ * The only place either action lives: an offer can be accepted or declined
+ * exactly once, and burying that choice in a list card next to nine other
+ * workshops is how it gets missed until the hold expires on its own.
+ */
+function InviteOffer({ sessionId }: { sessionId: string }) {
+  const accept = useAcceptInvite(sessionId);
+  const decline = useDeclineInvite(sessionId);
+
+  const pending = accept.isPending || decline.isPending;
+
+  return (
+    <Card className="mb-4">
+      <Eyebrow>A seat opened up</Eyebrow>
+      <p className="text-sm">
+        It&rsquo;s yours if you want it — accept to lock it in, or let it pass to whoever&rsquo;s
+        next.
+      </p>
+
+      {accept.isError ? (
+        <p role="alert" className="text-danger mt-2 text-sm">
+          {accept.error instanceof ApiError
+            ? accept.error.displayMessage
+            : "That didn't go through — try again."}
+        </p>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          variant="primary"
+          size="sm"
+          loading={accept.isPending}
+          loadingLabel="Claiming your seat…"
+          disabled={pending}
+          onClick={() => accept.mutate()}
+        >
+          Claim my seat
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="sm"
+          loading={decline.isPending}
+          loadingLabel="Passing it along…"
+          disabled={pending}
+          onClick={() => decline.mutate()}
+        >
+          Not this time
+        </Button>
+      </div>
+    </Card>
   );
 }
 

@@ -63,15 +63,20 @@ function GuestListInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+      {/* Stacked on a phone. Side by side, the button landed directly under
+          "Sign out" in the shell header and read as part of it — two pink
+          pills stacked in the corner, one of which signs you out. */}
+      <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div>
-          <h1 className="font-display text-[clamp(26px,4vw,34px)]">Guests</h1>
-          <p className="text-latte">
+          <h1 className="font-display text-[clamp(21px,4vw,34px)]">Guests</h1>
+          <p className="text-latte text-sm sm:text-base">
             <HandNote>Your regulars are highlighted 💗</HandNote>
           </p>
         </div>
 
-        <Button onClick={() => setAdding(true)}>+ Add a guest</Button>
+        <Button className="w-full sm:w-auto" onClick={() => setAdding(true)}>
+          + Add a guest
+        </Button>
       </div>
 
       {/* Seating, cancellations and the waitlist for one class. */}

@@ -95,7 +95,7 @@ function TagStudioInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Name tag studio</h1>
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">Name tag studio</h1>
       <p className="text-latte mb-4">
         <HandNote>Whole event kit in one click ✂️</HandNote>
       </p>

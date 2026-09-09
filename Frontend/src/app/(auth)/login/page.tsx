@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Card, HandNote } from '@/components/ui/Card';
@@ -23,6 +23,17 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  /**
+   * Sign-in needs JavaScript, so the button waits for it.
+   *
+   * Server-rendered HTML arrives with a working-looking form before the
+   * handler exists. Tapping it then does a native submit — which on a slow
+   * phone is a real thing to do, and lands the password somewhere it should
+   * never be. Disabled until mounted, the tap simply does nothing.
+   */
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,7 +76,16 @@ function LoginForm() {
         <HandNote>Let&rsquo;s get you into the studio</HandNote>
       </p>
 
-      <form onSubmit={handleSubmit} noValidate>
+      {/*
+        `method="post"` matters even though the submit is handled in JS.
+        Until this component hydrates there is no `onSubmit`, so tapping the
+        button falls back to a native submit — and a form with no method
+        submits GET, which writes the typed password into the address bar,
+        the browser history and any proxy log on the way. A POST cannot be
+        put in a URL. The disabled button below makes that path unreachable
+        in the first place; this is the belt to its braces.
+      */}
+      <form onSubmit={handleSubmit} method="post" noValidate>
         <div className="mb-3.5">
           <label
             htmlFor="email"
@@ -81,7 +101,7 @@ function LoginForm() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="border-line bg-buttercream text-cocoa min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3.5 text-sm"
+            className="border-line bg-buttercream text-cocoa min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3.5"
           />
         </div>
 
@@ -100,7 +120,7 @@ function LoginForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="border-line bg-buttercream text-cocoa min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3.5 text-sm"
+            className="border-line bg-buttercream text-cocoa min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3.5"
           />
         </div>
 
@@ -114,7 +134,13 @@ function LoginForm() {
           </p>
         ) : null}
 
-        <Button type="submit" loading={pending} loadingLabel="Signing you in…" className="w-full">
+        <Button
+          type="submit"
+          disabled={!ready}
+          loading={pending}
+          loadingLabel="Signing you in…"
+          className="w-full"
+        >
           Sign in
         </Button>
       </form>

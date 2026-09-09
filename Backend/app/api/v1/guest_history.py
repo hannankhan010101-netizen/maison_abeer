@@ -13,16 +13,19 @@ offset — offsets skip rows when something is inserted mid-scroll.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from app.api.deps import Db
+from app.api.deps import Db, Issuer
+from app.core.config import get_settings
+from app.core.errors import ConflictError
 from app.models.enums import BookingStatus, CreditStatus
 from app.models.guest import Guest, GuestCredit
 from app.models.session import Booking, Session
-from app.schemas.guest_history import GuestCreditRead, GuestHistory, GuestVisit
+from app.schemas.guest_history import GuestCreditRead, GuestHistory, GuestVisit, PortalLink
 
 router = APIRouter(tags=["guests"])
 
@@ -91,4 +94,34 @@ def guest_history(guest_id: UUID, db: Db) -> GuestHistory:
         available_credit_count=sum(
             1 for credit in credits if credit.status == CreditStatus.AVAILABLE
         ),
+    )
+
+
+@router.post("/guests/{guest_id}/portal-link", response_model=PortalLink)
+def issue_portal_link(guest_id: UUID, db: Db, issuer: Issuer) -> PortalLink:
+    """Mint a fresh sign-in link for a guest who lost their session.
+
+    Guests normally never need this — the session is set to outlive any
+    realistic gap between visits. But the credential lives in their browser,
+    so clearing site data or switching phone ends it, and there is nothing
+    they can do about that alone: there is no password to re-enter and no
+    verified email to send anything to.
+
+    So the host does it. That is the right shape for a studio, where the host
+    already knows every guest by name, and the wrong shape at scale.
+
+    Host-only, like everything else on this router. A guest calling it gets
+    403 before reaching this code.
+    """
+    guest = db.get_or_404(Guest, guest_id)
+
+    token = issuer.issue(guest)
+
+    if token is None:
+        raise ConflictError("We couldn't make a link just now. Please try again in a moment.")
+
+    base = get_settings().public_web_url.rstrip("/")
+
+    return PortalLink(
+        url=f"{base}/enter?token={quote(token.token_hash)}&type={token.otp_type}"
     )

@@ -40,7 +40,7 @@ export function BroadcastComposer() {
         ← Chat oversight
       </Link>
 
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">Broadcast 📣</h1>
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">Broadcast 📣</h1>
       <p className="text-latte mb-4">
         <HandNote>One message, every chat, all at once</HandNote>
       </p>

@@ -162,5 +162,18 @@ export function Field({
   );
 }
 
+/**
+ * The shared field styling.
+ *
+ * **No `text-sm` here.** `globals.css` sets `input, select, textarea` to
+ * `max(16px, 1em)` so iOS Safari does not zoom the page on focus — but that
+ * lives in the `base` layer, and any Tailwind text utility sits in
+ * `utilities`, which wins. A `text-sm` on this line silently defeated the
+ * rule on every form that uses it, and the guard test missed it because the
+ * settings form had not finished rendering when it looked.
+ *
+ * 16px is the floor, not a preference. Below it, focusing a field on an
+ * iPhone zooms the viewport and leaves the user scrolled sideways mid-form.
+ */
 export const inputClasses =
-  'min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] border-line bg-buttercream px-3.5 text-sm text-cocoa';
+  'min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] border-line bg-buttercream px-3.5 text-cocoa';

@@ -65,7 +65,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=resolved.cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        # PUT is here because the app uses it: toggling a reaction, leaving
+        # feedback, and pinning a banner are all idempotent replacements.
+        # Omitting it did not fail loudly — the request never left the browser,
+        # because the preflight was refused. curl does not enforce CORS and the
+        # e2e suite stubs the API, so both were perfectly happy while three
+        # features did nothing at all in every real browser.
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
         max_age=600,
     )

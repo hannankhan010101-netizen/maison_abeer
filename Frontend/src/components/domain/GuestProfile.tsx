@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { AlertCard } from '@/components/ui/AlertCard';
 import { buttonClasses } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { ApiError } from '@/lib/api/errors';
-import { useGuest, useGuestHistory, useGuestMessages } from '@/lib/api/hooks';
+import { useGuest, useGuestHistory, useGuestMessages, useOpenDirectRoom } from '@/lib/api/hooks';
+import { cn } from '@/lib/cn';
 import { formatDateLong, formatTime } from '@/lib/dates';
 import type { GuestVisit, ScheduledMessage } from '@/lib/api/types';
 
@@ -88,7 +90,10 @@ export function GuestProfile({ guestId }: GuestProfileProps) {
       </Link>
 
       <header className="mb-4">
-        <h1 className="font-display text-[clamp(26px,4vw,34px)]">{person.full_name}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-[clamp(21px,4vw,34px)]">{person.full_name}</h1>
+          <MessageGuestButton guestId={guestId} name={person.full_name} />
+        </div>
 
         <p className="mt-1 flex flex-wrap items-center gap-1.5">
           {person.visit_badge ? <Chip tone="pink">{person.visit_badge}</Chip> : null}
@@ -273,5 +278,45 @@ function MessageLog({ messages, loading }: { messages: ScheduledMessage[]; loadi
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Start (or return to) a private thread with this guest.
+ *
+ * The only way a DM comes into existence. Guests cannot open one themselves —
+ * that would put an empty conversation at the top of their list that the host
+ * never asked for, and hand every guest a private line to the studio owner
+ * whether or not the studio wants that.
+ *
+ * The call is get-or-create, so a second press reopens the same thread rather
+ * than making another.
+ */
+function MessageGuestButton({ guestId, name }: { guestId: string; name: string }) {
+  const router = useRouter();
+  const open = useOpenDirectRoom();
+
+  return (
+    <button
+      type="button"
+      disabled={open.isPending}
+      onClick={() =>
+        open.mutate(guestId, {
+          onSuccess: (room) => router.push(`/chat?room=${room.id}`),
+        })
+      }
+      aria-label={`Message ${name} privately`}
+      className={cn(
+        'text-on-rose inline-flex min-h-[44px] items-center gap-2 rounded-[var(--radius-pill)] px-4 font-extrabold',
+        'bg-[image:var(--chat-bubble-you)] shadow-[var(--chat-bubble-shadow)]',
+        'transition-transform duration-150 [transition-timing-function:var(--ease-spring)]',
+        'active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100',
+        'focus-visible:outline-cocoa focus-visible:outline-[3px] focus-visible:outline-offset-2',
+        'disabled:opacity-60',
+      )}
+    >
+      <span aria-hidden="true">✿</span>
+      {open.isPending ? 'Opening…' : 'Message'}
+    </button>
   );
 }

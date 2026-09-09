@@ -41,3 +41,17 @@ class GuestHistory(BaseModel):
     attended_count: int
     upcoming_count: int
     available_credit_count: int
+
+
+class PortalLink(BaseModel):
+    """A fresh way back in, for a guest who lost their session.
+
+    Unlike the token returned at booking, this one has to travel: the host
+    sends it to the guest, so it goes in a URL. That is the ordinary
+    magic-link trade — single-use and short-lived, but anyone who sees the
+    link before it is used can spend it. It is only ever handed to the host,
+    who already has full access to this guest's record.
+    """
+
+    url: str
+    """Open this on the guest's device to sign them in."""

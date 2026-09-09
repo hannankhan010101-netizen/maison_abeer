@@ -132,7 +132,10 @@ class CelebrationKind(StrEnum):
 
 
 class ChatRoomKind(StrEnum):
-    """A workshop's own room, or the studio-wide lounge."""
+    """A workshop's own room, the studio-wide lounge, or one private thread."""
 
     WORKSHOP = "workshop"
     LOUNGE = "lounge"
+
+    DIRECT = "direct"
+    """Between the host and exactly one guest. Nobody else can open it."""

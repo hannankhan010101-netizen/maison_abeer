@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AppShell, NAV_ITEMS, isActive } from './AppShell';
+import { AppShell, NAV_ITEMS, PRIMARY_NAV, isActive } from './AppShell';
 
 const mockPathname = vi.fn(() => '/today');
 
@@ -37,20 +37,56 @@ describe('isActive', () => {
 });
 
 describe('AppShell', () => {
-  it('renders both navigations from one route table', () => {
+  it('gives the sidebar every destination', () => {
+    render(<AppShell>content</AppShell>);
+
+    const [sidebar] = screen.getAllByRole('navigation', { name: 'Main' });
+    if (!sidebar) throw new Error('expected a sidebar');
+
+    for (const item of NAV_ITEMS) {
+      expect(
+        within(sidebar).getByRole('link', { name: new RegExp(item.label) }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('puts the frequent destinations in the phone tab bar', () => {
     render(<AppShell>content</AppShell>);
 
     const navs = screen.getAllByRole('navigation', { name: 'Main' });
+    const tabs = navs.at(-1);
+    if (!tabs) throw new Error('expected a tab bar');
 
-    // One sidebar, one mobile strip — a screen cannot be added to one and
-    // forgotten in the other.
-    expect(navs).toHaveLength(2);
+    // Four tabs plus More. Any more and they stop being thumb-sized.
+    expect(within(tabs).getAllByRole('link')).toHaveLength(PRIMARY_NAV.length);
+    expect(within(tabs).getByRole('button', { name: /more/i })).toBeInTheDocument();
+  });
 
-    for (const nav of navs) {
-      for (const item of NAV_ITEMS) {
-        expect(within(nav).getByRole('link', { name: new RegExp(item.label) })).toBeInTheDocument();
-      }
+  it('leaves no destination unreachable on a phone', () => {
+    /*
+     * The invariant that matters after collapsing nine items into five.
+     *
+     * The old strip scrolled sideways and showed three of nine on a 390px
+     * screen, with nothing to suggest the rest existed — so most of the app
+     * was, in practice, undiscoverable. Every route must now be either a tab
+     * or behind "More", and this fails if one is ever added to neither.
+     */
+    render(<AppShell>content</AppShell>);
+
+    const navs = screen.getAllByRole('navigation', { name: 'Main' });
+    const tabs = navs.at(-1);
+    if (!tabs) throw new Error('expected a tab bar');
+
+    const onTabBar = within(tabs)
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'));
+
+    for (const item of NAV_ITEMS) {
+      const reachable = onTabBar.includes(item.href) || !PRIMARY_NAV.includes(item.href);
+      expect(reachable, `${item.href} is in neither the tab bar nor More`).toBe(true);
     }
+
+    expect(PRIMARY_NAV.every((href) => NAV_ITEMS.some((item) => item.href === href))).toBe(true);
   });
 
   it('marks the current route for assistive technology', () => {
@@ -59,18 +95,23 @@ describe('AppShell', () => {
 
     const current = screen.getAllByRole('link', { current: 'page' });
 
-    expect(current).toHaveLength(2); // one per navigation
+    // Sidebar and tab bar both mark it — /guests is in each.
+    expect(current).toHaveLength(2);
     for (const link of current) {
       expect(link).toHaveAttribute('href', '/guests');
     }
   });
 
-  it('gives every nav link a 44px touch target', () => {
+  it('gives every nav link a thumb-sized touch target', () => {
     mockPathname.mockReturnValue('/today');
     render(<AppShell>content</AppShell>);
 
+    // The tab bar goes further than the 44px floor — 64px, because a tab is
+    // aimed at with a thumb while holding a phone one-handed.
     for (const link of screen.getAllByRole('link')) {
-      expect(link).toHaveClass('min-h-[44px]');
+      const size = link.className.match(/min-h-\[(\d+)px\]/);
+      expect(size, `no min-height on ${link.getAttribute('href')}`).not.toBeNull();
+      expect(Number(size![1])).toBeGreaterThanOrEqual(44);
     }
   });
 
@@ -99,9 +140,12 @@ describe('AppShell', () => {
     expect(icon).not.toBeNull();
   });
 
-  it('bottom-pads content on mobile so the last row clears the viewport edge', () => {
+  it('bottom-pads content so the last row clears the fixed tab bar', () => {
     render(<AppShell>content</AppShell>);
 
-    expect(screen.getByRole('main')).toHaveClass('pb-24');
+    const padding = screen.getByRole('main').className.match(/pb-(\d+)/);
+    expect(padding).not.toBeNull();
+    // The bar is 64px plus the safe-area inset; the padding has to clear it.
+    expect(Number(padding![1]) * 4).toBeGreaterThanOrEqual(96);
   });
 });

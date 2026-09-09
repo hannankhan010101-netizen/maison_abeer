@@ -21,19 +21,22 @@ from sqlalchemy import func, select
 from app.api.deps import CurrentPrincipal, GuestDb
 from app.core.db import TenantSession, get_session_factory
 from app.core.errors import NotFoundError
-from app.models.enums import BookingStatus, SessionStatus
+from app.models.enums import BookingStatus, SessionStatus, WaitlistStatus
 from app.models.guest import Guest
-from app.models.session import Booking, Session
+from app.models.session import Booking, Session, WaitlistEntry
 from app.models.studio import HostUser
+from app.repositories.guests import SqlGuestRepository
 from app.schemas.guest_portal import (
     AttendeePeek,
     ClaimResult,
+    DeclineResult,
     PortalProfile,
     PortalWorkshop,
     PortalWorkshopDetail,
     WhoAmI,
     WorkshopStatus,
 )
+from app.services.guests import GuestService
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -134,7 +137,7 @@ def list_my_workshops(caller: GuestDb) -> list[PortalWorkshop]:
         .order_by(Session.starts_at)
     ).all()
 
-    return [
+    booked = [
         PortalWorkshop(
             session_id=session.id,
             booking_id=booking.id,
@@ -148,6 +151,51 @@ def list_my_workshops(caller: GuestDb) -> list[PortalWorkshop]:
         )
         for booking, session in rows
     ]
+
+    # Classes they are queued for, not seated on.
+    #
+    # Without these a guest who joined a waitlist opened their portal to
+    # "Nothing here yet — ask your studio for the booking link", moments after
+    # being told they were on the list. Waiting is a state worth showing: it is
+    # the whole reason they would come back and look.
+    waiting = caller.db.raw.execute(
+        select(WaitlistEntry, Session)
+        .join(Session, Session.id == WaitlistEntry.session_id)
+        .where(
+            WaitlistEntry.studio_id == caller.studio_id,
+            WaitlistEntry.guest_id == caller.guest_id,
+            WaitlistEntry.status.in_((WaitlistStatus.WAITING, WaitlistStatus.INVITED)),
+            Session.archived_at.is_(None),
+            Session.starts_at > now,
+        )
+        .order_by(Session.starts_at)
+    ).all()
+
+    seated = {w.session_id for w in booked}
+
+    queued = [
+        PortalWorkshop(
+            session_id=session.id,
+            # A waitlist entry is not a booking, but the client keys rows on
+            # this; the entry's own id is stable and unique for the purpose.
+            booking_id=entry.id,
+            name=session.title or (session.class_type.name if session.class_type else "Workshop"),
+            starts_at=session.starts_at,
+            ends_at=session.ends_at,
+            location=session.location,
+            color_token=session.class_type.color_token if session.class_type else "pink",
+            status="invited" if entry.status is WaitlistStatus.INVITED else "waitlisted",
+            attendee_count=_seat_count(caller, session.id),
+            waitlist_position=entry.position,
+            invite_expires_at=entry.invite_expires_at,
+        )
+        for entry, session in waiting
+        # A seat granted from the waitlist can leave the old entry behind;
+        # showing both would list one class twice.
+        if session.id not in seated
+    ]
+
+    return sorted([*booked, *queued], key=lambda w: w.starts_at)
 
 
 @router.get("/workshops/{session_id}", response_model=PortalWorkshopDetail)
@@ -171,10 +219,44 @@ def get_my_workshop(session_id: UUID, caller: GuestDb) -> PortalWorkshopDetail:
         )
     ).one_or_none()
 
+    # A waitlisted guest holds no booking, but the list now shows them the
+    # class — so the detail page has to open, or every card in that state is a
+    # link straight to a 404.
+    waiting = None
     if row is None:
+        waiting = caller.db.raw.execute(
+            select(WaitlistEntry, Session)
+            .join(Session, Session.id == WaitlistEntry.session_id)
+            .where(
+                WaitlistEntry.studio_id == caller.studio_id,
+                WaitlistEntry.guest_id == caller.guest_id,
+                WaitlistEntry.session_id == session_id,
+                WaitlistEntry.status.in_((WaitlistStatus.WAITING, WaitlistStatus.INVITED)),
+                Session.archived_at.is_(None),
+            )
+        ).one_or_none()
+
+    if row is None and waiting is None:
+        # Still the same answer for "not yours" as for "does not exist":
+        # confirming a session id would let someone map the schedule.
         raise NotFoundError("We couldn't find that workshop on your list.")
 
-    booking, session = row
+    # Resolved in the branch that knows which one exists, so the row id and
+    # the status are settled facts by the time the response is built rather
+    # than a pair of maybe-None values narrowed at the far end.
+    invite_expires_at: datetime | None = None
+    if row is not None:
+        booking, session = row
+        row_id = booking.id
+        position: int | None = None
+        workshop_status: WorkshopStatus = status_for(session, now)
+    else:
+        assert waiting is not None
+        entry, session = waiting
+        row_id = entry.id
+        position = entry.position
+        workshop_status = "invited" if entry.status is WaitlistStatus.INVITED else "waitlisted"
+        invite_expires_at = entry.invite_expires_at
 
     attendee_rows = (
         caller.db.raw.execute(
@@ -202,18 +284,46 @@ def get_my_workshop(session_id: UUID, caller: GuestDb) -> PortalWorkshopDetail:
 
     return PortalWorkshopDetail(
         session_id=session.id,
-        booking_id=booking.id,
+        booking_id=row_id,
         name=session.title or (session.class_type.name if session.class_type else "Workshop"),
         starts_at=session.starts_at,
         ends_at=session.ends_at,
         location=session.location,
         color_token=session.class_type.color_token if session.class_type else "pink",
-        status=status_for(session, now),
+        status=workshop_status,
         attendee_count=len(attendees),
+        waitlist_position=position,
+        invite_expires_at=invite_expires_at,
         notes=session.notes,
         attendees=attendees,
         others_count=sum(1 for a in attendees if not a.is_you),
     )
+
+
+def _guest_service(caller: GuestDb) -> GuestService:
+    """Scoped to `caller.db`, deliberately not the `Db`/`GuestService`
+    dependency wiring used elsewhere.
+
+    That wiring opens its *own* session via `get_tenant_session` — a second,
+    independent transaction alongside `GuestDb`'s. Writing through it here and
+    reading back through `caller.db` in the same request would race an
+    uncommitted transaction against itself.
+    """
+    return GuestService(SqlGuestRepository(caller.db), now=datetime.now(UTC))
+
+
+@router.post("/workshops/{session_id}/accept", response_model=PortalWorkshopDetail)
+def accept_invite(session_id: UUID, caller: GuestDb) -> PortalWorkshopDetail:
+    """Claim a held seat, turning the offer into a real booking."""
+    _guest_service(caller).accept_waitlist_offer(session_id, caller.guest_id)
+    return get_my_workshop(session_id, caller)
+
+
+@router.post("/workshops/{session_id}/decline", response_model=DeclineResult)
+def decline_invite(session_id: UUID, caller: GuestDb) -> DeclineResult:
+    """Turn down a held seat — it passes to the next person in line."""
+    _guest_service(caller).decline_waitlist_offer(session_id, caller.guest_id)
+    return DeclineResult(declined=True, message="No problem — we'll offer it to the next person.")
 
 
 # ---------------------------------------------------------------------------

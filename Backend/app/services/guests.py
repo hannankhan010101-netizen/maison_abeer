@@ -21,7 +21,10 @@ from app.domain.guests import (
     upcoming_birthdays,
     visit_badge,
 )
+from app.domain.waitlist import WaitlistStatus as DomainWaitlistStatus
+from app.domain.waitlist import accept as accept_offer
 from app.domain.waitlist import invite_next
+from app.domain.waitlist import withdraw as withdraw_offer
 from app.models.enums import AllergySeverity
 
 if TYPE_CHECKING:
@@ -145,6 +148,17 @@ class GuestRepository(Protocol):
     def waitlist_for_session(self, session_id: UUID) -> Sequence[WaitlistEntry]: ...
 
     def save_waitlist(self, session_id: UUID, entries: Sequence[WaitlistEntry]) -> None: ...
+
+    def schedule_waitlist_invite(
+        self, session_id: UUID, guest_id: UUID, send_at: datetime
+    ) -> None:
+        """Queue the message that makes an invite real.
+
+        Flipping a waitlist entry to `invited` is bookkeeping; without a
+        message actually queued, "their seat is held until they reply" is a
+        claim nothing backs up and the guest never finds out.
+        """
+        ...
 
     def quiet_hours(self) -> QuietHours: ...
 
@@ -319,7 +333,54 @@ class GuestService:
         if updated != entries:
             self._repo.save_waitlist(session_id, updated)
 
+        if decision.invited is not None:
+            assert decision.send_at is not None  # someone was invited, so a send time exists
+
+            from uuid import UUID as _UUID
+
+            self._repo.schedule_waitlist_invite(
+                session_id, _UUID(decision.invited.guest_id), decision.send_at
+            )
+
         return decision
+
+    def _live_invite(self, session_id: UUID, guest_id: UUID) -> WaitlistEntry:
+        """This guest's open offer, or a refusal.
+
+        Shared by accept and decline so both give the same answer to "there
+        is nothing to act on" — no invite at all, or one somebody already
+        answered, or one whose 12-hour hold has quietly lapsed.
+        """
+        entries = self._repo.waitlist_for_session(session_id)
+        entry = next((e for e in entries if e.guest_id == str(guest_id)), None)
+
+        if entry is None or entry.status is not DomainWaitlistStatus.INVITED:
+            raise NotFoundError("We couldn't find an open invite for you on that class.")
+
+        if entry.has_expired(self._now):
+            raise ConflictError("That invite has expired — ask your studio for another one.")
+
+        return entry
+
+    def accept_waitlist_offer(self, session_id: UUID, guest_id: UUID) -> BookingSnapshot:
+        """Turn a held offer into a real seat."""
+        entry = self._live_invite(session_id, guest_id)
+
+        entries = list(self._repo.waitlist_for_session(session_id))
+        self._repo.save_waitlist(session_id, accept_offer(entries, entry.entry_id))
+
+        return self._repo.create_booking(session_id, guest_id, answers=None)
+
+    def decline_waitlist_offer(self, session_id: UUID, guest_id: UUID) -> None:
+        """Free the held seat and pass it to the next person in line."""
+        entry = self._live_invite(session_id, guest_id)
+
+        entries = list(self._repo.waitlist_for_session(session_id))
+        self._repo.save_waitlist(session_id, withdraw_offer(entries, entry.entry_id))
+
+        # A declined seat does not sit empty until a host next opens the
+        # dashboard — the next person in line is offered it immediately.
+        self.invite_next_guest(session_id)
 
     # -- birthday radar -----------------------------------------------------
 

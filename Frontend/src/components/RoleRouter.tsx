@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { fetchRole } from '@/lib/auth/role';
 import { getAccessToken } from '@/lib/supabase/client';
 
 /**
@@ -17,10 +18,6 @@ import { getAccessToken } from '@/lib/supabase/client';
  * Kept out of middleware deliberately: the role is a database fact, and a
  * query on every edge request would tax every asset for one redirect.
  */
-
-function apiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
-}
 
 export function RoleRouter() {
   const router = useRouter();
@@ -37,23 +34,20 @@ export function RoleRouter() {
         return;
       }
 
-      try {
-        const response = await fetch(`${apiBase()}/api/v1/portal/whoami`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-store',
-        });
+      const role = await fetchRole(token);
+      if (cancelled) return;
 
-        if (!response.ok) throw new Error(String(response.status));
-
-        const { role } = (await response.json()) as { role: string };
-        if (cancelled) return;
-
-        router.replace(role === 'host' ? '/today' : '/portal');
-      } catch {
+      if (role === 'unreachable') {
         // The API being unreachable must not strand someone on a blank page
         // with no way forward.
-        if (!cancelled) setStuck(true);
+        setStuck(true);
+        return;
       }
+
+      // 'unknown' — authenticated but matched to no record — goes to the
+      // portal on purpose: the claim flow there is what explains the
+      // situation. The host dashboard would give them a wall of 401s instead.
+      router.replace(role === 'host' ? '/today' : '/portal');
     }
 
     void route();

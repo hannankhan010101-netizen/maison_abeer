@@ -59,6 +59,25 @@
 
   --shadow-soft: 0 10px 24px -14px rgb(64 48 42 / 28%);
 
+  /* ---- chat ---------------------------------------------------------------
+     Your own messages get a gradient; everyone else stays on flat paper. Two
+     surfaces, not five — the thread has to stay readable when a dozen people
+     are talking, and the gradient is doing one job: telling you at a glance
+     which side of the conversation you are on.
+
+     Text colour is unchanged from the flat fills these interpolate between,
+     so the contrast measured on `--color-on-rose` still holds across the
+     whole sweep. The contrast checker cannot see a gradient, which is exactly
+     why this one is bounded by two colours already proven against the same
+     ink rather than reaching for a brighter pink. */
+  --chat-bubble-you: linear-gradient(135deg, var(--color-rose) 0%, var(--color-pink) 100%);
+  --chat-bubble-shadow: 0 4px 12px -6px rgb(194 91 120 / 45%);
+
+  /* Spring, not ease-out: a reaction that overshoots by a hair and settles
+     reads as a tap landing. Every use is paired with a motion-reduce variant
+     that keeps the state change and drops the movement. */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
   /* ---- type -------------------------------------------------------------- */
   --font-display: 'Young Serif', Georgia, serif;
   --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
@@ -101,6 +120,12 @@
   --color-on-pink: #3a1e28; /* @a11y 5.77:1 */
 
   --shadow-soft: 0 10px 24px -14px rgb(0 0 0 / 60%);
+
+  /* Mocha's rose and pink are already the lighter, desaturated pair, and
+     `--color-on-rose` is measured against both. Redefining the gradient here
+     rather than letting it inherit keeps that guarantee in dark mode too. */
+  --chat-bubble-you: linear-gradient(135deg, var(--color-rose) 0%, var(--color-pink) 100%);
+  --chat-bubble-shadow: 0 4px 14px -6px rgb(0 0 0 / 55%);
 }
 
 /* ==========================================================================

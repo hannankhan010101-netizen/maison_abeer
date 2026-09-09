@@ -88,6 +88,10 @@ allowed-confusables = ["–", "—", "’", "“", "”", "…", "×"]
 # The quantity parser has local variables named `token` (lexer tokens, not
 # credentials), which trips the hardcoded-password heuristic.
 "app/domain/quantities.py" = ["S105"]
+# Portal login tokens really are called tokens, and the fixtures here are
+# obvious fakes ("hashed-abc"). The heuristic cannot tell those from a leaked
+# credential, and silencing it line by line would bury the assertions.
+"tests/test_portal_tokens.py" = ["S105", "S106", "S107"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

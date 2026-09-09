@@ -24,6 +24,7 @@ import type {
   ChatMessage,
   ChatRoom,
   ClaimResult,
+  DeclineResult,
   Guest,
   GuestHistory,
   PortalProfile,
@@ -585,6 +586,34 @@ export function usePortalWorkshop(sessionId: string, enabled = true) {
   });
 }
 
+/** Claim a held waitlist seat — turns the offer into a real booking. */
+export function useAcceptInvite(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.post<PortalWorkshopDetail>(`/api/v1/portal/workshops/${sessionId}/accept`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portal.workshop(sessionId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portal.workshops });
+    },
+  });
+}
+
+/** Turn down a held seat. The next person on the list is offered it. */
+export function useDeclineInvite(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.post<DeclineResult>(`/api/v1/portal/workshops/${sessionId}/decline`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portal.workshop(sessionId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portal.workshops });
+    },
+  });
+}
+
 /** Match a freshly authenticated identity to a guest record. Runs once. */
 export function useClaimAccount() {
   const api = useApi();
@@ -722,6 +751,64 @@ export function useRemoveBanner(roomId: string) {
   return useMutation({
     mutationFn: () => api.delete<void>(`/api/v1/chat/rooms/${roomId}/banner`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.all }),
+  });
+}
+
+/**
+ * Add a one-off prep step to a single class.
+ *
+ * The endpoint has always existed; nothing called it, so a class whose type
+ * has no template showed "no steps yet" with no way to add one — and two of
+ * the three class types have no template.
+ */
+export function useAddChecklistItem(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (text: string) =>
+      api.post<ChecklistItem>(`/api/v1/sessions/${sessionId}/checklist`, { text }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions.checklist(sessionId) }),
+  });
+}
+
+/**
+ * Open the private thread with one guest.
+ *
+ * Get-or-create on the server, so pressing the button twice cannot split a
+ * conversation in two. Invalidates the room list because a first press adds a
+ * room to it.
+ */
+export function useOpenDirectRoom() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (guestId: string) => api.post<AdminRoom>(`/api/v1/guests/${guestId}/chat`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.rooms }),
+  });
+}
+
+/**
+ * Say something in one room, as the host.
+ *
+ * The counterpart to the guest's `useSendMessage`. Invalidates the room list
+ * as well as the thread — a reply changes the room's message count and its
+ * last-message preview, and leaving those stale makes a sent message look
+ * like it went nowhere.
+ */
+export function useReplyInRoom(roomId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: string) =>
+      api.post<AdminMessage>(`/api/v1/chat/rooms/${roomId}/messages`, { body }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.room(roomId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminChat.rooms });
+    },
   });
 }
 

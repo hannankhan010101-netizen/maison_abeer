@@ -10,7 +10,7 @@ import json
 import re
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -121,3 +121,60 @@ def test_the_scheduler_runs_often_enough_to_respect_quiet_hours(vercel: dict[str
         minutes = job["schedule"].split()[0]
         assert minutes.startswith("*/"), f"expected a sub-hourly schedule, got {job['schedule']}"
         assert int(minutes.removeprefix("*/")) <= 15
+
+
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
+
+
+def _cors_allowed_methods() -> set[str]:
+    """The methods the CORS middleware will approve at preflight."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    from app.main import create_app
+
+    for middleware in create_app().user_middleware:
+        # Matched by name via getattr: Starlette types `.cls` as a middleware
+        # *factory* protocol, so neither an identity check against the class
+        # nor a plain `.__name__` type-checks against it.
+        if getattr(middleware.cls, "__name__", "") == CORSMiddleware.__name__:
+            methods = cast("list[str]", middleware.kwargs["allow_methods"])
+            return {method.upper() for method in methods}
+
+    raise AssertionError("no CORS middleware is installed")
+
+
+def test_cors_allows_every_method_the_api_actually_serves() -> None:
+    """A method the routes serve but CORS omits is invisibly broken.
+
+    This is not hypothetical. `PUT` was missing while three features used it —
+    toggling a reaction, leaving feedback, and pinning a banner. All three did
+    nothing in every real browser, and nothing caught it: the request never
+    leaves the browser when a preflight is refused, so the server logs stay
+    clean, `curl` does not enforce CORS at all, and the e2e suite stubs the
+    API. The failure was only ever visible in a devtools console.
+
+    Derived from the OpenAPI schema rather than hardcoded, so a route added
+    with a new method is covered the day it lands.
+    """
+    from app.main import create_app
+
+    served = {
+        method.upper()
+        for operations in create_app().openapi()["paths"].values()
+        for method in operations
+        if method.upper() in {"GET", "POST", "PUT", "PATCH", "DELETE"}
+    }
+
+    missing = served - _cors_allowed_methods()
+
+    assert not missing, (
+        f"these methods are served but blocked at preflight: {sorted(missing)} — "
+        "every request using them fails in a browser and nowhere else"
+    )
+
+
+def test_cors_still_allows_the_preflight_itself() -> None:
+    """OPTIONS is how the browser asks. Dropping it blocks everything."""
+    assert "OPTIONS" in _cors_allowed_methods()

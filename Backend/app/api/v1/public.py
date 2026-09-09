@@ -27,13 +27,14 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session as SASession
 
+from app.api.deps import Issuer
 from app.core.db import get_session_factory
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.rate_limit import limiter
@@ -280,6 +281,7 @@ def book_public_class(
     session_id: UUID,
     payload: PublicBookingRequest,
     db: Db,
+    issuer: Issuer,
 ) -> PublicBookingResult:
     """Take a seat, or join the waitlist when the class is full."""
     studio = _studio_or_404(db, slug)
@@ -316,6 +318,30 @@ def book_public_class(
 
     class_name = session.title or (session.class_type.name if session.class_type else "Class")
 
+    # One tap from this response into their portal, with no password to invent
+    # and no email to go and find.
+    #
+    # Minted here rather than at each exit so every outcome carries it: the
+    # double-submit path below (they tapped twice and already have a seat) and
+    # the waitlist paths need it as much as a fresh booking does. Someone on
+    # the waitlist arguably needs it most — the portal is where they find out
+    # a seat opened.
+    portal = issuer.issue(guest)
+
+    def result(
+        outcome: Literal["booked", "waitlisted"],
+        waitlist_position: int | None = None,
+    ) -> PublicBookingResult:
+        return PublicBookingResult(
+            outcome=outcome,
+            class_name=class_name,
+            starts_at=session.starts_at,
+            location=session.location,
+            waitlist_position=waitlist_position,
+            portal_token=portal.token_hash if portal else None,
+            portal_token_type=portal.otp_type if portal else None,
+        )
+
     existing_booking = db.execute(
         select(Booking).where(
             Booking.studio_id == studio.id,
@@ -328,12 +354,7 @@ def book_public_class(
     if existing_booking is not None:
         # Double submit, or a guest who forgot. Idempotent rather than an
         # error: they wanted a seat and they have one.
-        return PublicBookingResult(
-            outcome="booked",
-            class_name=class_name,
-            starts_at=session.starts_at,
-            location=session.location,
-        )
+        return result("booked")
 
     seats_left = session.seats - _booked_count(db, studio.id, session.id)
 
@@ -350,12 +371,7 @@ def book_public_class(
         guest.visit_count += 1
         db.flush()
 
-        return PublicBookingResult(
-            outcome="booked",
-            class_name=class_name,
-            starts_at=session.starts_at,
-            location=session.location,
-        )
+        return result("booked")
 
     # Full: join the queue instead of turning them away.
     already_waiting = db.execute(
@@ -368,13 +384,7 @@ def book_public_class(
     ).scalar_one_or_none()
 
     if already_waiting is not None:
-        return PublicBookingResult(
-            outcome="waitlisted",
-            class_name=class_name,
-            starts_at=session.starts_at,
-            location=session.location,
-            waitlist_position=already_waiting.position,
-        )
+        return result("waitlisted", waitlist_position=already_waiting.position)
 
     highest = db.execute(
         select(func.max(WaitlistEntry.position)).where(
@@ -393,13 +403,7 @@ def book_public_class(
     db.add(entry)
     db.flush()
 
-    return PublicBookingResult(
-        outcome="waitlisted",
-        class_name=class_name,
-        starts_at=session.starts_at,
-        location=session.location,
-        waitlist_position=entry.position,
-    )
+    return result("waitlisted", waitlist_position=entry.position)
 
 
 # ---------------------------------------------------------------------------

@@ -62,7 +62,7 @@ function CalendarViewInner({ now }: { now: Date }) {
 
   return (
     <section>
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">This week</h1>
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">This week</h1>
       <p className="text-latte mb-4">
         <HandNote>Your rest day is protected 🌙</HandNote>
       </p>

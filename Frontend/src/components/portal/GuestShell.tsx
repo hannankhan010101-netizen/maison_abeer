@@ -24,9 +24,37 @@ const NAV = [
   { href: '/portal/chat', label: 'Chats', icon: '💬' },
 ] as const;
 
+/**
+ * Is this an open conversation?
+ *
+ * A thread takes the whole screen: no wordmark, no tab bar, no page scroll.
+ * That is what WhatsApp, Messenger and Instagram all do, and it is not
+ * decoration — a conversation needs a pinned header, a pinned composer, and
+ * exactly one scrolling region between them. Leaving the shell in place cost
+ * roughly 150px of a 664px screen and pushed the composer underneath the tab
+ * bar, where it could not be typed into at all.
+ */
+function isOpenThread(pathname: string): boolean {
+  return /^\/portal\/chat\/[^/]+$/.test(pathname);
+}
+
 export function GuestShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
+  if (isOpenThread(pathname)) {
+    return (
+      <ApiProvider unauthorizedRedirectTo="/enter">
+        <ToastProvider>
+          <ClaimOnFirstVisit />
+          {/* The thread owns the viewport and does its own scrolling. */}
+          <main id="main">{children}</main>
+        </ToastProvider>
+      </ApiProvider>
+    );
+  }
+
   return (
-    <ApiProvider>
+    <ApiProvider unauthorizedRedirectTo="/enter">
       <ToastProvider>
         <ClaimOnFirstVisit />
 
@@ -84,7 +112,10 @@ function SignOut() {
       type="button"
       onClick={async () => {
         await getSupabaseBrowserClient().auth.signOut();
-        window.location.href = '/login';
+        // Not '/login': a guest has no password to sign back in with. '/enter'
+        // is the recovery path — with no token it tells them to ask their
+        // studio for a fresh link, which is the only way back in.
+        window.location.href = '/enter';
       }}
       className="text-latte min-h-[44px] px-2 text-sm font-extrabold"
     >

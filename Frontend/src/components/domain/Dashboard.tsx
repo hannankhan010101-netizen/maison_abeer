@@ -129,12 +129,16 @@ function Greeting({
     : 'Quiet day today — perfect time to plan something lovely';
 
   return (
-    <header className="mb-5">
-      <h1 className="font-display text-[clamp(26px,4vw,34px)]">
+    /* Smaller on a phone. The greeting is warmth, not information, and at
+       34px it and its note pushed the first real card 317px down a 664px
+       screen — so the thing you opened the app to see started below the
+       fold. It keeps its full size where there is room for it. */
+    <header className="mb-3 lg:mb-5">
+      <h1 className="font-display text-[clamp(21px,4vw,34px)]">
         Good {part}
         {name} ✨
       </h1>
-      <p className="text-latte">
+      <p className="text-latte text-sm lg:text-base">
         <HandNote>{note}</HandNote>
       </p>
     </header>

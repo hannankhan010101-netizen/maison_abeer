@@ -164,18 +164,49 @@ test.describe('form fields', () => {
     expect(small, 'these will zoom on iOS').toEqual([]);
   });
 
+  test('the login fields are at least 16px', async ({ page }) => {
+    // Covered separately because it is the first screen anyone touches, and
+    // because it was missed: the guard checked `/book` and `/settings` only,
+    // so a `text-sm` sat on both login inputs unnoticed. Zooming the page the
+    // moment someone taps Email is the worst possible first impression.
+    await page.goto('/login');
+    await page.locator('#email').waitFor({ state: 'visible' });
+
+    const small = await page.evaluate(() =>
+      [...document.querySelectorAll('input')]
+        .filter((el) => el.getBoundingClientRect().height > 0)
+        .filter((el) => parseFloat(getComputedStyle(el).fontSize) < 16)
+        .map((el) => `${el.id || el.tagName}: ${getComputedStyle(el).fontSize}`),
+    );
+
+    expect(small, 'these will zoom on iOS').toEqual([]);
+  });
+
   test('portal inputs are at least 16px too', async ({ page }) => {
     await page.goto('/settings');
     await settled(page);
 
-    const small = await page.evaluate(() =>
+    // Wait for a field to actually exist before measuring.
+    //
+    // Without this the assertion passes whenever the form has not finished
+    // rendering: `querySelectorAll` returns nothing, the filter yields an
+    // empty array, and an empty array equals an empty array. It hid a real
+    // `text-sm` on the shared `inputClasses` for as long as it existed —
+    // green because it measured nothing, not because nothing was wrong.
+    await page.locator('#quiet-start').waitFor({ state: 'visible' });
+
+    const measured = await page.evaluate(() =>
       [...document.querySelectorAll('input, select, textarea')]
-        .filter((el) => {
-          const box = el.getBoundingClientRect();
-          return box.height > 0 && parseFloat(getComputedStyle(el).fontSize) < 16;
-        })
-        .map((el) => `${el.getAttribute('id') ?? el.tagName}: ${getComputedStyle(el).fontSize}`),
+        .filter((el) => el.getBoundingClientRect().height > 0)
+        .map((el) => ({
+          id: el.getAttribute('id') ?? el.tagName,
+          size: parseFloat(getComputedStyle(el).fontSize),
+        })),
     );
+
+    expect(measured.length, 'nothing was measured — the guard would be vacuous').toBeGreaterThan(0);
+
+    const small = measured.filter((el) => el.size < 16).map((el) => `${el.id}: ${el.size}px`);
 
     expect(small, 'these will zoom on iOS').toEqual([]);
   });
