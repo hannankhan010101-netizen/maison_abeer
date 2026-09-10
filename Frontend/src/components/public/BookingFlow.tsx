@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { BookingHero } from '@/components/public/BookingHero';
 import {
   BookingError,
   fetchClasses,
@@ -28,6 +29,9 @@ import { cn } from '@/lib/cn';
  *   works on a screen reader rather than merely passing a colour check.
  * * **No layout shift on submit** — the button keeps its size and swaps its
  *   label, so a slow connection does not move the tap target.
+ * * **The hero is décor, never a gate.** It draws before the booking widget
+ *   is even requested, and every animated pixel in it is optional weight —
+ *   see `BookingHero` for exactly how that's enforced.
  */
 
 function useMountedNow(): Date | null {
@@ -56,6 +60,36 @@ function seatCopy(item: PublicClass): { text: string; urgent: boolean } {
   if (item.seats_left === 1) return { text: 'Last seat!', urgent: true };
   if (item.seats_left <= 3) return { text: `Only ${item.seats_left} seats left`, urgent: true };
   return { text: `${item.seats_left} seats left`, urgent: false };
+}
+
+/**
+ * The class-type colour system, ported from the admin app: pink is bento
+ * cake, terracotta is pottery, sage is ceramic painting. Load-bearing there,
+ * decorative here — but reusing it is what makes a class card look like it
+ * belongs to this studio rather than a generic booking widget.
+ */
+// Written as complete, literal class strings — Tailwind's build-time scanner
+// finds classes by grepping source text, so constructing one by string
+// concatenation or `.replace()` at runtime produces a class no CSS is ever
+// generated for. The hover variant has to be spelled out here rather than
+// derived from `glow`.
+const ACCENT: Record<string, { bar: string; hoverGlow: string }> = {
+  pink: {
+    bar: 'bg-pink',
+    hoverGlow: 'hover:shadow-[0_0_0_1px_var(--color-pink),0_12px_28px_-16px_var(--color-pink)]',
+  },
+  terra: {
+    bar: 'bg-terra',
+    hoverGlow: 'hover:shadow-[0_0_0_1px_var(--color-terra),0_12px_28px_-16px_var(--color-terra)]',
+  },
+  sage: {
+    bar: 'bg-sage',
+    hoverGlow: 'hover:shadow-[0_0_0_1px_var(--color-sage),0_12px_28px_-16px_var(--color-sage)]',
+  },
+};
+
+function accentFor(token: string) {
+  return ACCENT[token] ?? ACCENT.pink!;
 }
 
 export interface BookingFlowProps {
@@ -97,25 +131,17 @@ export function BookingFlow({ slug }: BookingFlowProps) {
 
   if (!data) return <Shell>{<LoadingClasses />}</Shell>;
 
-  if (result) {
-    return (
-      <Shell studioName={data.studio.name} handle={data.studio.instagram_handle}>
-        <Confirmation result={result} />
-      </Shell>
-    );
-  }
-
-  if (chosen) {
-    return (
-      <Shell studioName={data.studio.name} handle={data.studio.instagram_handle}>
-        <DetailsStep slug={slug} item={chosen} onBack={() => setChosen(null)} onDone={setResult} />
-      </Shell>
-    );
-  }
+  const step = result ? 3 : chosen ? 2 : 1;
 
   return (
-    <Shell studioName={data.studio.name} handle={data.studio.instagram_handle}>
-      <ClassPicker classes={data.classes} onPick={setChosen} />
+    <Shell studioName={data.studio.name} handle={data.studio.instagram_handle} step={step}>
+      {result ? (
+        <Confirmation result={result} />
+      ) : chosen ? (
+        <DetailsStep slug={slug} item={chosen} onBack={() => setChosen(null)} onDone={setResult} />
+      ) : (
+        <ClassPicker classes={data.classes} onPick={setChosen} />
+      )}
     </Shell>
   );
 }
@@ -128,28 +154,64 @@ function Shell({
   children,
   studioName,
   handle,
+  step,
 }: {
   children: React.ReactNode;
   studioName?: string;
   handle?: string | null;
+  step?: 1 | 2 | 3;
 }) {
   return (
-    <main id="main" className="mx-auto w-full max-w-[560px] px-4 py-8 sm:px-6 sm:py-12">
-      {studioName ? (
-        <header className="mb-6 text-center">
-          <h1 className="font-display text-[clamp(28px,7vw,38px)] leading-tight">{studioName}</h1>
-          <p className="font-hand text-latte text-lg">Come make something with us ♡</p>
-        </header>
-      ) : null}
+    <main id="main" className="bg-buttercream min-h-screen">
+      {studioName ? <BookingHero studioName={studioName} handle={handle} /> : null}
 
-      {children}
-
-      {handle ? (
-        <p className="text-latte mt-8 text-center text-sm">
-          Find us on Instagram <b>@{handle}</b>
-        </p>
-      ) : null}
+      <div
+        className={cn(
+          'mx-auto w-full max-w-[560px] px-4 sm:px-6',
+          // The widget overlaps the hero's rounded bottom edge — a card
+          // laid on top of the scene rather than a new page starting below
+          // it, which is most of what makes this feel designed rather than
+          // stacked.
+          studioName ? '-mt-8 pb-14 sm:-mt-10' : 'py-8 sm:py-12',
+        )}
+      >
+        <div
+          className={cn(
+            'border-line bg-paper relative rounded-[var(--radius-lg)] border-[1.5px] p-5 sm:p-7',
+            studioName && 'shadow-[0_24px_48px_-24px_rgb(64_48_42_/25%)]',
+          )}
+        >
+          {step ? <StepDots current={step} /> : null}
+          {children}
+        </div>
+      </div>
     </main>
+  );
+}
+
+function StepDots({ current }: { current: 1 | 2 | 3 }) {
+  const labels = ['Pick a class', 'Your details', 'Confirmed'];
+
+  return (
+    <div
+      role="progressbar"
+      aria-valuenow={current}
+      aria-valuemin={1}
+      aria-valuemax={3}
+      aria-label={`Step ${current} of 3: ${labels[current - 1]}`}
+      className="mb-5 flex items-center justify-center gap-2"
+    >
+      {[1, 2, 3].map((n) => (
+        <span
+          key={n}
+          aria-hidden="true"
+          className={cn(
+            'h-2 rounded-[var(--radius-pill)] transition-[width,background-color] duration-300',
+            n === current ? 'bg-rose w-7' : n < current ? 'bg-rose/50 w-2' : 'bg-blush w-2',
+          )}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -184,8 +246,11 @@ function ClassPicker({
 
   if (classes.length === 0) {
     return (
-      <div className="border-line bg-paper rounded-[var(--radius-lg)] border-[1.5px] p-6 text-center">
-        <p className="font-display text-xl">No classes open right now</p>
+      <div className="p-1 text-center">
+        <p className="text-5xl" aria-hidden="true">
+          🌷
+        </p>
+        <p className="font-display mt-2 text-xl">No classes open right now</p>
         <p className="text-latte mt-1 text-sm">
           New dates go up often — follow along and you&rsquo;ll catch the next one.
         </p>
@@ -200,27 +265,38 @@ function ClassPicker({
       </h2>
 
       <ul className="grid gap-3">
-        {classes.map((item) => {
+        {classes.map((item, index) => {
           const seats = seatCopy(item);
+          const accent = accentFor(item.color_token);
 
           return (
-            <li key={item.id}>
+            <li key={item.id} className="animate-rise-in" style={{ animationDelay: `${index * 60}ms` }}>
               <button
                 type="button"
                 onClick={() => onPick(item)}
                 className={cn(
-                  'border-line bg-paper w-full rounded-[var(--radius-md)] border-[1.5px]',
-                  'min-h-[44px] p-4 text-left transition-transform',
-                  'hover:border-rose hover:-translate-y-0.5 motion-reduce:transform-none',
+                  'group border-line bg-paper relative w-full overflow-hidden rounded-[var(--radius-md)] border-[1.5px]',
+                  'min-h-[44px] py-4 pr-4 pl-5 text-left transition-[transform,box-shadow] duration-200',
+                  'hover:border-transparent hover:-translate-y-1',
+                  accent.hoverGlow,
+                  'motion-reduce:transform-none',
                   'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
                 )}
               >
+                {/* The class-type accent bar — same colour language as the
+                    admin calendar, so a returning guest's eye already knows
+                    what pink versus terracotta means here. */}
+                <span
+                  aria-hidden="true"
+                  className={cn('absolute inset-y-0 left-0 w-1.5', accent.bar)}
+                />
+
                 <span className="font-display block text-lg">{item.name}</span>
 
                 {/* suppressHydrationWarning: the date is formatted in the
                     visitor's locale, which the server cannot know. */}
                 <span className="text-cocoa mt-0.5 block text-sm" suppressHydrationWarning>
-                  {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
+                  {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
                 </span>
 
                 {item.location ? (
@@ -229,15 +305,23 @@ function ClassPicker({
 
                 <span
                   className={cn(
-                    'mt-2 inline-block rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
+                    'mt-2 inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
                     item.is_full
                       ? 'bg-butter-soft text-butter-ink'
                       : seats.urgent
-                        ? 'bg-blush text-rose-ink'
+                        ? 'bg-blush text-rose-ink animate-pulse motion-reduce:animate-none'
                         : 'bg-sage-soft text-sage-ink',
                   )}
                 >
+                  {seats.urgent && !item.is_full ? <span aria-hidden="true">🔥</span> : null}
                   {seats.text}
+                </span>
+
+                <span
+                  aria-hidden="true"
+                  className="text-rose-ink absolute top-1/2 right-4 -translate-y-1/2 text-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:hidden"
+                >
+                  →
                 </span>
               </button>
             </li>
@@ -331,13 +415,17 @@ function DetailsStep({
         ← Pick a different class
       </button>
 
-      <div className="border-line bg-buttercream mb-4 rounded-[var(--radius-md)] border-[1.5px] p-3.5">
-        <b className="font-display block text-lg">{item.name}</b>
-        <span className="text-latte block text-sm" suppressHydrationWarning>
-          {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
+      <div className="border-line bg-buttercream relative mb-4 overflow-hidden rounded-[var(--radius-md)] border-[1.5px] p-3.5">
+        <span
+          aria-hidden="true"
+          className={cn('absolute inset-y-0 left-0 w-1.5', accentFor(item.color_token).bar)}
+        />
+        <b className="font-display block pl-2 text-lg">{item.name}</b>
+        <span className="text-latte block pl-2 text-sm" suppressHydrationWarning>
+          {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
         </span>
         {item.is_full ? (
-          <span className="bg-butter-soft text-butter-ink mt-2 inline-block rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold">
+          <span className="bg-butter-soft text-butter-ink mt-2 ml-2 inline-block rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold">
             Fully booked — you&rsquo;ll join the waitlist
           </span>
         ) : null}
@@ -357,6 +445,7 @@ function DetailsStep({
           id={`${ids}-name`}
           name="full_name"
           label="Your name"
+          icon="user"
           autoComplete="name"
           required
           invalid={fieldError === 'name'}
@@ -366,6 +455,7 @@ function DetailsStep({
           id={`${ids}-phone`}
           name="phone"
           label="Phone (WhatsApp)"
+          icon="phone"
           type="tel"
           inputMode="tel"
           autoComplete="tel"
@@ -377,6 +467,7 @@ function DetailsStep({
           id={`${ids}-email`}
           name="email"
           label="Email"
+          icon="mail"
           type="email"
           inputMode="email"
           autoComplete="email"
@@ -388,6 +479,7 @@ function DetailsStep({
           id={`${ids}-allergies`}
           name="allergies"
           label="Any allergies we should know about?"
+          icon="heart"
           hint="Optional — but please do tell us, we take it seriously"
         />
 
@@ -395,6 +487,7 @@ function DetailsStep({
           id={`${ids}-note`}
           name="note"
           label="Anything fun we should put on your name tag?"
+          icon="sparkle"
           hint="Optional — a flavour, a nickname, whatever you like"
         />
 
@@ -415,7 +508,7 @@ function DetailsStep({
         <p
           role="alert"
           aria-live="assertive"
-          className="text-danger text-sm font-bold empty:hidden"
+          className="text-danger animate-rise-in text-sm font-bold empty:hidden"
         >
           {error}
         </p>
@@ -425,7 +518,9 @@ function DetailsStep({
           disabled={submitting}
           className={cn(
             'bg-rose text-on-rose min-h-[48px] rounded-[var(--radius-pill)]',
-            'px-5 text-base font-extrabold shadow-[var(--shadow-soft)]',
+            'px-5 text-base font-extrabold shadow-[0_10px_24px_-10px_var(--color-rose)]',
+            'transition-transform hover:-translate-y-0.5 active:translate-y-0',
+            'motion-reduce:transform-none',
             'focus-visible:outline-cocoa focus-visible:outline-[3px] focus-visible:outline-offset-2',
             'disabled:opacity-70',
           )}
@@ -441,6 +536,63 @@ function DetailsStep({
   );
 }
 
+type FieldIcon = 'user' | 'phone' | 'mail' | 'heart' | 'sparkle';
+
+function FieldIconGlyph({ icon }: { icon: FieldIcon }) {
+  const common = { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': true, className: 'size-[18px]' } as const;
+
+  switch (icon) {
+    case 'user':
+      return (
+        <svg {...common}>
+          <circle cx="10" cy="6.5" r="3.25" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M3.5 17c1-3.6 4-5.5 6.5-5.5s5.5 1.9 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case 'phone':
+      return (
+        <svg {...common}>
+          <path
+            d="M6 3h2.2l1 3.2-1.6 1.4a9 9 0 0 0 4.8 4.8l1.4-1.6 3.2 1v2.2c0 .9-.8 1.6-1.7 1.5A13.5 13.5 0 0 1 4.5 4.7C4.4 3.8 5.1 3 6 3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case 'mail':
+      return (
+        <svg {...common}>
+          <path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-9Z" stroke="currentColor" strokeWidth="1.6" />
+          <path d="m3.5 5.5 6.5 5 6.5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case 'heart':
+      return (
+        <svg {...common}>
+          <path
+            d="M10 16.5S3 12.3 3 7.8A3.3 3.3 0 0 1 10 6a3.3 3.3 0 0 1 7 1.8c0 4.5-7 8.7-7 8.7Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case 'sparkle':
+      return (
+        <svg {...common}>
+          <path
+            d="M10 3.5c.4 2.6 1.2 3.9 4 4.4-2.8.5-3.6 1.8-4 4.4-.4-2.6-1.2-3.9-4-4.4 2.8-.5 3.6-1.8 4-4.4Z"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
+          <path d="M15.5 13c.2 1.4.6 2 1.9 2.3-1.3.3-1.7 1-1.9 2.3-.2-1.4-.6-2-1.9-2.3 1.3-.3 1.7-1 1.9-2.3Z" fill="currentColor" />
+        </svg>
+      );
+  }
+}
+
 function Field({
   id,
   name,
@@ -448,6 +600,7 @@ function Field({
   hint,
   invalid,
   required,
+  icon,
   ...input
 }: {
   id: string;
@@ -456,6 +609,7 @@ function Field({
   hint?: string;
   invalid?: boolean;
   required?: boolean;
+  icon: FieldIcon;
 } & React.InputHTMLAttributes<HTMLInputElement>) {
   const hintId = hint ? `${id}-hint` : undefined;
 
@@ -472,18 +626,25 @@ function Field({
         </p>
       ) : null}
 
-      <input
-        {...input}
-        id={id}
-        name={name}
-        aria-describedby={hintId}
-        aria-invalid={invalid || undefined}
-        className={cn(
-          'bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3',
-          'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
-          invalid ? 'border-danger' : 'border-line',
-        )}
-      />
+      <div className="relative">
+        <span className="text-latte pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
+          <FieldIconGlyph icon={icon} />
+        </span>
+
+        <input
+          {...input}
+          id={id}
+          name={name}
+          aria-describedby={hintId}
+          aria-invalid={invalid || undefined}
+          className={cn(
+            'bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] py-2.5 pr-3 pl-10',
+            'transition-[border-color,box-shadow] duration-150',
+            'focus-visible:outline-none focus-visible:border-rose focus-visible:shadow-[0_0_0_4px_var(--color-blush)]',
+            invalid ? 'border-danger' : 'border-line',
+          )}
+        />
+      </div>
     </div>
   );
 }
@@ -503,26 +664,29 @@ function Confirmation({ result }: { result: BookingResult }) {
   const tokenType = result.portal_token_type;
 
   return (
-    <section className="text-center" aria-live="polite">
-      <p className="text-5xl" aria-hidden="true">
+    <section className="relative text-center" aria-live="polite">
+      <Confetti />
+
+      <p className="animate-rise-in text-6xl" aria-hidden="true" style={{ animationDelay: '80ms' }}>
         {waitlisted ? '💌' : '🎀'}
       </p>
 
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="font-display mt-2 text-[clamp(24px,6vw,30px)] outline-none"
+        className="font-display animate-rise-in mt-2 text-[clamp(24px,6vw,30px)] outline-none"
+        style={{ animationDelay: '140ms' }}
       >
         {/* A real apostrophe, not an entity: this is a JS string, so `&rsquo;`
             would render as those eight characters. */}
         {waitlisted ? 'You’re on the list' : 'You’re in!'}
       </h2>
 
-      <p className="text-cocoa mt-2">
+      <p className="text-cocoa animate-rise-in mt-2" style={{ animationDelay: '200ms' }}>
         <b>{result.class_name}</b>
         <br />
         <span suppressHydrationWarning>
-          {now ? `${formatDay(result.starts_at)} · ${formatTime(result.starts_at)}` : ' '}
+          {now ? `${formatDay(result.starts_at)} · ${formatTime(result.starts_at)}` : ' '}
         </span>
         {result.location ? (
           <>
@@ -533,12 +697,12 @@ function Confirmation({ result }: { result: BookingResult }) {
       </p>
 
       {waitlisted ? (
-        <p className="text-latte mx-auto mt-4 max-w-[38ch] text-sm">
+        <p className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm" style={{ animationDelay: '260ms' }}>
           You&rsquo;re number <b>{result.waitlist_position}</b> in the queue. If a seat opens up
           we&rsquo;ll message you straight away — no need to check back.
         </p>
       ) : (
-        <p className="text-latte mx-auto mt-4 max-w-[38ch] text-sm">
+        <p className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm" style={{ animationDelay: '260ms' }}>
           We&rsquo;ll send you a reminder the day before with everything you need. Just bring
           yourself — aprons are on us.
         </p>
@@ -550,6 +714,42 @@ function Confirmation({ result }: { result: BookingResult }) {
         <p className="font-hand text-latte mt-5 text-lg">Can&rsquo;t wait to see you ♡</p>
       )}
     </section>
+  );
+}
+
+/**
+ * One confetti burst, per the style guide's own rule — not a looping
+ * celebration, a single moment. CSS only, and skipped entirely under
+ * reduced motion rather than left static: a field of frozen dots is just
+ * clutter with no motion left to justify it.
+ */
+function Confetti() {
+  const pieces = [
+    { left: '12%', color: 'var(--color-rose)', delay: '0ms' },
+    { left: '28%', color: 'var(--color-terra)', delay: '60ms' },
+    { left: '45%', color: 'var(--color-sage)', delay: '20ms' },
+    { left: '58%', color: 'var(--color-butter)', delay: '90ms' },
+    { left: '72%', color: 'var(--color-pink)', delay: '40ms' },
+    { left: '86%', color: 'var(--color-rose)', delay: '110ms' },
+  ];
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0 -top-2 h-0 motion-reduce:hidden"
+    >
+      {pieces.map((piece, index) => (
+        <span
+          key={index}
+          className="absolute top-0 size-2 rounded-full opacity-90"
+          style={{
+            left: piece.left,
+            backgroundColor: piece.color,
+            animation: `fall 900ms ease-in ${piece.delay} both`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -610,7 +810,7 @@ function PortalHandoff({
   }
 
   return (
-    <div className="mt-6">
+    <div className="animate-rise-in mt-6" style={{ animationDelay: '340ms' }}>
       <button
         type="button"
         onClick={() => void open()}
