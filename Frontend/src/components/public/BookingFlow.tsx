@@ -13,6 +13,7 @@ import {
   type PublicClass,
   type PublicClassList,
 } from '@/lib/public/api';
+import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 import { cn } from '@/lib/cn';
 
 /**
@@ -229,7 +230,16 @@ function Shell({
           )}
         >
           {step ? <StepDots current={step} /> : null}
-          {children}
+          {/* Re-keyed per step: picking a class, filling the form, and
+              landing on the confirmation are three different screens
+              wearing one card. Without this the swap between them is
+              instant and flat; the key forces React to remount the whole
+              subtree so the same rise-in used everywhere else on this page
+              plays here too, making the step change read as a deliberate
+              transition rather than a layout jump. */}
+          <div key={step} className="animate-rise-in">
+            {children}
+          </div>
         </div>
       </div>
     </main>
@@ -284,9 +294,18 @@ function LoadingClasses() {
  * saying nothing is worse than no section at all.
  */
 function StorySection({ story }: { story: string }) {
+  const [ref, visible] = useRevealOnScroll<HTMLParagraphElement>();
+
   return (
     <section className="px-4 sm:px-6">
-      <p className="border-line bg-paper animate-rise-in mx-auto max-w-[52ch] rounded-[var(--radius-lg)] border-[1.5px] p-5 text-center text-[15px] leading-relaxed sm:text-base">
+      <p
+        ref={ref}
+        className={cn(
+          'border-line bg-paper mx-auto max-w-[52ch] rounded-[var(--radius-lg)] border-[1.5px] p-5 text-center text-[15px] leading-relaxed sm:text-base',
+          'transition-[opacity,transform] duration-500',
+          visible ? 'opacity-100' : 'opacity-0 translate-y-3',
+        )}
+      >
         {story}
       </p>
     </section>
@@ -305,6 +324,7 @@ function ClassPicker({
   onPick: (item: PublicClass) => void;
 }) {
   const now = useMountedNow();
+  const [listRef, listVisible] = useRevealOnScroll<HTMLUListElement>();
 
   if (classes.length === 0) {
     return (
@@ -326,20 +346,24 @@ function ClassPicker({
         Pick your class
       </h2>
 
-      <ul className="grid gap-3">
+      <ul ref={listRef} className="grid gap-3">
         {classes.map((item, index) => {
           const seats = seatCopy(item);
           const accent = accentFor(item.color_token);
 
           return (
-            <li key={item.id} className="animate-rise-in" style={{ animationDelay: `${index * 60}ms` }}>
+            <li
+              key={item.id}
+              className={listVisible ? 'animate-rise-in' : undefined}
+              style={listVisible ? { animationDelay: `${index * 60}ms` } : { opacity: 0 }}
+            >
               <button
                 type="button"
                 onClick={() => onPick(item)}
                 className={cn(
                   'group border-line bg-paper relative w-full overflow-hidden rounded-[var(--radius-md)] border-[1.5px]',
                   'min-h-[44px] py-4 pr-4 pl-5 text-left transition-[transform,box-shadow] duration-200',
-                  'hover:border-transparent hover:-translate-y-1',
+                  'hover:border-transparent hover:[transform:perspective(600px)_rotateX(1.5deg)_translateY(-4px)]',
                   accent.hoverGlow,
                   'motion-reduce:transform-none',
                   'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',

@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
+import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 
 /**
  * "What we make here" — one card per craft the studio actually teaches,
@@ -52,6 +53,7 @@ function blockFor(token: string) {
 
 export function CraftStrip({ classes }: { classes: PublicClass[] }) {
   const crafts = craftsFrom(classes);
+  const [ref, visible] = useRevealOnScroll<HTMLUListElement>();
   if (crafts.length === 0) return null;
 
   return (
@@ -59,20 +61,29 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
       <h2 className="font-display px-4 text-xl sm:px-6">What we make here</h2>
 
       {/* overflow-x-auto + snap: the natural swipe-to-browse gesture on a
-          phone, rather than a grid that has to wrap and shrink. */}
-      <ul className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:px-6 [&::-webkit-scrollbar]:hidden">
+          phone, rather than a grid that has to wrap and shrink. Cards reveal
+          only once this strip has actually scrolled into view, so the
+          stagger plays out in front of the guest instead of finishing
+          before they ever see it. */}
+      <ul
+        ref={ref}
+        className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:px-6 [&::-webkit-scrollbar]:hidden"
+      >
         {crafts.map((craft, index) => {
           const block = blockFor(craft.token);
 
           return (
             <li
               key={craft.token}
-              className="animate-rise-in w-[72vw] max-w-[260px] shrink-0 snap-start sm:w-[220px]"
-              style={{ animationDelay: `${index * 80}ms` }}
+              className={cn(
+                'w-[72vw] max-w-[260px] shrink-0 snap-start sm:w-[220px]',
+                visible && 'animate-rise-in',
+              )}
+              style={visible ? { animationDelay: `${index * 80}ms` } : { opacity: 0 }}
             >
               <div
                 className={cn(
-                  'relative flex h-[168px] flex-col justify-between overflow-hidden rounded-[var(--radius-lg)] p-4',
+                  'group relative flex h-[168px] flex-col justify-between overflow-hidden rounded-[var(--radius-lg)] p-4',
                   craft.photoUrl ? 'text-buttercream' : cn(block.bg, block.ink),
                 )}
               >
@@ -84,7 +95,7 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
                       alt=""
                       aria-hidden="true"
                       loading="lazy"
-                      className="absolute inset-0 size-full object-cover"
+                      className="absolute inset-0 size-full scale-100 object-cover transition-transform duration-500 group-hover:scale-110 group-active:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                     />
                     <div
                       aria-hidden="true"
