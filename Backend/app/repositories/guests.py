@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.errors import NotFoundError
 from app.domain.capacity import Capacity
+from app.domain.guests import REGULAR_FROM_VISIT
 from app.domain.messages import render
 from app.domain.scheduling import QuietHours
 from app.domain.waitlist import WaitlistEntry as DomainWaitlistEntry
@@ -37,7 +38,7 @@ from app.services.guests import (
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from datetime import date
+    from datetime import date, datetime
     from uuid import UUID
 
     from app.core.db import TenantSession
@@ -123,17 +124,31 @@ class SqlGuestRepository:
 
         return {row[0]: int(row[1]) for row in rows}
 
-    def list_guests(self) -> Sequence[GuestSnapshot]:
+    def list_guests(
+        self, *, search: str | None = None, regulars_only: bool = False
+    ) -> Sequence[GuestSnapshot]:
         # selectinload, not lazy loading: the roster renders every guest's
         # allergy chips, so the default would fire one query per guest.
         #
         # Credits needed the same treatment and had not had it — see
         # `_credits_by_guest`.
+        #
+        # Filtering and sorting happen here, not by fetching every guest and
+        # thinning the list out in Python: a studio's roster only grows over
+        # its lifetime, and this is the one list endpoint whose cost isn't
+        # naturally bounded by a date window the way sessions are.
         statement = (
             self._db.query(Guest)
             .where(Guest.archived_at.is_(None))
             .options(selectinload(Guest.allergies))
+            .order_by(func.lower(Guest.full_name))
         )
+
+        if search:
+            statement = statement.where(Guest.full_name.ilike(f"%{search}%"))
+
+        if regulars_only:
+            statement = statement.where(Guest.visit_count >= REGULAR_FROM_VISIT)
 
         credits = self._credits_by_guest()
 

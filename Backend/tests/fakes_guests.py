@@ -64,8 +64,19 @@ class FakeGuestRepository:
 
     # -- GuestRepository ----------------------------------------------------
 
-    def list_guests(self) -> list[GuestSnapshot]:
-        return list(self.guests.values())
+    def list_guests(
+        self, *, search: str | None = None, regulars_only: bool = False
+    ) -> list[GuestSnapshot]:
+        guests = list(self.guests.values())
+
+        if search:
+            needle = search.strip().lower()
+            guests = [g for g in guests if needle in g.full_name.lower()]
+
+        if regulars_only:
+            guests = [g for g in guests if g.is_regular]
+
+        return sorted(guests, key=lambda g: g.full_name.lower())
 
     def get_guest(self, guest_id: UUID) -> GuestSnapshot | None:
         return self.guests.get(guest_id)

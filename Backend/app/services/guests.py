@@ -123,7 +123,20 @@ class BookingSnapshot:
 
 
 class GuestRepository(Protocol):
-    def list_guests(self) -> Sequence[GuestSnapshot]: ...
+    def list_guests(
+        self, *, search: str | None = None, regulars_only: bool = False
+    ) -> Sequence[GuestSnapshot]:
+        """Every guest, or a filtered subset.
+
+        The filters are optional and default to "everyone" because callers
+        like duplicate-detection and the birthday radar need the whole
+        studio, not a search result. The guest-list endpoint is the only
+        caller that passes them, so the filtering — and the sort, which used
+        to happen in Python after this returned — is pushed to SQL there
+        rather than materialising every guest row to filter a handful out in
+        the application layer.
+        """
+        ...
 
     def get_guest(self, guest_id: UUID) -> GuestSnapshot | None: ...
 
@@ -194,16 +207,11 @@ class GuestService:
     def list_guests(
         self, *, regulars_only: bool = False, search: str | None = None
     ) -> list[GuestSnapshot]:
-        guests = list(self._repo.list_guests())
-
-        if regulars_only:
-            guests = [g for g in guests if g.is_regular]
-
-        if search:
-            needle = search.strip().lower()
-            guests = [g for g in guests if needle in g.full_name.lower()]
-
-        return sorted(guests, key=lambda g: g.full_name.lower())
+        # Filtered and sorted in SQL, not by materialising every guest row and
+        # thinning it out here — a studio's guest list only grows, and it's
+        # the one list in this app not bounded by a date window.
+        needle = search.strip() if search else None
+        return list(self._repo.list_guests(search=needle or None, regulars_only=regulars_only))
 
     def create(self, draft: GuestDraft, *, merge_duplicates: bool = False) -> GuestSnapshot:
         """Add a guest, refusing to fragment an existing person's history.

@@ -21,7 +21,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 
 from app.api.deps import GuestDb
 from app.api.v1.portal import SEAT_HOLDING, display_name_for
@@ -156,25 +156,6 @@ def _membership(caller: GuestDb, room: ChatRoom) -> ChatMembership:
         caller.db.flush()
 
     return row
-
-
-def _unread_count(caller: GuestDb, room: ChatRoom, since: datetime | None) -> int:
-    """Messages this guest has not seen, excluding their own.
-
-    A badge that counts your own message is noise — you were there when you
-    sent it.
-    """
-    statement = select(func.count(ChatMessage.id)).where(
-        ChatMessage.studio_id == caller.studio_id,
-        ChatMessage.room_id == room.id,
-        ChatMessage.deleted_at.is_(None),
-        ChatMessage.guest_id != caller.guest_id,
-    )
-
-    if since is not None:
-        statement = statement.where(ChatMessage.created_at > since)
-
-    return int(caller.db.raw.execute(statement).scalar_one())
 
 
 def _serialise(
@@ -314,21 +295,87 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
             select(Studio.name).where(Studio.id == caller.studio_id)
         ).scalar_one_or_none()
 
+    # Membership, the latest message and the unread count all used to be one
+    # query per room here — the same shape already fixed on the host side
+    # (see admin_chat.list_all_rooms), just missed on this one. Batched the
+    # same way: a guest with the lounge, a direct thread and several booked
+    # workshops was paying for three round trips per room on every poll of
+    # their own chat tab.
+    room_ids = [room.id for room in rooms]
+
+    existing_memberships = {
+        m.room_id: m
+        for m in caller.db.raw.execute(
+            select(ChatMembership).where(
+                ChatMembership.studio_id == caller.studio_id,
+                ChatMembership.guest_id == caller.guest_id,
+                ChatMembership.room_id.in_(room_ids),
+            )
+        ).scalars()
+    }
+
+    memberships: dict[UUID, ChatMembership] = {}
+    for room in rooms:
+        membership = existing_memberships.get(room.id)
+        if membership is None:
+            # First time this guest has ever listed this room. Added, not
+            # flushed: nothing below needs to read it back, and the studio's
+            # own end-of-function flush covers it.
+            membership = ChatMembership(
+                studio_id=caller.studio_id, room_id=room.id, guest_id=caller.guest_id
+            )
+            caller.db.add(membership)
+        memberships[room.id] = membership
+
+    # `DISTINCT ON` rather than a query per room: one row per room, the one
+    # with the latest `created_at`.
+    latest_by_room: dict[UUID, tuple[str, datetime]] = {}
+    if room_ids:
+        latest_by_room = {
+            row[0]: (row[1], row[2])
+            for row in caller.db.raw.execute(
+                select(ChatMessage.room_id, ChatMessage.body, ChatMessage.created_at)
+                .distinct(ChatMessage.room_id)
+                .where(
+                    ChatMessage.studio_id == caller.studio_id,
+                    ChatMessage.room_id.in_(room_ids),
+                    ChatMessage.deleted_at.is_(None),
+                )
+                .order_by(ChatMessage.room_id, ChatMessage.created_at.desc())
+            ).all()
+        }
+
+    # Each room has its own "since" threshold (this guest's own last read of
+    # it), so the per-room condition is OR'd into one grouped query rather
+    # than issuing one query per room.
+    unread_by_room: dict[UUID, int] = dict.fromkeys(room_ids, 0)
+    if room_ids:
+        per_room = [
+            and_(ChatMessage.room_id == room.id, ChatMessage.created_at > since)
+            if (since := memberships[room.id].last_read_at) is not None
+            else (ChatMessage.room_id == room.id)
+            for room in rooms
+        ]
+        unread_by_room.update(
+            {
+                row[0]: row[1]
+                for row in caller.db.raw.execute(
+                    select(ChatMessage.room_id, func.count(ChatMessage.id))
+                    .where(
+                        ChatMessage.studio_id == caller.studio_id,
+                        ChatMessage.deleted_at.is_(None),
+                        ChatMessage.guest_id != caller.guest_id,
+                        or_(*per_room),
+                    )
+                    .group_by(ChatMessage.room_id)
+                ).all()
+            }
+        )
+
     out: list[ChatRoomRead] = []
 
     for room in rooms:
-        membership = _membership(caller, room)
-
-        latest = caller.db.raw.execute(
-            select(ChatMessage)
-            .where(
-                ChatMessage.studio_id == caller.studio_id,
-                ChatMessage.room_id == room.id,
-                ChatMessage.deleted_at.is_(None),
-            )
-            .order_by(ChatMessage.created_at.desc())
-            .limit(1)
-        ).scalar_one_or_none()
+        latest = latest_by_room.get(room.id)
 
         out.append(
             ChatRoomRead(
@@ -338,9 +385,9 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
                     (studio_name or "Your host") if room.kind is ChatRoomKind.DIRECT else room.name
                 ),
                 session_id=room.session_id,
-                unread_count=_unread_count(caller, room, membership.last_read_at),
-                last_message_at=latest.created_at if latest else None,
-                last_message_preview=latest.body[:80] if latest else None,
+                unread_count=unread_by_room.get(room.id, 0),
+                last_message_at=latest[1] if latest else None,
+                last_message_preview=latest[0][:80] if latest else None,
                 banner=banners.get(room.id),
                 starts_at=starts.get(room.session_id) if room.session_id else None,
             )

@@ -30,7 +30,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session as SASession
 
@@ -133,12 +133,27 @@ def _booked_count(db: SASession, studio_id: UUID, session_id: UUID) -> int:
 
 @router.get("/{slug}/classes", response_model=PublicClassList)
 @limiter.limit("60/minute")
-def list_public_classes(request: Request, slug: str, db: Db) -> PublicClassList:  # noqa: ARG001
+def list_public_classes(
+    request: Request,  # noqa: ARG001
+    slug: str,
+    db: Db,
+    response: Response,
+) -> PublicClassList:
     """Upcoming, bookable classes for one studio.
 
     Filtered to future and `scheduled` only: a locked, cancelled or completed
     class must not be advertised, and a past one is noise.
     """
+    # This is what an ad links to, and it carries nothing sensitive — no
+    # guest data, nothing per-visitor. The security-headers middleware
+    # defaults every response to `no-store`; this one opts out so a burst of
+    # traffic from a campaign is served from Vercel's edge cache instead of
+    # hitting the function and the database on every single visitor. A short
+    # window, because `seats_left` is real capacity — 15s is long enough to
+    # matter under load and short enough that a near-sellout still reads as
+    # current.
+    response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
+
     studio = _studio_or_404(db, slug)
     now = datetime.now(UTC)
 
@@ -158,9 +173,29 @@ def list_public_classes(request: Request, slug: str, db: Db) -> PublicClassList:
 
     brand = db.execute(select(BrandKit).where(BrandKit.studio_id == studio.id)).scalar_one_or_none()
 
+    # One grouped query for every session's booked count, not one query per
+    # session. This endpoint has no auth barrier — it's what an ad links to —
+    # so a per-session round trip here is the most expensive place in the
+    # whole app to have one.
+    session_ids = [session.id for session in sessions]
+    booked_counts: dict[UUID, int] = {}
+    if session_ids:
+        booked_counts = {
+            row[0]: row[1]
+            for row in db.execute(
+                select(Booking.session_id, func.count(Booking.id))
+                .where(
+                    Booking.studio_id == studio.id,
+                    Booking.session_id.in_(session_ids),
+                    Booking.status.in_(SEAT_OCCUPYING),
+                )
+                .group_by(Booking.session_id)
+            ).all()
+        }
+
     classes: list[PublicClass] = []
     for session in sessions:
-        booked = _booked_count(db, studio.id, session.id)
+        booked = booked_counts.get(session.id, 0)
         seats_left = max(0, session.seats - booked)
 
         classes.append(

@@ -165,8 +165,12 @@ def _register_security_headers(app: FastAPI) -> None:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         # API responses are JSON; nothing should ever be executed or embedded.
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-        # Guest contact and allergy data must not sit in shared caches.
-        response.headers["Cache-Control"] = "no-store"
+        # Guest contact and allergy data must not sit in shared caches. A
+        # route that sets its own Cache-Control wins — see list_public_classes,
+        # which is what an ad links to and carries nothing sensitive, so it
+        # opts into a short cache to survive a traffic spike rather than
+        # hitting the database on every visitor.
+        response.headers.setdefault("Cache-Control", "no-store")
 
         return response
 
