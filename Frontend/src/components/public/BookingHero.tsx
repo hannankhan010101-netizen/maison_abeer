@@ -4,6 +4,9 @@ import dynamic from 'next/dynamic';
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
+import { scrollToId } from '@/lib/public/lenisBridge';
+import { useHeroParallax } from '@/lib/public/useHeroParallax';
+import { useMagnetic } from '@/lib/public/useMagnetic';
 
 /**
  * The booking page's hero — the studio's name as the actual hero, a floating
@@ -24,6 +27,13 @@ import { cn } from '@/lib/cn';
  * `three` downloading, parsing or finding a WebGL context — a guest from an
  * ad on mid-tier mobile data should see a finished-looking hero within the
  * same budget as if the 3D layer didn't exist at all.
+ *
+ * When a studio *has* added a real photo, the hero becomes a full-bleed
+ * cinematic still rather than a UI panel laid over one: a slow ambient zoom
+ * on the image, a few pixels of cursor-driven parallax on desktop, and a
+ * scrim that dissolves all the way into the page's own background colour at
+ * the bottom edge — so the hero doesn't end at a hard seam, it fades into
+ * the section beneath it the way a page in a printed book turns.
  */
 
 const Hero3D = dynamic(() => import('./Hero3D'), { ssr: false });
@@ -105,6 +115,8 @@ export function BookingHero({
 }: BookingHeroProps) {
   const mayAnimate = useMayAnimate();
   const hasPhoto = Boolean(heroPhotoUrl);
+  const parallaxRef = useHeroParallax<HTMLDivElement>();
+  const ctaRef = useMagnetic<HTMLAnchorElement>();
 
   // The whole design system already routes colour through CSS custom
   // properties (see tokens.css and how `.mocha` retheming works the same
@@ -128,24 +140,31 @@ export function BookingHero({
       className={cn(
         'relative isolate overflow-hidden',
         'rounded-b-[2.5rem] border-b-[1.5px] border-line',
-        'px-4 pt-12 pb-20 text-center sm:px-6 sm:pt-16 sm:pb-24',
+        'px-4 pt-12 pb-24 text-center sm:px-6 sm:pt-16 sm:pb-28',
       )}
     >
       {hasPhoto ? (
         <>
-          {/* A real photo, full-bleed. `<img>`, not next/image: a host
-              pastes any URL they like into Brand Kit (same pattern as
-              logo_url), so there is no fixed set of hosts to allowlist the
-              way next/image's remotePatterns requires. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={heroPhotoUrl ?? undefined}
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            fetchPriority="high"
-            className="absolute inset-0 size-full object-cover"
-          />
+          {/* The parallax layer: a JS-driven translate on this wrapper, kept
+              separate from the image's own CSS zoom animation below so the
+              two transforms never fight over the same `transform`
+              property. `overflow-hidden` plus the zoom's 6% overscan is
+              what keeps a few pixels of drift from ever revealing an edge. */}
+          <div ref={parallaxRef} aria-hidden="true" className="absolute inset-0 overflow-hidden will-change-transform">
+            {/* A real photo, full-bleed. `<img>`, not next/image: a host
+                pastes any URL they like into Brand Kit (same pattern as
+                logo_url), so there is no fixed set of hosts to allowlist the
+                way next/image's remotePatterns requires. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={heroPhotoUrl ?? undefined}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              fetchPriority="high"
+              className="animate-hero-zoom absolute inset-0 size-full object-cover motion-reduce:animate-none"
+            />
+          </div>
           {/* A scrim, not a filter on the photo itself — the image stays
               crisp, the text above it gets guaranteed contrast regardless
               of what's in the shot. Darker toward the bottom, where the
@@ -153,6 +172,14 @@ export function BookingHero({
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/35 to-black/70"
+          />
+          {/* The dissolve: the last stretch of the hero fades all the way
+              to the page's own background colour, so the seam into the
+              section beneath reads as one continuous surface rather than a
+              photo stopping at a hard edge. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[var(--color-buttercream)] sm:h-48"
           />
           <div aria-hidden="true" className="grain-overlay absolute inset-0 mix-blend-overlay opacity-10" />
         </>
@@ -175,6 +202,10 @@ export function BookingHero({
             aria-hidden="true"
             className="bg-sage-soft/70 animate-drift absolute -right-16 -bottom-24 size-80 rounded-full blur-3xl"
             style={{ animationDelay: '4s' }}
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-[var(--color-buttercream)]"
           />
         </>
       )}
@@ -241,20 +272,44 @@ export function BookingHero({
           Come make something with us — pick a class and save your seat below ♡
         </p>
 
+        <a
+          ref={ctaRef}
+          href="#booking-widget"
+          onClick={(event) => {
+            event.preventDefault();
+            scrollToId('booking-widget');
+          }}
+          className={cn(
+            'animate-rise-in group mt-7 inline-flex min-h-[48px] items-center gap-2 rounded-[var(--radius-pill)]',
+            'border-[1.5px] px-6 text-sm font-extrabold tracking-wide uppercase',
+            'transition-colors duration-300',
+            hasPhoto
+              ? 'border-buttercream/60 text-buttercream hover:bg-buttercream/10'
+              : 'border-cocoa/40 text-cocoa hover:bg-cocoa/5',
+            'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
+          )}
+          style={{ animationDelay: `${80 + words.length * 110 + 180}ms` }}
+        >
+          Explore classes
+          <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-1">
+            →
+          </span>
+        </a>
+
         {handle ? (
           <p
             className={cn(
-              'animate-rise-in mt-4 text-sm',
+              'animate-rise-in mt-5 text-sm',
               hasPhoto ? 'text-buttercream/75' : 'text-latte',
             )}
-            style={{ animationDelay: `${80 + words.length * 110 + 180}ms` }}
+            style={{ animationDelay: `${80 + words.length * 110 + 260}ms` }}
           >
             Find us on Instagram{' '}
             <b className={hasPhoto ? 'text-buttercream' : 'text-cocoa'}>@{handle}</b>
           </p>
         ) : null}
 
-        <ScrollCue delay={`${80 + words.length * 110 + 260}ms`} light={hasPhoto} />
+        <ScrollCue delay={`${80 + words.length * 110 + 340}ms`} light={hasPhoto} />
       </div>
     </header>
   );

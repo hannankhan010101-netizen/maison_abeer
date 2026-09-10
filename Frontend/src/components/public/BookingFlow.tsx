@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { BookingHero } from '@/components/public/BookingHero';
 import { BookingPostcard } from '@/components/public/BookingPostcard';
 import { CraftStrip } from '@/components/public/CraftStrip';
+import { SmoothScroll } from '@/components/public/SmoothScroll';
 import {
   BookingError,
   fetchClasses,
@@ -194,6 +195,8 @@ function Shell({
 
   return (
     <main id="main" className="bg-buttercream min-h-screen">
+      <SmoothScroll />
+
       {studioName ? (
         <BookingHero
           studioName={studioName}
@@ -204,11 +207,12 @@ function Shell({
         />
       ) : null}
 
-      {/* The brand strip and postcard overlap the hero's rounded bottom
-          edge the same way the widget card used to on its own — laid on
-          top of the scene, not starting a new page beneath it. */}
+      {/* The hero now dissolves into this same background colour at its own
+          bottom edge (see BookingHero's scrim), so what follows just starts
+          here on solid ground — no overlap trick needed to hide a seam that
+          no longer exists. */}
       {brandSections ? (
-        <div className="relative z-10 -mt-8 space-y-7 pb-2 sm:-mt-10">
+        <div className="space-y-12 pt-2 pb-4 sm:space-y-16">
           {story ? <StorySection story={story} /> : null}
           <CraftStrip classes={classes!} />
           <BookingPostcard classes={classes!} />
@@ -219,13 +223,14 @@ function Shell({
         className={cn(
           'mx-auto w-full max-w-[560px] px-4 sm:px-6',
           !studioName && 'py-8 sm:py-12',
-          studioName && !brandSections && '-mt-8 pb-14 sm:-mt-10',
-          studioName && brandSections && 'mt-6 pb-14 sm:mt-8',
+          studioName && !brandSections && 'pt-6 pb-14 sm:pt-8',
+          studioName && brandSections && 'pt-6 pb-14 sm:pt-10',
         )}
       >
         <div
+          id="booking-widget"
           className={cn(
-            'border-line bg-paper relative rounded-[var(--radius-lg)] border-[1.5px] p-5 sm:p-7',
+            'border-line bg-paper relative scroll-mt-6 rounded-[var(--radius-lg)] border-[1.5px] p-5 sm:p-7',
             studioName && 'shadow-[0_24px_48px_-24px_rgb(64_48_42_/25%)]',
           )}
         >
@@ -292,22 +297,29 @@ function LoadingClasses() {
  * "What happens here" — the studio's own words, when they've written any
  * (Brand Kit → Story). Absent entirely otherwise: a placeholder paragraph
  * saying nothing is worse than no section at all.
+ *
+ * Set directly on the page's own surface rather than boxed in a bordered
+ * card: in `.mocha` a `bg-paper` card sits only one shade off the page
+ * behind it, which read as a flat, barely-outlined panel floating with no
+ * clear reason to be there. A large serif pull-quote with a single accent
+ * rule reads as an editorial moment instead — the studio speaking in its
+ * own voice, not copy trapped in a UI component.
  */
 function StorySection({ story }: { story: string }) {
-  const [ref, visible] = useRevealOnScroll<HTMLParagraphElement>();
+  const [ref, visible] = useRevealOnScroll<HTMLElement>();
 
   return (
-    <section className="px-4 sm:px-6">
-      <p
-        ref={ref}
+    <section ref={ref} className="px-5 sm:px-8">
+      <div
         className={cn(
-          'border-line bg-paper mx-auto max-w-[52ch] rounded-[var(--radius-lg)] border-[1.5px] p-5 text-center text-[15px] leading-relaxed sm:text-base',
-          'transition-[opacity,transform] duration-500',
-          visible ? 'opacity-100' : 'opacity-0 translate-y-3',
+          'mx-auto max-w-[46ch] text-center',
+          'transition-[opacity,transform] duration-700',
+          visible ? 'opacity-100' : 'opacity-0 translate-y-4',
         )}
       >
-        {story}
-      </p>
+        <span aria-hidden="true" className="bg-rose mx-auto mb-6 block h-[3px] w-10 rounded-full" />
+        <p className="font-display text-[clamp(20px,4vw,26px)] leading-[1.35]">{story}</p>
+      </div>
     </section>
   );
 }

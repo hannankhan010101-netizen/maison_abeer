@@ -150,6 +150,20 @@
   }
 }
 
+/* A slow, barely-perceptible zoom on the hero photo — the "camera left
+   running" feeling of a cinematic still, not a slideshow effect. Runs the
+   whole time the hero is mounted; `alternate` breathes it back out rather
+   than snapping to the start. Deliberately slow (24s) so no single glance
+   at the page ever catches it moving. */
+@keyframes hero-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
 @layer utilities {
   /* Handwritten asides — the app writing a little note to the host. */
   .font-hand {
@@ -178,6 +192,10 @@
 
   .animate-rise-in {
     animation: rise-in 0.5s var(--ease-spring) both;
+  }
+
+  .animate-hero-zoom {
+    animation: hero-zoom 24s ease-in-out infinite alternate;
   }
 
   /* A "made by hand" tactility with no photograph behind it: a static,

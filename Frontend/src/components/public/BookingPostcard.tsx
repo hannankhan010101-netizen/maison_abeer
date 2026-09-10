@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
+import { prefersReducedMotion } from '@/lib/public/motion';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 
 /**
@@ -65,9 +66,7 @@ function useCountUp(target: number, start: boolean): number {
   useEffect(() => {
     if (!start) return;
 
-    const reduceMotion =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduceMotion = prefersReducedMotion();
 
     // jsdom's requestAnimationFrame is real but not wall-clock accurate, so
     // a 700ms animation can take several real seconds under test — jump
