@@ -2,7 +2,7 @@
 
 import { useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { LatheGeometry, Vector2, type Mesh } from 'three';
+import { LatheGeometry, SplineCurve, Vector2, type Mesh } from 'three';
 
 import { useIsOnScreen } from '@/lib/public/useIsOnScreen';
 
@@ -27,7 +27,7 @@ const CLAY_COLOR = '#D9C9B4';
  * a CAD model, not a pot. */
 function useVaseGeometry() {
   return useMemo(() => {
-    const profile = [
+    const controlPoints = [
       [0.02, -1.0],
       [0.42, -0.97],
       [0.58, -0.78],
@@ -40,6 +40,14 @@ function useVaseGeometry() {
       [0.38, 0.82],
       [0.3, 0.9],
     ].map(([x, y]) => new Vector2(x, y));
+
+    // `LatheGeometry` interpolates *straight lines* between whatever points
+    // it's given — feeding it these eleven control points directly produced
+    // a visibly faceted, beveled silhouette (each gap between them became a
+    // flat conical panel), which read as a low-poly asset rather than a
+    // thrown pot. Running them through a spline first and sampling *that*
+    // is what actually curves the wall smoothly between them.
+    const profile = new SplineCurve(controlPoints).getPoints(72);
 
     const geometry = new LatheGeometry(profile, 56);
 
