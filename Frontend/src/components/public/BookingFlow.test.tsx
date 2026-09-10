@@ -340,4 +340,83 @@ describe('BookingFlow', () => {
     expect(header?.style.getPropertyValue('--color-rose')).toBe('');
     expect(header?.style.getPropertyValue('--color-pink')).toBe('');
   });
+
+  it("shows the studio's real hero photo when it has one, not a placeholder", async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: {
+          name: 'Maison Abeer',
+          instagram_handle: 'maisonabeer',
+          hero_photo_url: 'https://images.unsplash.com/photo-hero-test',
+        },
+        classes: classList().classes,
+      }),
+    );
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    const heroImg = container.querySelector('header img');
+    expect(heroImg).toHaveAttribute('src', 'https://images.unsplash.com/photo-hero-test');
+  });
+
+  it('shows no hero photo, and no gap where one would be, when the studio has none', async () => {
+    fetchMock.mockImplementation(json(classList()));
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    expect(container.querySelector('header img')).not.toBeInTheDocument();
+  });
+
+  it("shows the studio's own story text when it has written one", async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: {
+          name: 'Maison Abeer',
+          instagram_handle: 'maisonabeer',
+          story: 'We fire every pot in our own backyard kiln, twice a week.',
+        },
+        classes: classList().classes,
+      }),
+    );
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    expect(
+      await screen.findByText('We fire every pot in our own backyard kiln, twice a week.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a real class photo on its craft card, falling back to the hand-drawn motif otherwise', async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
+        classes: [
+          {
+            ...classList().classes[0],
+            id: 'c1',
+            color_token: 'pink',
+            photo_url: 'https://images.unsplash.com/photo-cake-test',
+          },
+          {
+            ...classList().classes[0],
+            id: 'c2',
+            name: 'Pottery & wheel throwing',
+            color_token: 'terra',
+            photo_url: null,
+          },
+        ],
+      }),
+    );
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByText('What we make here');
+
+    const craftImgs = container.querySelectorAll('img[src="https://images.unsplash.com/photo-cake-test"]');
+    expect(craftImgs).toHaveLength(1);
+    // The pottery craft has no photo, so it still shows via the SVG motif
+    // fallback rather than an empty card — the strip itself still renders it.
+    expect(screen.getAllByText('Pottery & wheel throwing').length).toBeGreaterThan(0);
+  });
 });

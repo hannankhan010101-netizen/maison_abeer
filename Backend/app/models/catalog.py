@@ -49,6 +49,10 @@ class ClassType(Base, TenantMixin, TimestampMixin, ArchiveMixin):
     default_seats: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     default_duration_minutes: Mapped[int] = mapped_column(Integer, default=150, nullable=False)
 
+    photo_url: Mapped[str | None] = mapped_column(String(500))
+    """A real photo of this craft for the public booking page. Same
+    paste-a-link pattern as `BrandKit.logo_url` — no upload infrastructure."""
+
     studio: Mapped[Studio] = relationship(back_populates="class_types")
     checklist_items: Mapped[list[ChecklistTemplateItem]] = relationship(
         back_populates="class_type",

@@ -4,21 +4,23 @@ import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
 
 /**
- * "What we make here" — one bold, colour-blocked card per craft the studio
- * actually teaches, derived from the real classes on offer rather than a
- * hardcoded three. A studio that only runs pottery shouldn't advertise cake
- * decorating just because this app's default palette has a slot for it.
+ * "What we make here" — one card per craft the studio actually teaches,
+ * derived from the real classes on offer rather than a hardcoded three. A
+ * studio that only runs pottery shouldn't advertise cake decorating just
+ * because this app's default palette has a slot for it.
  *
- * This exists because there is no photograph anywhere in this app to answer
- * "show what we are" with — so each card answers it with the thing the app
- * already has plenty of: the craft's own brand colour, at full saturation
- * (not the pastel tint used elsewhere), a hand-drawn motif standing in for a
- * photo, and the craft's own name in display type.
+ * A class type can now carry a real photo (Brand Kit → class photos, same
+ * paste-a-link pattern as the studio's logo). When one's set, it's the
+ * card's whole background. When it isn't — which is every studio until a
+ * host adds one — the card falls back to the craft's own brand colour at
+ * full saturation plus a hand-drawn motif standing in for a photo. Neither
+ * state is a placeholder for the other; both are complete on their own.
  */
 
 interface Craft {
   token: string;
   name: string;
+  photoUrl: string | null;
 }
 
 /** One card per distinct colour token, first-seen order — not alphabetised,
@@ -29,7 +31,7 @@ function craftsFrom(classes: PublicClass[]): Craft[] {
 
   for (const item of classes) {
     if (!seen.has(item.color_token)) {
-      seen.set(item.color_token, { token: item.color_token, name: item.name });
+      seen.set(item.color_token, { token: item.color_token, name: item.name, photoUrl: item.photo_url });
     }
   }
 
@@ -71,12 +73,30 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
               <div
                 className={cn(
                   'relative flex h-[168px] flex-col justify-between overflow-hidden rounded-[var(--radius-lg)] p-4',
-                  block.bg,
-                  block.ink,
+                  craft.photoUrl ? 'text-buttercream' : cn(block.bg, block.ink),
                 )}
               >
-                <CraftMotif token={craft.token} />
-                <span className="font-display relative z-10 text-2xl leading-tight">{craft.name}</span>
+                {craft.photoUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={craft.photoUrl}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"
+                    />
+                  </>
+                ) : (
+                  <CraftMotif token={craft.token} />
+                )}
+                <span className="font-display relative z-10 mt-auto text-2xl leading-tight">
+                  {craft.name}
+                </span>
               </div>
             </li>
           );

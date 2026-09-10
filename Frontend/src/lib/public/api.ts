@@ -16,6 +16,10 @@ export interface PublicStudio {
   logo_url: string | null;
   primary_color: string | null;
   accent_color: string | null;
+  /** A real photo of the studio. Null shows no photo, never a blank box. */
+  hero_photo_url: string | null;
+  /** A short "what happens here" blurb. Null shows no section at all. */
+  story: string | null;
 }
 
 export interface PublicClass {
@@ -25,6 +29,8 @@ export interface PublicClass {
   ends_at: string;
   location: string | null;
   color_token: string;
+  /** A real photo of this craft, when the class type has one. */
+  photo_url: string | null;
   seats_left: number;
   is_full: boolean;
   waitlist_is_open: boolean;

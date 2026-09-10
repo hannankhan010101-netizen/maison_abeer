@@ -136,6 +136,8 @@ def test_the_class_list_exposes_no_studio_internals(studio_with_class: Any) -> N
         "logo_url",
         "primary_color",
         "accent_color",
+        "hero_photo_url",
+        "story",
     }
     assert "quiet_hours_start" not in payload["studio"]
     assert set(payload["classes"][0]) == {
@@ -145,6 +147,7 @@ def test_the_class_list_exposes_no_studio_internals(studio_with_class: Any) -> N
         "ends_at",
         "location",
         "color_token",
+        "photo_url",
         "seats_left",
         "is_full",
         "waitlist_is_open",

@@ -206,6 +206,7 @@ def list_public_classes(
                 ends_at=session.ends_at,
                 location=session.location,
                 color_token=session.class_type.color_token if session.class_type else "pink",
+                photo_url=session.class_type.photo_url if session.class_type else None,
                 seats_left=seats_left,
                 is_full=seats_left == 0,
                 # A full class still collects interest rather than turning
@@ -221,6 +222,8 @@ def list_public_classes(
             logo_url=brand.logo_url if brand else None,
             primary_color=brand.primary_color if brand else None,
             accent_color=brand.accent_color if brand else None,
+            hero_photo_url=brand.hero_photo_url if brand else None,
+            story=brand.story if brand else None,
         ),
         classes=classes,
     )

@@ -35,6 +35,11 @@ class PublicStudio(BaseModel):
     logo_url: str | None = None
     primary_color: str | None = None
     accent_color: str | None = None
+    hero_photo_url: str | None = None
+    """A real photo of the studio, when one's been added. Null shows no
+    photo — the page falls back to the type-led design, never a blank box."""
+    story: str | None = None
+    """A short "what happens here" blurb. Null shows no section at all."""
 
 
 class PublicClass(BaseModel):
@@ -46,6 +51,8 @@ class PublicClass(BaseModel):
     ends_at: datetime
     location: str | None = None
     color_token: str
+    photo_url: str | None = None
+    """A real photo of this craft, when the class type has one."""
 
     seats_left: int
     """Exact number, not the roster. Scarcity is the point of the page."""

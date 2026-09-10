@@ -97,6 +97,17 @@ class BrandKit(Base, TenantMixin, TimestampMixin):
     instagram_handle: Mapped[str | None] = mapped_column(String(60))
     """Drives the auto-generated QR code on name tags."""
 
+    hero_photo_url: Mapped[str | None] = mapped_column(String(500))
+    """A real photo of the studio for the public booking page's hero.
+
+    Same pattern as `logo_url`: a pasted link, not an upload — there is no
+    file storage in this app, and a text field a host can paste any hosted
+    image into ships without needing one."""
+
+    story: Mapped[str | None] = mapped_column(String(600))
+    """A short "what happens here" blurb for the public page. Optional — a
+    studio that hasn't written one yet gets no section, not a placeholder."""
+
     studio: Mapped[Studio] = relationship(back_populates="brand_kit")
 
 

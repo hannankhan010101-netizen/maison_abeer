@@ -53,6 +53,8 @@ class BrandKitRead(BaseModel):
     primary_color: str | None
     accent_color: str | None
     instagram_handle: str | None
+    hero_photo_url: str | None
+    story: str | None
 
 
 class BrandKitUpdate(BaseModel):
@@ -60,6 +62,8 @@ class BrandKitUpdate(BaseModel):
     primary_color: str | None = Field(default=None, max_length=9)
     accent_color: str | None = Field(default=None, max_length=9)
     instagram_handle: str | None = Field(default=None, max_length=60)
+    hero_photo_url: str | None = Field(default=None, max_length=500)
+    story: str | None = Field(default=None, max_length=600)
 
     @field_validator("instagram_handle")
     @classmethod

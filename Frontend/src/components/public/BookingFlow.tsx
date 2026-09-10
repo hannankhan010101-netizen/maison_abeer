@@ -141,6 +141,8 @@ export function BookingFlow({ slug }: BookingFlowProps) {
       handle={data.studio.instagram_handle}
       primaryColor={data.studio.primary_color}
       accentColor={data.studio.accent_color}
+      heroPhotoUrl={data.studio.hero_photo_url}
+      story={data.studio.story}
       step={step}
       // The brand strip and postcard are the arrival experience — once a
       // guest has committed to a class or finished booking, the page's job
@@ -170,6 +172,8 @@ function Shell({
   handle,
   primaryColor,
   accentColor,
+  heroPhotoUrl,
+  story,
   step,
   showBrandSections,
   classes,
@@ -179,6 +183,8 @@ function Shell({
   handle?: string | null;
   primaryColor?: string | null;
   accentColor?: string | null;
+  heroPhotoUrl?: string | null;
+  story?: string | null;
   step?: 1 | 2 | 3;
   showBrandSections?: boolean;
   classes?: PublicClass[];
@@ -193,6 +199,7 @@ function Shell({
           handle={handle}
           primaryColor={primaryColor}
           accentColor={accentColor}
+          heroPhotoUrl={heroPhotoUrl}
         />
       ) : null}
 
@@ -201,6 +208,7 @@ function Shell({
           top of the scene, not starting a new page beneath it. */}
       {brandSections ? (
         <div className="relative z-10 -mt-8 space-y-7 pb-2 sm:-mt-10">
+          {story ? <StorySection story={story} /> : null}
           <CraftStrip classes={classes!} />
           <BookingPostcard classes={classes!} />
         </div>
@@ -267,6 +275,21 @@ function LoadingClasses() {
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * "What happens here" — the studio's own words, when they've written any
+ * (Brand Kit → Story). Absent entirely otherwise: a placeholder paragraph
+ * saying nothing is worse than no section at all.
+ */
+function StorySection({ story }: { story: string }) {
+  return (
+    <section className="px-4 sm:px-6">
+      <p className="border-line bg-paper animate-rise-in mx-auto max-w-[52ch] rounded-[var(--radius-lg)] border-[1.5px] p-5 text-center text-[15px] leading-relaxed sm:text-base">
+        {story}
+      </p>
+    </section>
   );
 }
 

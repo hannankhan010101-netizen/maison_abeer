@@ -91,10 +91,20 @@ export interface BookingHeroProps {
   /** From the studio's own Brand Kit. Null falls back to the app's defaults. */
   primaryColor?: string | null;
   accentColor?: string | null;
+  /** A real photo of the studio, when one's been added. Null keeps the
+   * type-and-colour hero exactly as before — never a placeholder box. */
+  heroPhotoUrl?: string | null;
 }
 
-export function BookingHero({ studioName, handle, primaryColor, accentColor }: BookingHeroProps) {
+export function BookingHero({
+  studioName,
+  handle,
+  primaryColor,
+  accentColor,
+  heroPhotoUrl,
+}: BookingHeroProps) {
   const mayAnimate = useMayAnimate();
+  const hasPhoto = Boolean(heroPhotoUrl);
 
   // The whole design system already routes colour through CSS custom
   // properties (see tokens.css and how `.mocha` retheming works the same
@@ -121,25 +131,55 @@ export function BookingHero({ studioName, handle, primaryColor, accentColor }: B
         'px-4 pt-12 pb-20 text-center sm:px-6 sm:pt-16 sm:pb-24',
       )}
     >
-      {/* The always-on scene: gradient wash plus two drifting blobs. This is
-          the whole hero on a reduced-motion visit, on data saver, or before
-          the 3D layer has mounted — never an empty or half-finished frame. */}
-      <div
-        aria-hidden="true"
-        className="from-blush via-buttercream to-pink/50 absolute inset-0 bg-gradient-to-br"
-      />
-      <div aria-hidden="true" className="grain-overlay absolute inset-0" />
-      <div
-        aria-hidden="true"
-        className="bg-terra-soft/70 animate-drift absolute -top-20 -left-16 size-72 rounded-full blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="bg-sage-soft/70 animate-drift absolute -right-16 -bottom-24 size-80 rounded-full blur-3xl"
-        style={{ animationDelay: '4s' }}
-      />
+      {hasPhoto ? (
+        <>
+          {/* A real photo, full-bleed. `<img>`, not next/image: a host
+              pastes any URL they like into Brand Kit (same pattern as
+              logo_url), so there is no fixed set of hosts to allowlist the
+              way next/image's remotePatterns requires. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroPhotoUrl ?? undefined}
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            fetchPriority="high"
+            className="absolute inset-0 size-full object-cover"
+          />
+          {/* A scrim, not a filter on the photo itself — the image stays
+              crisp, the text above it gets guaranteed contrast regardless
+              of what's in the shot. Darker toward the bottom, where the
+              body copy and Instagram line sit. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/35 to-black/70"
+          />
+          <div aria-hidden="true" className="grain-overlay absolute inset-0 mix-blend-overlay opacity-10" />
+        </>
+      ) : (
+        <>
+          {/* The always-on scene: gradient wash plus two drifting blobs.
+              This is the whole hero on a reduced-motion visit, on data
+              saver, or before the 3D layer has mounted — never an empty or
+              half-finished frame. */}
+          <div
+            aria-hidden="true"
+            className="from-blush via-buttercream to-pink/50 absolute inset-0 bg-gradient-to-br"
+          />
+          <div aria-hidden="true" className="grain-overlay absolute inset-0" />
+          <div
+            aria-hidden="true"
+            className="bg-terra-soft/70 animate-drift absolute -top-20 -left-16 size-72 rounded-full blur-3xl"
+          />
+          <div
+            aria-hidden="true"
+            className="bg-sage-soft/70 animate-drift absolute -right-16 -bottom-24 size-80 rounded-full blur-3xl"
+            style={{ animationDelay: '4s' }}
+          />
+        </>
+      )}
 
-      {mayAnimate ? (
+      {mayAnimate && !hasPhoto ? (
         // A hole punched straight through the middle, where the headline and
         // body copy always sit — not a suggestion the shapes are tuned to
         // respect, a guarantee that holds on any viewport shape. A short,
@@ -163,20 +203,20 @@ export function BookingHero({ studioName, handle, primaryColor, accentColor }: B
       ) : null}
 
       <div className="relative z-10">
-        <p className="font-hand text-rose-ink animate-rise-in text-lg">your studio bestie ✨</p>
+        <p className={cn('font-hand animate-rise-in text-lg', hasPhoto ? 'text-pink' : 'text-rose-ink')}>
+          your studio bestie ✨
+        </p>
 
-        {/* The name IS the hero — no stand-in photograph, so the type
-            carries the whole first impression. Each word rises in on its
-            own beat rather than the line arriving as one block, which is
-            what makes it read as a designed reveal instead of a heading
-            that merely renders.
-
-            The split-per-word markup below is purely decorative
-            (aria-hidden): a screen reader spelling out "Maison" — pause —
-            "Abeer" as two separate announcements is worse than one name
-            read normally, so the real accessible (and test-findable) text
-            is this one hidden node with the name intact as a single string. */}
-        <h1 className="font-display mt-2 text-[clamp(44px,15vw,108px)] leading-[0.98]">
+        {/* Photo mode drops the name to cream-on-photo instead of
+            cocoa-on-gradient — the scrim above guarantees the contrast,
+            not the photo's own content, which this app has no control
+            over once a host pastes a link to one. */}
+        <h1
+          className={cn(
+            'font-display mt-2 text-[clamp(44px,15vw,108px)] leading-[0.98]',
+            hasPhoto && 'text-buttercream',
+          )}
+        >
           <span className="sr-only">{studioName}</span>
           <span aria-hidden="true" className="flex flex-wrap items-baseline justify-center gap-x-4">
             {words.map((word, index) => (
@@ -192,7 +232,10 @@ export function BookingHero({ studioName, handle, primaryColor, accentColor }: B
         </h1>
 
         <p
-          className="text-cocoa animate-rise-in mx-auto mt-4 max-w-[34ch] text-[15px] sm:text-base"
+          className={cn(
+            'animate-rise-in mx-auto mt-4 max-w-[34ch] text-[15px] sm:text-base',
+            hasPhoto ? 'text-buttercream/90' : 'text-cocoa',
+          )}
           style={{ animationDelay: `${80 + words.length * 110 + 100}ms` }}
         >
           Come make something with us — pick a class and save your seat below ♡
@@ -200,26 +243,33 @@ export function BookingHero({ studioName, handle, primaryColor, accentColor }: B
 
         {handle ? (
           <p
-            className="text-latte animate-rise-in mt-4 text-sm"
+            className={cn(
+              'animate-rise-in mt-4 text-sm',
+              hasPhoto ? 'text-buttercream/75' : 'text-latte',
+            )}
             style={{ animationDelay: `${80 + words.length * 110 + 180}ms` }}
           >
-            Find us on Instagram <b className="text-cocoa">@{handle}</b>
+            Find us on Instagram{' '}
+            <b className={hasPhoto ? 'text-buttercream' : 'text-cocoa'}>@{handle}</b>
           </p>
         ) : null}
 
-        <ScrollCue delay={`${80 + words.length * 110 + 260}ms`} />
+        <ScrollCue delay={`${80 + words.length * 110 + 260}ms`} light={hasPhoto} />
       </div>
     </header>
   );
 }
 
 /** A small nudge downward — the booking widget is one scroll away, not a tap. */
-function ScrollCue({ delay }: { delay: string }) {
+function ScrollCue({ delay, light }: { delay: string; light?: boolean }) {
   return (
     <div aria-hidden="true" className="animate-rise-in mt-8 flex justify-center" style={{ animationDelay: delay }}>
       <svg
         viewBox="0 0 24 24"
-        className="text-rose-ink motion-safe:animate-bounce size-6 motion-reduce:animate-none"
+        className={cn(
+          'motion-safe:animate-bounce size-6 motion-reduce:animate-none',
+          light ? 'text-buttercream' : 'text-rose-ink',
+        )}
         fill="none"
       >
         <path d="M12 4v14M6 12l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
