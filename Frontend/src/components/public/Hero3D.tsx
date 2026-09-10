@@ -30,13 +30,20 @@ import type { Group, Mesh } from 'three';
 const DEFAULT_ROSE = '#E2849E';
 const DEFAULT_PINK = '#F2AABE';
 
+// Small, pushed to the outer edges and well back in z — this is meant to
+// read as a faint halo around the headline, not compete with it. A first
+// pass here scaled these to roughly fill the hero and sat them near the
+// centre; on a short, wide viewport (a laptop, not a phone) that put the
+// shapes directly behind — and visually on top of — the studio name and the
+// Instagram line, exactly what BookingHero's mask below now also guards
+// against structurally rather than trusting position tuning alone.
 function shapesFor(primaryColor?: string, accentColor?: string) {
   return [
-    { geometry: 'icosahedron', color: primaryColor ?? DEFAULT_ROSE, position: [-1.3, 0.4, 0], scale: 0.85, speed: 0.6 },
-    { geometry: 'torus', color: accentColor ?? DEFAULT_PINK, position: [1.2, -0.3, -0.4], scale: 0.7, speed: 0.45 },
-    { geometry: 'octahedron', color: '#C96F4A', position: [0.3, 0.9, -0.8], scale: 0.5, speed: 0.8 },
-    { geometry: 'sphere', color: '#ADBE93', position: [-0.6, -0.8, -0.3], scale: 0.42, speed: 0.5 },
-    { geometry: 'dodecahedron', color: '#F7DC94', position: [1.6, 0.7, -1.1], scale: 0.4, speed: 0.7 },
+    { geometry: 'icosahedron', color: primaryColor ?? DEFAULT_ROSE, position: [-2.3, 0.8, -1.4], scale: 0.46, speed: 0.6 },
+    { geometry: 'torus', color: accentColor ?? DEFAULT_PINK, position: [2.2, -0.7, -1.6], scale: 0.4, speed: 0.45 },
+    { geometry: 'octahedron', color: '#C96F4A', position: [-1.9, -1.0, -2.0], scale: 0.28, speed: 0.8 },
+    { geometry: 'sphere', color: '#ADBE93', position: [2.0, 1.1, -1.8], scale: 0.24, speed: 0.5 },
+    { geometry: 'dodecahedron', color: '#F7DC94', position: [2.6, -0.1, -2.4], scale: 0.22, speed: 0.7 },
   ] as const;
 }
 
@@ -65,10 +72,12 @@ function FloatingShape({ shape, index }: { shape: Shape; index: number }) {
       {shape.geometry === 'dodecahedron' ? <dodecahedronGeometry args={[1, 0]} /> : null}
       <meshStandardMaterial
         color={shape.color}
-        roughness={0.35}
+        roughness={0.5}
         metalness={0.05}
         emissive={shape.color}
-        emissiveIntensity={0.12}
+        emissiveIntensity={0.08}
+        transparent
+        opacity={0.85}
       />
     </mesh>
   );

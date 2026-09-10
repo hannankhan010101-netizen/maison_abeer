@@ -140,9 +140,26 @@ export function BookingHero({ studioName, handle, primaryColor, accentColor }: B
       />
 
       {mayAnimate ? (
-        <CanvasBoundary>
-          <Hero3D primaryColor={primaryColor ?? undefined} accentColor={accentColor ?? undefined} />
-        </CanvasBoundary>
+        // A hole punched straight through the middle, where the headline and
+        // body copy always sit — not a suggestion the shapes are tuned to
+        // respect, a guarantee that holds on any viewport shape. A short,
+        // wide window (a laptop, not the phone this page is designed for)
+        // is exactly where "tuned to look right on mobile" positions stop
+        // being true, and text must never depend on that.
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            maskImage:
+              'radial-gradient(ellipse 52% 62% at 50% 45%, transparent 0%, transparent 60%, white 100%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 52% 62% at 50% 45%, transparent 0%, transparent 60%, white 100%)',
+          }}
+        >
+          <CanvasBoundary>
+            <Hero3D primaryColor={primaryColor ?? undefined} accentColor={accentColor ?? undefined} />
+          </CanvasBoundary>
+        </div>
       ) : null}
 
       <div className="relative z-10">
