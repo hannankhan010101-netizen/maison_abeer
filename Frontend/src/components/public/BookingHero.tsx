@@ -1,13 +1,21 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
 
 /**
- * The booking page's hero — studio name, tagline, and a floating 3D craft
- * scene behind it.
+ * The booking page's hero — the studio's name as the actual hero, a floating
+ * 3D craft scene behind it, and the studio's own brand colours carried
+ * through when it has set any (Settings → Brand Kit).
+ *
+ * There is no photograph anywhere in this app — no logo file, no class
+ * photos, nothing — and there never has been. Rather than fake that with
+ * stock imagery, the hero leans on what the app already has and does well:
+ * oversized display type, the three-typeface voice (serif / body /
+ * handwritten), and colour. That is not a compromise; it is 2026's own
+ * answer to "no photography budget" — see the plan doc for the research.
  *
  * The CSS gradient + blobs below are not a "loading state" for the 3D layer;
  * they are the actual background, painted immediately and always visible.
@@ -80,17 +88,37 @@ function useMayAnimate(): boolean {
 export interface BookingHeroProps {
   studioName: string;
   handle?: string | null;
+  /** From the studio's own Brand Kit. Null falls back to the app's defaults. */
+  primaryColor?: string | null;
+  accentColor?: string | null;
 }
 
-export function BookingHero({ studioName, handle }: BookingHeroProps) {
+export function BookingHero({ studioName, handle, primaryColor, accentColor }: BookingHeroProps) {
   const mayAnimate = useMayAnimate();
+
+  // The whole design system already routes colour through CSS custom
+  // properties (see tokens.css and how `.mocha` retheming works the same
+  // way) — so a studio's own brand colours are applied the identical way: an
+  // inline override on the two properties every rose/pink utility already
+  // reads from, scoped to this header. Every `bg-rose`, `text-rose-ink`,
+  // `border-rose` etc. beneath it — including inside Hero3D — picks the
+  // brand colour up automatically, with no per-class overrides to maintain.
+  // Unset (no override) when a studio hasn't chosen one, which is the common
+  // case today: the app's own rose/pink remain exactly as before.
+  const brandVars = {
+    ...(primaryColor ? { '--color-rose': primaryColor } : {}),
+    ...(accentColor ? { '--color-pink': accentColor } : {}),
+  } as CSSProperties;
+
+  const words = studioName.split(' ');
 
   return (
     <header
+      style={brandVars}
       className={cn(
         'relative isolate overflow-hidden',
         'rounded-b-[2.5rem] border-b-[1.5px] border-line',
-        'px-4 pt-10 pb-16 text-center sm:px-6 sm:pt-14 sm:pb-20',
+        'px-4 pt-12 pb-20 text-center sm:px-6 sm:pt-16 sm:pb-24',
       )}
     >
       {/* The always-on scene: gradient wash plus two drifting blobs. This is
@@ -100,6 +128,7 @@ export function BookingHero({ studioName, handle }: BookingHeroProps) {
         aria-hidden="true"
         className="from-blush via-buttercream to-pink/50 absolute inset-0 bg-gradient-to-br"
       />
+      <div aria-hidden="true" className="grain-overlay absolute inset-0" />
       <div
         aria-hidden="true"
         className="bg-terra-soft/70 animate-drift absolute -top-20 -left-16 size-72 rounded-full blur-3xl"
@@ -112,23 +141,42 @@ export function BookingHero({ studioName, handle }: BookingHeroProps) {
 
       {mayAnimate ? (
         <CanvasBoundary>
-          <Hero3D />
+          <Hero3D primaryColor={primaryColor ?? undefined} accentColor={accentColor ?? undefined} />
         </CanvasBoundary>
       ) : null}
 
       <div className="relative z-10">
         <p className="font-hand text-rose-ink animate-rise-in text-lg">your studio bestie ✨</p>
 
-        <h1
-          className="font-display animate-rise-in mt-1 text-[clamp(34px,9vw,52px)] leading-[1.05]"
-          style={{ animationDelay: '80ms' }}
-        >
-          {studioName}
+        {/* The name IS the hero — no stand-in photograph, so the type
+            carries the whole first impression. Each word rises in on its
+            own beat rather than the line arriving as one block, which is
+            what makes it read as a designed reveal instead of a heading
+            that merely renders.
+
+            The split-per-word markup below is purely decorative
+            (aria-hidden): a screen reader spelling out "Maison" — pause —
+            "Abeer" as two separate announcements is worse than one name
+            read normally, so the real accessible (and test-findable) text
+            is this one hidden node with the name intact as a single string. */}
+        <h1 className="font-display mt-2 text-[clamp(44px,15vw,108px)] leading-[0.98]">
+          <span className="sr-only">{studioName}</span>
+          <span aria-hidden="true" className="flex flex-wrap items-baseline justify-center gap-x-4">
+            {words.map((word, index) => (
+              <span
+                key={`${word}-${index}`}
+                className="animate-rise-in inline-block"
+                style={{ animationDelay: `${80 + index * 110}ms` }}
+              >
+                {word}
+              </span>
+            ))}
+          </span>
         </h1>
 
         <p
-          className="text-cocoa animate-rise-in mx-auto mt-3 max-w-[34ch] text-[15px] sm:text-base"
-          style={{ animationDelay: '150ms' }}
+          className="text-cocoa animate-rise-in mx-auto mt-4 max-w-[34ch] text-[15px] sm:text-base"
+          style={{ animationDelay: `${80 + words.length * 110 + 100}ms` }}
         >
           Come make something with us — pick a class and save your seat below ♡
         </p>
@@ -136,26 +184,22 @@ export function BookingHero({ studioName, handle }: BookingHeroProps) {
         {handle ? (
           <p
             className="text-latte animate-rise-in mt-4 text-sm"
-            style={{ animationDelay: '220ms' }}
+            style={{ animationDelay: `${80 + words.length * 110 + 180}ms` }}
           >
             Find us on Instagram <b className="text-cocoa">@{handle}</b>
           </p>
         ) : null}
 
-        <ScrollCue />
+        <ScrollCue delay={`${80 + words.length * 110 + 260}ms`} />
       </div>
     </header>
   );
 }
 
 /** A small nudge downward — the booking widget is one scroll away, not a tap. */
-function ScrollCue() {
+function ScrollCue({ delay }: { delay: string }) {
   return (
-    <div
-      aria-hidden="true"
-      className="animate-rise-in mt-8 flex justify-center"
-      style={{ animationDelay: '320ms' }}
-    >
+    <div aria-hidden="true" className="animate-rise-in mt-8 flex justify-center" style={{ animationDelay: delay }}>
       <svg
         viewBox="0 0 24 24"
         className="text-rose-ink motion-safe:animate-bounce size-6 motion-reduce:animate-none"

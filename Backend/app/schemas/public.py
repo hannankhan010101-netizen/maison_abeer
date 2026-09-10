@@ -22,10 +22,19 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class PublicStudio(BaseModel):
-    """Branding only. No settings, no contact details, no counts."""
+    """Branding only. No settings, no contact details, no counts.
+
+    `logo_url`/`primary_color`/`accent_color` come straight from the studio's
+    own brand kit (Settings → Brand Kit) — the whole point of that screen is
+    a guest-facing page that looks like *this* studio's brand, not every
+    studio's identical default.
+    """
 
     name: str
     instagram_handle: str | None = None
+    logo_url: str | None = None
+    primary_color: str | None = None
+    accent_color: str | None = None
 
 
 class PublicClass(BaseModel):

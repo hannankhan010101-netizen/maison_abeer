@@ -179,4 +179,22 @@
   .animate-rise-in {
     animation: rise-in 0.5s var(--ease-spring) both;
   }
+
+  /* A "made by hand" tactility with no photograph behind it: a static,
+     tiled SVG noise pattern used as a background-image. Static rather than
+     animated deliberately — an animated `feTurbulence` filter is recomputed
+     per pixel every frame and gets genuinely expensive on a mid-tier phone;
+     a tiled background-image is rasterised once and then just as cheap as
+     any other background. Felt, not seen: opacity stays low. */
+  .grain-overlay {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+  }
+
+  .mocha .grain-overlay {
+    mix-blend-mode: overlay;
+    opacity: 0.08;
+  }
 }

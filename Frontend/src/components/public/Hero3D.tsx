@@ -27,15 +27,22 @@ import type { Group, Mesh } from 'three';
  *   scrolls into view, and never block the booking form underneath it.
  */
 
-const SHAPES = [
-  { geometry: 'icosahedron', color: '#E2849E', position: [-1.3, 0.4, 0], scale: 0.85, speed: 0.6 },
-  { geometry: 'torus', color: '#F2AABE', position: [1.2, -0.3, -0.4], scale: 0.7, speed: 0.45 },
-  { geometry: 'octahedron', color: '#C96F4A', position: [0.3, 0.9, -0.8], scale: 0.5, speed: 0.8 },
-  { geometry: 'sphere', color: '#ADBE93', position: [-0.6, -0.8, -0.3], scale: 0.42, speed: 0.5 },
-  { geometry: 'dodecahedron', color: '#F7DC94', position: [1.6, 0.7, -1.1], scale: 0.4, speed: 0.7 },
-] as const;
+const DEFAULT_ROSE = '#E2849E';
+const DEFAULT_PINK = '#F2AABE';
 
-function FloatingShape({ shape, index }: { shape: (typeof SHAPES)[number]; index: number }) {
+function shapesFor(primaryColor?: string, accentColor?: string) {
+  return [
+    { geometry: 'icosahedron', color: primaryColor ?? DEFAULT_ROSE, position: [-1.3, 0.4, 0], scale: 0.85, speed: 0.6 },
+    { geometry: 'torus', color: accentColor ?? DEFAULT_PINK, position: [1.2, -0.3, -0.4], scale: 0.7, speed: 0.45 },
+    { geometry: 'octahedron', color: '#C96F4A', position: [0.3, 0.9, -0.8], scale: 0.5, speed: 0.8 },
+    { geometry: 'sphere', color: '#ADBE93', position: [-0.6, -0.8, -0.3], scale: 0.42, speed: 0.5 },
+    { geometry: 'dodecahedron', color: '#F7DC94', position: [1.6, 0.7, -1.1], scale: 0.4, speed: 0.7 },
+  ] as const;
+}
+
+type Shape = ReturnType<typeof shapesFor>[number];
+
+function FloatingShape({ shape, index }: { shape: Shape; index: number }) {
   const ref = useRef<Mesh>(null);
   const start = index * 1.7; // phase-offsets the bob so shapes don't move in lockstep
 
@@ -67,7 +74,7 @@ function FloatingShape({ shape, index }: { shape: (typeof SHAPES)[number]; index
   );
 }
 
-function Rig() {
+function Rig({ shapes }: { shapes: readonly Shape[] }) {
   const group = useRef<Group>(null);
 
   useFrame((state) => {
@@ -83,7 +90,7 @@ function Rig() {
 
   return (
     <group ref={group}>
-      {SHAPES.map((shape, index) => (
+      {shapes.map((shape, index) => (
         <FloatingShape key={shape.geometry} shape={shape} index={index} />
       ))}
     </group>
@@ -110,8 +117,15 @@ function useIsOnScreen<T extends HTMLElement>(): [React.RefObject<T | null>, boo
   return [ref, onScreen];
 }
 
-export default function Hero3D() {
+export interface Hero3DProps {
+  /** The studio's own Brand Kit colours, when set — see BookingHero. */
+  primaryColor?: string;
+  accentColor?: string;
+}
+
+export default function Hero3D({ primaryColor, accentColor }: Hero3DProps) {
   const [containerRef, onScreen] = useIsOnScreen<HTMLDivElement>();
+  const shapes = shapesFor(primaryColor, accentColor);
 
   return (
     <div ref={containerRef} className="absolute inset-0" aria-hidden="true">
@@ -123,10 +137,10 @@ export default function Hero3D() {
       >
         <ambientLight intensity={0.9} />
         <directionalLight position={[3, 3, 4]} intensity={0.6} />
-        <Rig />
+        <Rig shapes={shapes} />
       </Canvas>
     </div>
   );
 }
 
-export const HERO_3D_SHAPE_COUNT = SHAPES.length;
+export const HERO_3D_SHAPE_COUNT = shapesFor().length;

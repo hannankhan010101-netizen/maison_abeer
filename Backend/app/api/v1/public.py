@@ -218,6 +218,9 @@ def list_public_classes(
         studio=PublicStudio(
             name=studio.name,
             instagram_handle=brand.instagram_handle if brand else None,
+            logo_url=brand.logo_url if brand else None,
+            primary_color=brand.primary_color if brand else None,
+            accent_color=brand.accent_color if brand else None,
         ),
         classes=classes,
     )

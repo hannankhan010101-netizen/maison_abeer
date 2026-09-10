@@ -12,6 +12,10 @@ import { apiBaseUrl } from '@/lib/api/base-url';
 export interface PublicStudio {
   name: string;
   instagram_handle: string | null;
+  /** From the studio's own Brand Kit (Settings) — null until a host sets one. */
+  logo_url: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
 }
 
 export interface PublicClass {

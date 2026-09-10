@@ -130,7 +130,13 @@ def test_the_class_list_exposes_no_studio_internals(studio_with_class: Any) -> N
         f"{API}/api/v1/public/{studio_with_class['slug']}/classes", timeout=40
     ).json()
 
-    assert set(payload["studio"]) == {"name", "instagram_handle"}
+    assert set(payload["studio"]) == {
+        "name",
+        "instagram_handle",
+        "logo_url",
+        "primary_color",
+        "accent_color",
+    }
     assert "quiet_hours_start" not in payload["studio"]
     assert set(payload["classes"][0]) == {
         "id",

@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { BookingHero } from '@/components/public/BookingHero';
+import { BookingPostcard } from '@/components/public/BookingPostcard';
+import { CraftStrip } from '@/components/public/CraftStrip';
 import {
   BookingError,
   fetchClasses,
@@ -134,7 +136,19 @@ export function BookingFlow({ slug }: BookingFlowProps) {
   const step = result ? 3 : chosen ? 2 : 1;
 
   return (
-    <Shell studioName={data.studio.name} handle={data.studio.instagram_handle} step={step}>
+    <Shell
+      studioName={data.studio.name}
+      handle={data.studio.instagram_handle}
+      primaryColor={data.studio.primary_color}
+      accentColor={data.studio.accent_color}
+      step={step}
+      // The brand strip and postcard are the arrival experience — once a
+      // guest has committed to a class or finished booking, the page's job
+      // narrows to "get this done," so they step aside rather than compete
+      // with the form for attention.
+      showBrandSections={step === 1}
+      classes={data.classes}
+    >
       {result ? (
         <Confirmation result={result} />
       ) : chosen ? (
@@ -154,25 +168,50 @@ function Shell({
   children,
   studioName,
   handle,
+  primaryColor,
+  accentColor,
   step,
+  showBrandSections,
+  classes,
 }: {
   children: React.ReactNode;
   studioName?: string;
   handle?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
   step?: 1 | 2 | 3;
+  showBrandSections?: boolean;
+  classes?: PublicClass[];
 }) {
+  const brandSections = Boolean(showBrandSections && classes && classes.length > 0);
+
   return (
     <main id="main" className="bg-buttercream min-h-screen">
-      {studioName ? <BookingHero studioName={studioName} handle={handle} /> : null}
+      {studioName ? (
+        <BookingHero
+          studioName={studioName}
+          handle={handle}
+          primaryColor={primaryColor}
+          accentColor={accentColor}
+        />
+      ) : null}
+
+      {/* The brand strip and postcard overlap the hero's rounded bottom
+          edge the same way the widget card used to on its own — laid on
+          top of the scene, not starting a new page beneath it. */}
+      {brandSections ? (
+        <div className="relative z-10 -mt-8 space-y-7 pb-2 sm:-mt-10">
+          <CraftStrip classes={classes!} />
+          <BookingPostcard classes={classes!} />
+        </div>
+      ) : null}
 
       <div
         className={cn(
           'mx-auto w-full max-w-[560px] px-4 sm:px-6',
-          // The widget overlaps the hero's rounded bottom edge — a card
-          // laid on top of the scene rather than a new page starting below
-          // it, which is most of what makes this feel designed rather than
-          // stacked.
-          studioName ? '-mt-8 pb-14 sm:-mt-10' : 'py-8 sm:py-12',
+          !studioName && 'py-8 sm:py-12',
+          studioName && !brandSections && '-mt-8 pb-14 sm:-mt-10',
+          studioName && brandSections && 'mt-6 pb-14 sm:mt-8',
         )}
       >
         <div

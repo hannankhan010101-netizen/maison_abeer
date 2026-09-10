@@ -248,4 +248,96 @@ describe('BookingFlow', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
+
+  // -------------------------------------------------------------------------
+  // Brand presence
+  // -------------------------------------------------------------------------
+
+  it('shows one craft card per distinct class on offer, not a fixed three', async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
+        classes: [
+          { ...classList().classes[0], id: 'c1', color_token: 'pink', seats_left: 4 },
+          {
+            ...classList().classes[0],
+            id: 'c2',
+            name: 'Pottery & wheel throwing',
+            color_token: 'terra',
+            seats_left: 3,
+          },
+        ],
+      }),
+    );
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    expect(await screen.findByText('What we make here')).toBeInTheDocument();
+    // Craft names appear both as a craft card and a class-picker button, so
+    // more than one match is expected — the point is that both crafts show.
+    expect(screen.getAllByText('Bento cake decorating').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pottery & wheel throwing').length).toBeGreaterThan(0);
+  });
+
+  it('the postcard states the real, honest number of open seats', async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
+        classes: [
+          { ...classList().classes[0], id: 'c1', seats_left: 4, is_full: false },
+          { ...classList().classes[0], id: 'c2', seats_left: 3, is_full: false },
+          // A full class contributes nothing — its seats aren't "open".
+          { ...classList().classes[0], id: 'c3', seats_left: 0, is_full: true },
+        ],
+      }),
+    );
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    expect(await screen.findByText('7')).toBeInTheDocument();
+    expect(screen.getByText(/seats open across 2 classes right now/)).toBeInTheDocument();
+  });
+
+  it('the brand strip steps aside once a guest has picked a class', async () => {
+    fetchMock.mockImplementation(json(classList()));
+
+    render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByText('What we make here');
+
+    await userEvent.click(await screen.findByRole('button', { name: /Bento cake/ }));
+
+    expect(screen.queryByText('What we make here')).not.toBeInTheDocument();
+  });
+
+  it("carries the studio's own brand colours through when it has set any", async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: {
+          name: 'Maison Abeer',
+          instagram_handle: 'maisonabeer',
+          primary_color: '#8B5CF6',
+          accent_color: '#F59E0B',
+        },
+        classes: classList().classes,
+      }),
+    );
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    const header = container.querySelector('header');
+    expect(header?.style.getPropertyValue('--color-rose')).toBe('#8B5CF6');
+    expect(header?.style.getPropertyValue('--color-pink')).toBe('#F59E0B');
+  });
+
+  it("falls back to the app's own colours when a studio hasn't set a brand kit", async () => {
+    fetchMock.mockImplementation(json(classList()));
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    const header = container.querySelector('header');
+    expect(header?.style.getPropertyValue('--color-rose')).toBe('');
+    expect(header?.style.getPropertyValue('--color-pink')).toBe('');
+  });
 });
