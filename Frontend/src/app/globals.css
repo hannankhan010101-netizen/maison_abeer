@@ -165,6 +165,14 @@
   }
 }
 
+/* The generative pottery-wheel pattern's continuous turn — slow enough
+   (90s/revolution) that it reads as ambient rather than as a spinner. */
+@keyframes wheel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @layer utilities {
   /* Handwritten asides — the app writing a little note to the host. */
   .font-hand {
@@ -215,5 +223,13 @@
   .mocha .grain-overlay {
     mix-blend-mode: overlay;
     opacity: 0.08;
+  }
+
+  /* Set by CustomCursor while it's active, removed on unmount — never
+     applied at the stylesheet level, so every other route keeps its normal
+     cursor untouched. */
+  .cursor-none,
+  .cursor-none * {
+    cursor: none;
   }
 }

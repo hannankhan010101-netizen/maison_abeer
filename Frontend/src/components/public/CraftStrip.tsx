@@ -82,6 +82,7 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
               style={visible ? { animationDelay: `${index * 80}ms` } : { opacity: 0 }}
             >
               <div
+                data-cursor-label="EXPLORE"
                 className={cn(
                   'group relative flex h-[168px] flex-col justify-between overflow-hidden rounded-[var(--radius-lg)] p-4',
                   craft.photoUrl ? 'text-photo-ink' : cn(block.bg, block.ink),

@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
+import { ParticleField } from '@/components/public/ParticleField';
 import { cn } from '@/lib/cn';
 import { scrollToId } from '@/lib/public/lenisBridge';
 import { useHeroParallax } from '@/lib/public/useHeroParallax';
@@ -182,6 +183,7 @@ export function BookingHero({
             className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[var(--color-buttercream)] sm:h-48"
           />
           <div aria-hidden="true" className="grain-overlay absolute inset-0 mix-blend-overlay opacity-10" />
+          {mayAnimate ? <ParticleField /> : null}
         </>
       ) : (
         <>
@@ -207,6 +209,7 @@ export function BookingHero({
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-[var(--color-buttercream)]"
           />
+          {mayAnimate ? <ParticleField /> : null}
         </>
       )}
 

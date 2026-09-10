@@ -4,7 +4,10 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { BookingHero } from '@/components/public/BookingHero';
 import { BookingPostcard } from '@/components/public/BookingPostcard';
+import { CeramicShowcase } from '@/components/public/CeramicShowcase';
 import { CraftStrip } from '@/components/public/CraftStrip';
+import { CustomCursor } from '@/components/public/CustomCursor';
+import { MagicalPattern } from '@/components/public/MagicalPattern';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
 import {
   BookingError,
@@ -196,6 +199,7 @@ function Shell({
   return (
     <main id="main" className="bg-buttercream min-h-screen">
       <SmoothScroll />
+      <CustomCursor />
 
       {studioName ? (
         <BookingHero
@@ -215,6 +219,7 @@ function Shell({
         <div className="space-y-12 pt-2 pb-4 sm:space-y-16">
           {story ? <StorySection story={story} /> : null}
           <CraftStrip classes={classes!} />
+          <CeramicShowcase />
           <BookingPostcard classes={classes!} />
         </div>
       ) : null}
@@ -309,7 +314,8 @@ function StorySection({ story }: { story: string }) {
   const [ref, visible] = useRevealOnScroll<HTMLElement>();
 
   return (
-    <section ref={ref} className="px-5 sm:px-8">
+    <section ref={ref} className="relative px-5 sm:px-8">
+      <MagicalPattern className="inset-0 -z-10" />
       <div
         className={cn(
           'mx-auto max-w-[46ch] text-center',
@@ -372,6 +378,7 @@ function ClassPicker({
               <button
                 type="button"
                 onClick={() => onPick(item)}
+                data-cursor-label="BOOK"
                 className={cn(
                   'group border-line bg-paper relative w-full overflow-hidden rounded-[var(--radius-md)] border-[1.5px]',
                   'min-h-[44px] py-4 pr-4 pl-5 text-left transition-[transform,box-shadow] duration-200',

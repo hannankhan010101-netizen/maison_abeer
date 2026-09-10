@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import type { Group, Mesh } from 'three';
+
+import { useIsOnScreen } from '@/lib/public/useIsOnScreen';
 
 /**
  * The hero's floating craft shapes — a piped-frosting blob, a clay coil, a
@@ -104,26 +106,6 @@ function Rig({ shapes }: { shapes: readonly Shape[] }) {
       ))}
     </group>
   );
-}
-
-/** Pauses the render loop entirely while the canvas is scrolled off-screen. */
-function useIsOnScreen<T extends HTMLElement>(): [React.RefObject<T | null>, boolean] {
-  const ref = useRef<T | null>(null);
-  const [onScreen, setOnScreen] = useState(true);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(([entry]) => setOnScreen(Boolean(entry?.isIntersecting)), {
-      rootMargin: '200px',
-    });
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  return [ref, onScreen];
 }
 
 export interface Hero3DProps {
