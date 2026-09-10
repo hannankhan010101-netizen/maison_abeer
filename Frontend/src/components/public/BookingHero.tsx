@@ -245,7 +245,7 @@ export function BookingHero({
         <h1
           className={cn(
             'font-display mt-2 text-[clamp(44px,15vw,108px)] leading-[0.98]',
-            hasPhoto && 'text-buttercream',
+            hasPhoto && 'text-photo-ink',
           )}
         >
           <span className="sr-only">{studioName}</span>
@@ -265,7 +265,7 @@ export function BookingHero({
         <p
           className={cn(
             'animate-rise-in mx-auto mt-4 max-w-[34ch] text-[15px] sm:text-base',
-            hasPhoto ? 'text-buttercream/90' : 'text-cocoa',
+            hasPhoto ? 'text-photo-ink/90' : 'text-cocoa',
           )}
           style={{ animationDelay: `${80 + words.length * 110 + 100}ms` }}
         >
@@ -284,7 +284,7 @@ export function BookingHero({
             'border-[1.5px] px-6 text-sm font-extrabold tracking-wide uppercase',
             'transition-colors duration-300',
             hasPhoto
-              ? 'border-buttercream/60 text-buttercream hover:bg-buttercream/10'
+              ? 'border-photo-ink/60 text-photo-ink hover:bg-photo-ink/10'
               : 'border-cocoa/40 text-cocoa hover:bg-cocoa/5',
             'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
           )}
@@ -300,12 +300,12 @@ export function BookingHero({
           <p
             className={cn(
               'animate-rise-in mt-5 text-sm',
-              hasPhoto ? 'text-buttercream/75' : 'text-latte',
+              hasPhoto ? 'text-photo-ink/75' : 'text-latte',
             )}
             style={{ animationDelay: `${80 + words.length * 110 + 260}ms` }}
           >
             Find us on Instagram{' '}
-            <b className={hasPhoto ? 'text-buttercream' : 'text-cocoa'}>@{handle}</b>
+            <b className={hasPhoto ? 'text-photo-ink' : 'text-cocoa'}>@{handle}</b>
           </p>
         ) : null}
 
@@ -323,7 +323,7 @@ function ScrollCue({ delay, light }: { delay: string; light?: boolean }) {
         viewBox="0 0 24 24"
         className={cn(
           'motion-safe:animate-bounce size-6 motion-reduce:animate-none',
-          light ? 'text-buttercream' : 'text-rose-ink',
+          light ? 'text-photo-ink' : 'text-rose-ink',
         )}
         fill="none"
       >

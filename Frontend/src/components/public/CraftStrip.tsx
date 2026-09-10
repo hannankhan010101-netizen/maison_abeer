@@ -41,7 +41,7 @@ function craftsFrom(classes: PublicClass[]): Craft[] {
 
 const BLOCK: Record<string, { bg: string; ink: string }> = {
   pink: { bg: 'bg-pink', ink: 'text-on-pink' },
-  terra: { bg: 'bg-terra', ink: 'text-buttercream' },
+  terra: { bg: 'bg-terra', ink: 'text-photo-ink' },
   sage: { bg: 'bg-sage', ink: 'text-cocoa' },
   butter: { bg: 'bg-butter', ink: 'text-cocoa' },
   rose: { bg: 'bg-rose', ink: 'text-on-rose' },
@@ -84,7 +84,7 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
               <div
                 className={cn(
                   'group relative flex h-[168px] flex-col justify-between overflow-hidden rounded-[var(--radius-lg)] p-4',
-                  craft.photoUrl ? 'text-buttercream' : cn(block.bg, block.ink),
+                  craft.photoUrl ? 'text-photo-ink' : cn(block.bg, block.ink),
                 )}
               >
                 {craft.photoUrl ? (

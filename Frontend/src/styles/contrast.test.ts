@@ -89,6 +89,11 @@ describe('token file integrity', () => {
       '--color-sage',
       '--color-butter',
       '--color-rose-deep',
+      // The ink for text sitting on a booking-page photo's own scrim — its
+      // contrast comes from that fixed black gradient, not from the site
+      // theme, so it deliberately does NOT flip with the rest of the ink
+      // tokens (see the comment beside its definition in tokens.css).
+      '--color-photo-ink',
     ]);
 
     const mochaOverrides = extractColorTokens(extractBlock(css, '.mocha'));

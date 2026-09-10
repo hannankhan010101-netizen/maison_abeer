@@ -41,6 +41,15 @@
   /* ---- ink --------------------------------------------------------------- */
   --color-cocoa: #40302a; /* body text · @a11y 11.91:1 on buttercream */
   --color-latte: #866e60; /* muted text · @a11y 4.52:1 on buttercream (was #8A7263, 4.27:1) */
+
+  /* Deliberately NOT redefined under `.mocha` below. `--color-buttercream`
+     flips dark in mocha mode because it names a *surface* (the page
+     background) — but hero text sitting on a photo's own black scrim needs
+     a colour that stays light regardless of which theme the visitor has
+     chosen, because the thing guaranteeing its contrast is the scrim, not
+     the site theme. Using `--color-buttercream` for that text was the bug:
+     in mocha it resolves to near-black, on near-black photo shadows. */
+  --color-photo-ink: #fbf3e7; /* @a11y 14.1:1 against the hero scrim's black/70 */
   --color-danger: #bb463d; /* allergy chip ink · @a11y 4.53:1 on danger-soft (was #C4534B, 3.92:1) */
   --color-danger-soft: #fdecea;
   --color-danger-line: #f2c4c0;
