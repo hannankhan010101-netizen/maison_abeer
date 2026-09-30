@@ -16,9 +16,13 @@ should not roll the API back with it.
 
 **Root directory:** `Backend`
 
-Vercel finds `api/index.py`, which exposes the ASGI app, and `vercel.json`
-rewrites every path to it. Without that rewrite only `/api/index` resolves and
-every real route 404s.
+Vercel's FastAPI preset finds `api/index.py`, which exposes the ASGI app, and
+routes every path to it with the original path intact. No `rewrites` entry —
+this used to carry `{"source": "/(.*)", "destination": "/api/index"}`, which
+rewrote the _path_ as well as picking the function, so the app received
+`/api/index` for every request and answered `{"detail":"Not Found"}` to all of
+them, `/health` included. Deleting it fixed every route at once. Do not add it
+back: the preset already does the routing.
 
 ### Region
 

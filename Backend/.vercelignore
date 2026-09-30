@@ -1,0 +1,20 @@
+# Vercel uploads this directory verbatim — it does not read .gitignore — so
+# without this the local virtualenvs go too. The first deploy shipped 45.6MB
+# across 5216 files for that reason.
+.venv*/
+venv/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Not used at runtime: the function only imports `app`. `migrations/` stays —
+# it is small, and keeping it means the deployed tree matches the repo.
+tests/
+.env
+.env.*
+!.env.example
