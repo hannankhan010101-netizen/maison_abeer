@@ -7,11 +7,18 @@ from dataclasses import replace
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
+from app.core.errors import NotFoundError
 from app.domain.capacity import Capacity
 from app.domain.guests import MessageChannel
 from app.domain.scheduling import QuietHours
 from app.domain.waitlist import WaitlistEntry
-from app.services.guests import BookingSnapshot, GuestDraft, GuestSnapshot
+from app.services.guests import (
+    AllergyDraft,
+    AllergySnapshot,
+    BookingSnapshot,
+    GuestDraft,
+    GuestSnapshot,
+)
 
 
 class FakeGuestRepository:
@@ -82,7 +89,7 @@ class FakeGuestRepository:
         return self.guests.get(guest_id)
 
     def create_guest(self, draft: GuestDraft) -> GuestSnapshot:
-        return self.add_guest(
+        guest = self.add_guest(
             full_name=draft.full_name,
             phone=draft.phone,
             email=draft.email,
@@ -92,10 +99,72 @@ class FakeGuestRepository:
             visit_count=0,
         )
 
+        if draft.allergies:
+            self.add_allergies(guest.id, draft.allergies)
+
+        return self.guests[guest.id]
+
     def update_guest(self, guest_id: UUID, changes: dict[str, object]) -> GuestSnapshot:
         updated = replace(self.guests[guest_id], **changes)  # type: ignore[arg-type]
         self.guests[guest_id] = updated
         return updated
+
+    # -- allergies ----------------------------------------------------------
+
+    def add_allergies(
+        self, guest_id: UUID, drafts: Sequence[AllergyDraft]
+    ) -> Sequence[AllergySnapshot]:
+        """Insert allergies, skipping labels already on file (case-insensitive)."""
+        guest = self.guests[guest_id]
+        known = {a.label.strip().lower() for a in guest.allergies}
+
+        added: list[AllergySnapshot] = []
+
+        for draft in drafts:
+            label = draft.label.strip()
+
+            if not label or label.lower() in known:
+                continue
+
+            known.add(label.lower())
+            added.append(
+                AllergySnapshot(id=uuid4(), label=label, severity=draft.severity, notes=draft.notes)
+            )
+
+        if added:
+            self.guests[guest_id] = replace(guest, allergies=(*guest.allergies, *added))
+
+        return added
+
+    def _allergy(self, guest_id: UUID, allergy_id: UUID) -> AllergySnapshot:
+        for allergy in self.guests[guest_id].allergies:
+            if allergy.id == allergy_id:
+                return allergy
+
+        raise NotFoundError("We couldn't find that.")
+
+    def update_allergy(
+        self, guest_id: UUID, allergy_id: UUID, changes: dict[str, object]
+    ) -> AllergySnapshot:
+        current = self._allergy(guest_id, allergy_id)
+        editable = {k: v for k, v in changes.items() if k in {"label", "severity", "notes"}}
+        updated = replace(current, **editable)  # type: ignore[arg-type]
+
+        guest = self.guests[guest_id]
+        self.guests[guest_id] = replace(
+            guest,
+            allergies=tuple(updated if a.id == allergy_id else a for a in guest.allergies),
+        )
+
+        return updated
+
+    def remove_allergy(self, guest_id: UUID, allergy_id: UUID) -> None:
+        self._allergy(guest_id, allergy_id)
+
+        guest = self.guests[guest_id]
+        self.guests[guest_id] = replace(
+            guest, allergies=tuple(a for a in guest.allergies if a.id != allergy_id)
+        )
 
     def bookings_for_session(self, session_id: UUID) -> list[BookingSnapshot]:
         return [b for b in self.bookings.values() if b.session_id == session_id]

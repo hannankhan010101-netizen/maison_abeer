@@ -8,7 +8,7 @@ import { VibeCloud } from '@/components/domain/VibeCloud';
 import { Button } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { ApiError } from '@/lib/api/errors';
-import { useSessions } from '@/lib/api/hooks';
+import { useSessions, useStudioFeedback } from '@/lib/api/hooks';
 import { addWeeks } from '@/lib/dates';
 import { useResolvedNow } from '@/lib/useNow';
 import { deriveWrapped } from '@/lib/wrapped/stats';
@@ -20,31 +20,6 @@ import { deriveWrapped } from '@/lib/wrapped/stats';
  * toward — the three things that turn admin data into something worth
  * looking at on a quiet afternoon.
  */
-
-/**
- * One-word feedback.
- *
- * The API has no feedback read endpoint yet, so these come from the demo
- * store. When that endpoint lands this is the single line that changes.
- */
-const SAMPLE_WORDS = [
-  'therapeutic',
-  'calm',
-  'therapeutic',
-  'messy',
-  'joyful',
-  'calm',
-  'therapeutic',
-  'nostalgic',
-  'calm',
-  'proud',
-  'messy',
-  'giggly',
-  'grounding',
-  'calm',
-  'therapeutic',
-  'proud',
-];
 
 export function WrappedPage({ now: nowProp }: { now?: Date }) {
   const now = useResolvedNow(nowProp);
@@ -74,10 +49,24 @@ function WrappedPageInner({ now }: { now: Date }) {
   const sessions = useSessions(range.start, range.end);
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
 
-  const stats = useMemo(
-    () => deriveWrapped({ sessions: list, words: SAMPLE_WORDS, now }),
-    [list, now],
+  const feedback = useStudioFeedback(range.start, range.end);
+
+  /**
+   * What guests actually wrote.
+   *
+   * This used to be sixteen invented words rendered as testimonials — a
+   * brand-new studio saw a rich cloud of praise nobody had given it, and a
+   * studio with fifty real answers never saw one of them.
+   */
+  const words = useMemo(
+    () =>
+      (feedback.data ?? [])
+        .map((answer) => answer.one_word)
+        .filter((word): word is string => Boolean(word && word.trim())),
+    [feedback.data],
   );
+
+  const stats = useMemo(() => deriveWrapped({ sessions: list, words, now }), [list, words, now]);
 
   return (
     <section>
@@ -101,15 +90,15 @@ function WrappedPageInner({ now }: { now: Date }) {
         </Card>
       ) : null}
 
-      {sessions.isSuccess ? (
+      {sessions.isSuccess && !feedback.isPending ? (
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
           <div>
             <Eyebrow>Studio wrapped</Eyebrow>
-            <StudioWrapped sessions={list} words={SAMPLE_WORDS} now={now} />
+            <StudioWrapped sessions={list} words={words} now={now} />
           </div>
 
           <div className="grid content-start gap-6">
-            <VibeCloud words={SAMPLE_WORDS} />
+            <VibeCloud words={words} />
 
             <ManifestBoard
               totals={{

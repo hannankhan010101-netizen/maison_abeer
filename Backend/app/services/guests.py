@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
-from app.core.errors import ConflictError, DuplicateGuestError, NotFoundError
+from app.core.errors import ConflictError, DuplicateGuestError, NotFoundError, ValidationError
 from app.domain.guests import (
     GuestIdentity,
     MessageChannel,
@@ -102,6 +102,19 @@ class GuestSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class AllergyDraft:
+    """An allergy as the host records it.
+
+    Its own dataclass rather than the request model: this layer imports
+    nothing from `app.schemas`, and the router maps across.
+    """
+
+    label: str
+    severity: AllergySeverity = AllergySeverity.ALLERGY
+    notes: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class GuestDraft:
     full_name: str
     phone: str | None = None
@@ -109,6 +122,7 @@ class GuestDraft:
     preferred_channel: MessageChannel = MessageChannel.WHATSAPP
     birthday: date | None = None
     memory_note: str | None = None
+    allergies: tuple[AllergyDraft, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +158,18 @@ class GuestRepository(Protocol):
 
     def update_guest(self, guest_id: UUID, changes: dict[str, object]) -> GuestSnapshot: ...
 
+    # Allergies are safety-critical, so the write path is explicit rather
+    # than folded into the guest PATCH allowlist.
+    def add_allergies(
+        self, guest_id: UUID, drafts: Sequence[AllergyDraft]
+    ) -> Sequence[AllergySnapshot]: ...
+
+    def update_allergy(
+        self, guest_id: UUID, allergy_id: UUID, changes: dict[str, object]
+    ) -> AllergySnapshot: ...
+
+    def remove_allergy(self, guest_id: UUID, allergy_id: UUID) -> None: ...
+
     def bookings_for_session(self, session_id: UUID) -> Sequence[BookingSnapshot]: ...
 
     def get_booking(self, booking_id: UUID) -> BookingSnapshot | None: ...
@@ -162,9 +188,7 @@ class GuestRepository(Protocol):
 
     def save_waitlist(self, session_id: UUID, entries: Sequence[WaitlistEntry]) -> None: ...
 
-    def schedule_waitlist_invite(
-        self, session_id: UUID, guest_id: UUID, send_at: datetime
-    ) -> None:
+    def schedule_waitlist_invite(self, session_id: UUID, guest_id: UUID, send_at: datetime) -> None:
         """Queue the message that makes an invite real.
 
         Flipping a waitlist entry to `invited` is bookkeeping; without a
@@ -234,15 +258,111 @@ class GuestService:
                 )
             from uuid import UUID as _UUID
 
-            return self.get(_UUID(duplicate.guest_id))
+            merged_id = _UUID(duplicate.guest_id)
+
+            # "Add to their history instead" has to include the allergies the
+            # host just typed, or merging quietly drops safety-critical data
+            # that the prompt promised to keep.
+            if draft.allergies:
+                self._repo.add_allergies(merged_id, draft.allergies)
+
+            return self.get(merged_id)
 
         return self._repo.create_guest(draft)
 
     def update(self, guest_id: UUID, changes: dict[str, object]) -> GuestSnapshot:
+        """Edit a guest, with the same duplicate guard `create` applies.
+
+        Editing a phone number *into* another guest's is the same collision
+        `create` refuses, and now that both entry points store normalised
+        contact details the partial unique indexes would catch it — as a bare
+        IntegrityError and a 500, since nothing maps that exception. Checked
+        here instead, so the host gets the merge prompt rather than a crash.
+        """
+        current = self.get(guest_id)
+
+        # No `if v is not None` filter. The route already uses
+        # `exclude_unset`, which is what distinguishes "left alone" from
+        # "deliberately cleared" — dropping the Nones on top of that made
+        # clearing a wrong email, a wrong birthday or a stale memory note
+        # return 200 with the old value still stored.
+        applied = dict(changes)
+
+        phone = applied.get("phone", current.phone)
+        email = applied.get("email", current.email)
+        channel = applied.get("preferred_channel", current.preferred_channel)
+
+        # The merged state, not the patch. `GuestCreate` validates this pair
+        # and `GuestUpdate` cannot, because either half may be absent — so a
+        # PATCH could set the channel to email on a guest with no email and
+        # produce someone the send pipeline silently skips forever.
+        if channel is MessageChannel.EMAIL and not email and phone:
+            raise ValidationError("You picked email, but there's only a phone number on file.")
+
+        if channel is MessageChannel.WHATSAPP and not phone and email:
+            raise ValidationError("You picked WhatsApp, but there's only an email on file.")
+
+        if "phone" in applied or "email" in applied:
+            candidate = GuestIdentity(
+                guest_id=str(guest_id),
+                full_name=current.full_name,
+                phone=phone if isinstance(phone, str) else None,
+                email=email if isinstance(email, str) else None,
+            )
+
+            # `find_duplicate` skips the candidate's own id, so re-saving a
+            # guest's existing number is not a duplicate of themselves.
+            duplicate = find_duplicate(candidate, [g.identity() for g in self._repo.list_guests()])
+
+            if duplicate is not None:
+                raise DuplicateGuestError(
+                    f"{duplicate.full_name} already has those details. "
+                    f"Merge the two records instead of pointing both at the same person?"
+                )
+
+        return self._repo.update_guest(guest_id, applied)
+
+    # -- allergies ----------------------------------------------------------
+
+    def add_allergy(self, guest_id: UUID, draft: AllergyDraft) -> AllergySnapshot:
+        """Record one allergy against a guest.
+
+        The read side of this — the red chip on the roster, the critical count,
+        the day-of alert — was fully built and had nothing to read: the only
+        allergy that could exist was one a guest typed into the public booking
+        form, so a host told about a severe nut allergy on the phone had
+        nowhere to put it.
+        """
         self.get(guest_id)
-        return self._repo.update_guest(
-            guest_id, {k: v for k, v in changes.items() if v is not None}
-        )
+
+        added = self._repo.add_allergies(guest_id, [draft])
+
+        if added:
+            return added[0]
+
+        # Nothing inserted means the label was already on file — answer with
+        # the record that stands, so re-adding is idempotent rather than an
+        # error the host has to interpret.
+        wanted = draft.label.strip().lower()
+        existing = [a for a in self.get(guest_id).allergies if a.label.strip().lower() == wanted]
+
+        if not existing:
+            # Neither inserted nor present: the label was blank, which the
+            # schema rejects before it reaches here.
+            raise ValidationError("An allergy needs a label.")
+
+        return existing[0]
+
+    def edit_allergy(
+        self, guest_id: UUID, allergy_id: UUID, changes: dict[str, object]
+    ) -> AllergySnapshot:
+        """Correct a severity or a note. A wrong severity is a safety problem."""
+        self.get(guest_id)
+        return self._repo.update_allergy(guest_id, allergy_id, changes)
+
+    def delete_allergy(self, guest_id: UUID, allergy_id: UUID) -> None:
+        self.get(guest_id)
+        self._repo.remove_allergy(guest_id, allergy_id)
 
     # -- bookings -----------------------------------------------------------
 

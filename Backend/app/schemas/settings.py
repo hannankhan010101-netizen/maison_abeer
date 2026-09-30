@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import time
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -36,6 +37,31 @@ class SettingsUpdate(BaseModel):
     emoji_density: EmojiDensity | None = None
     show_greeting: bool | None = None
 
+    @field_validator("timezone")
+    @classmethod
+    def _known_zone(cls, value: str | None) -> str | None:
+        """Every scheduling rule is local to this string.
+
+        A typo here — "Karachi", "PKT", "GMT+5" — used to save happily and
+        then raise `ZoneInfoNotFoundError` (a `KeyError`) out of `ZoneInfo`
+        deep inside quiet hours and the energy rules. That surfaced as a 500
+        on quick-add, on message preview, on queueing reminders and on the
+        cron drain, with nothing naming the cause. Checked by construction
+        rather than against `available_timezones()`, which needs tzdata
+        installed to return anything at all.
+        """
+        if value is None:
+            return None
+
+        name = value.strip()
+
+        try:
+            ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("We don't recognise that timezone — try Asia/Karachi.") from None
+
+        return name
+
     @field_validator("rest_days")
     @classmethod
     def _unique_days(cls, value: list[int] | None) -> list[int] | None:
@@ -55,6 +81,16 @@ class BrandKitRead(BaseModel):
     instagram_handle: str | None
     hero_photo_url: str | None
     story: str | None
+
+    booking_slug: str
+    """The key that resolves the studio's public page: `/book/<slug>`.
+
+    Exposed here because this is the screen the public page exists to
+    decorate, and the address was previously in no API response and on no
+    screen — a host could set up their brand kit, write a story and schedule
+    classes without any way to find, copy or share the link those things are
+    for.
+    """
 
 
 class BrandKitUpdate(BaseModel):

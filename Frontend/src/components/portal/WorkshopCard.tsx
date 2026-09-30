@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { Chip } from '@/components/ui/Chip';
 import { cn } from '@/lib/cn';
 import { formatDateLong, formatRange } from '@/lib/dates';
-import type { PortalWorkshop, WorkshopStatus } from '@/lib/api/types';
+import { WORKSHOP_STATUS } from '@/lib/portal/status';
+import type { PortalWorkshop } from '@/lib/api/types';
 
 /**
  * One workshop on a guest's list.
@@ -15,22 +16,6 @@ import type { PortalWorkshop, WorkshopStatus } from '@/lib/api/types';
  * days" quietly becoming wrong while a phone sits on a table is exactly the
  * kind of small lie that makes an app feel dead.
  */
-
-const STATUS: Record<
-  WorkshopStatus,
-  { label: string; tone: 'pink' | 'sage' | 'butter' | 'neutral' }
-> = {
-  upcoming: { label: 'Upcoming', tone: 'pink' },
-  live: { label: 'Happening now', tone: 'sage' },
-  completed: { label: 'Completed', tone: 'neutral' },
-  cancelled: { label: 'Cancelled', tone: 'butter' },
-  // Not a seat — a place in a queue. Distinct from "Upcoming" so nobody turns
-  // up to a class they are only waiting for.
-  waitlisted: { label: 'On the waitlist', tone: 'butter' },
-  // A seat is being held, not yet claimed — the most urgent state a card can
-  // be in, so it gets the same tone as "happening now".
-  invited: { label: 'Seat held for you', tone: 'sage' },
-};
 
 /**
  * Countdown copy with a bit of heat behind it.
@@ -80,7 +65,7 @@ export interface WorkshopCardProps {
 }
 
 export function WorkshopCard({ workshop }: WorkshopCardProps) {
-  const status = STATUS[workshop.status];
+  const status = WORKSHOP_STATUS[workshop.status];
   const now = useTickingNow(workshop.status === 'upcoming');
 
   return (

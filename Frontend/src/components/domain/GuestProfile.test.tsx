@@ -16,6 +16,7 @@ vi.mock('next/navigation', () => ({
 import { GuestProfile } from './GuestProfile';
 import { ApiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/provider';
+import { ToastProvider } from '@/components/ui/Toast';
 import type { Guest, GuestHistory, ScheduledMessage } from '@/lib/api/types';
 
 /**
@@ -102,7 +103,14 @@ function respond({
 function Wrapper({ children }: { children: ReactNode }) {
   const client = createQueryClient();
   client.setDefaultOptions({ queries: { retry: false } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+
+  // The profile's edit controls report failures through a toast, and the
+  // portal layout provides the same provider around the real screen.
+  return (
+    <QueryClientProvider client={client}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }
 
 beforeEach(() => fetchImpl.mockReset());
@@ -266,5 +274,97 @@ describe('GuestProfile', () => {
     expect(
       await screen.findByRole('button', { name: /Message Ayesha K. privately/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('GuestProfile · editing', () => {
+  /**
+   * Everything about a guest used to be write-once.
+   *
+   * The memory note — the headline of the mini-CRM — could only be typed in
+   * the add-a-guest modal, so a host who learned something at the class had
+   * nowhere to write it down. A guest who asked to stop receiving messages
+   * could not be opted out. A typo in a phone number was permanent.
+   */
+
+  function patchBodies(): Record<string, unknown>[] {
+    return fetchImpl.mock.calls
+      .filter((args) => ((args[1] as RequestInit | undefined)?.method ?? 'GET') === 'PATCH')
+      .map((args) => JSON.parse(String((args[1] as RequestInit).body)));
+  }
+
+  it('saves a memory note typed in place', async () => {
+    respond({ person: guest({ memory_note: null }) });
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a note' }));
+
+    await userEvent.type(
+      screen.getByLabelText(/What to remember/),
+      'Came with her sister; loved the matcha buttercream',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(patchBodies()).toHaveLength(1));
+    expect(patchBodies()[0]).toEqual({
+      memory_note: 'Came with her sister; loved the matcha buttercream',
+    });
+  });
+
+  it('does not save a note that has not changed', async () => {
+    respond();
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(patchBodies()).toHaveLength(0);
+  });
+
+  it('opts a guest out of messages', async () => {
+    respond();
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByLabelText(/Opted out of messages/));
+
+    await waitFor(() => expect(patchBodies()).toHaveLength(1));
+    expect(patchBodies()[0]).toEqual({ opted_out: true });
+  });
+
+  it('clears a wrong email rather than keeping it', async () => {
+    respond({ person: guest({ email: 'typo@example.com' }) });
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit details' }));
+
+    await userEvent.clear(screen.getByLabelText('Email'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(patchBodies()).toHaveLength(1));
+    // An explicit null, not an omitted key — omitting it would leave the
+    // typo in place and report success.
+    expect(patchBodies()[0]!.email).toBeNull();
+  });
+
+  it('surfaces a refusal instead of claiming it saved', async () => {
+    respond();
+
+    render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit details' }));
+
+    fetchImpl.mockImplementation(
+      () =>
+        new Response(
+          JSON.stringify({
+            code: 'duplicate_guest',
+            message: 'Sana R. already has those details.',
+          }),
+          { status: 409, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already has those details/);
   });
 });

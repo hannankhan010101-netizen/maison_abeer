@@ -309,3 +309,165 @@ class TestLockEndpoint:
         # Seats remain free, but the session is closed (PRD §2.2).
         assert capacity["available"] == 6
         assert capacity["accepts_bookings"] is False
+
+
+class TestClassTypesEndpoint:
+    """The catalogue quick-add reads from.
+
+    Regression cover for the empty-dropdown bug: the class types used to be
+    derived client-side from the sessions in the visible week, so a studio
+    with no classes yet could not schedule its first one.
+    """
+
+    def test_lists_class_types_with_no_sessions_at_all(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        repo.seed_class_type("Pottery & wheel throwing", default_seats=8)
+
+        response = client.get("/api/v1/class-types")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["name"] == "Pottery & wheel throwing"
+        # Quick-add prefills seats and duration from these.
+        assert body[0]["default_seats"] == 8
+        assert body[0]["default_duration_minutes"] == 150
+        assert body[0]["color_token"] == "pink"  # noqa: S105 — a palette token, not a secret
+
+    def test_orders_by_name(self, client: TestClient, repo: FakeSessionRepository) -> None:
+        repo.seed_class_type("Ceramic painting")
+        repo.seed_class_type("Bento cake decorating")
+
+        names = [row["name"] for row in client.get("/api/v1/class-types").json()]
+
+        assert names == ["Bento cake decorating", "Ceramic painting"]
+
+    def test_empty_catalogue_is_an_empty_list_not_an_error(self, client: TestClient) -> None:
+        response = client.get("/api/v1/class-types")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_a_created_session_can_use_a_listed_class_type(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        """The ids the dropdown offers are the ids create accepts."""
+        option = repo.seed_class_type("Pottery & wheel throwing")
+
+        listed = client.get("/api/v1/class-types").json()[0]["id"]
+        assert listed == str(option.id)
+
+        response = client.post(
+            "/api/v1/sessions",
+            json={
+                "class_type_id": listed,
+                "starts_at": SATURDAY.isoformat(),
+                "ends_at": (SATURDAY + timedelta(hours=2)).isoformat(),
+                "seats": 10,
+            },
+        )
+
+        assert response.status_code == 201
+
+
+class TestDetailEdits:
+    """The quick-edit panel's plain fields.
+
+    They were declared on `SessionUpdate`, accepted by the endpoint, and then
+    dropped — so a venue typed into `notes` came back 200 with the old value
+    and never reached the guests reading it in the portal.
+    """
+
+    def test_writes_title_location_and_notes(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        session = repo.seed(seats=10, booked=2)
+
+        response = client.patch(
+            f"/api/v1/sessions/{session.id}",
+            json={
+                "title": "Ramadan special",
+                "location": "Studio B",
+                "notes": "Side entrance — the front is being painted",
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["title"] == "Ramadan special"
+        assert body["location"] == "Studio B"
+        assert body["notes"] == "Side entrance — the front is being painted"
+
+        # And it is a write, not just an echo.
+        fetched = client.get(f"/api/v1/sessions/{session.id}").json()
+        assert fetched["location"] == "Studio B"
+
+    def test_an_explicit_null_clears_a_field(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        session = repo.seed(notes="Bring an apron")
+
+        body = client.patch(f"/api/v1/sessions/{session.id}", json={"notes": None}).json()
+
+        assert body["notes"] is None
+
+    def test_an_absent_field_is_left_alone(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        session = repo.seed(location="Studio A", notes="Bring an apron")
+
+        body = client.patch(f"/api/v1/sessions/{session.id}", json={"title": "Eid class"}).json()
+
+        # Not the same thing as clearing them.
+        assert body["location"] == "Studio A"
+        assert body["notes"] == "Bring an apron"
+
+    def test_seats_and_details_in_one_call(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        session = repo.seed(seats=10, booked=2)
+
+        body = client.patch(
+            f"/api/v1/sessions/{session.id}",
+            json={"seats": 14, "location": "Studio B"},
+        ).json()
+
+        assert body["capacity"]["seats"] == 14
+        assert body["location"] == "Studio B"
+
+    def test_refuses_an_end_before_the_start(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        session = repo.seed()
+
+        response = client.patch(
+            f"/api/v1/sessions/{session.id}",
+            json={"ends_at": (session.starts_at - timedelta(hours=1)).isoformat()},
+        )
+
+        # A 422 with an explanation, not an inverted window and a 500 from the
+        # table's CHECK constraint.
+        assert response.status_code == 422
+        assert "end after it starts" in response.json()["message"]
+
+    def test_an_explicit_end_survives_a_reschedule_in_the_same_call(
+        self, client: TestClient, repo: FakeSessionRepository
+    ) -> None:
+        session = repo.seed()
+        new_start = SATURDAY + timedelta(days=2)
+
+        body = client.patch(
+            f"/api/v1/sessions/{session.id}",
+            json={
+                "starts_at": new_start.isoformat(),
+                "ends_at": (new_start + timedelta(hours=4)).isoformat(),
+            },
+        ).json()
+
+        # The reschedule recomputes `ends_at` from the old duration; the
+        # explicit value has to win, so the details write runs after it.
+        assert body["starts_at"] == new_start.isoformat().replace("+00:00", "Z")
+        assert body["ends_at"] == (new_start + timedelta(hours=4)).isoformat().replace(
+            "+00:00", "Z"
+        )

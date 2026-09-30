@@ -279,3 +279,133 @@ describe('SessionRoster', () => {
     });
   });
 });
+
+describe('SessionRoster · booking someone in', () => {
+  /**
+   * The endpoint was served and never called.
+   *
+   * A booking taken over WhatsApp or the phone could not be recorded: the
+   * roster stayed empty and told the host "add a guest and they'll appear
+   * here", which was advice that could not be followed. Everything keyed off
+   * the roster — tables, name tags, prep quantities, reminders — went with it.
+   */
+
+  beforeEach(() => fetchImpl.mockReset());
+
+  function respondRosterAndGuests(bookings: Booking[], guests: Guest[]) {
+    fetchImpl.mockImplementation((url: unknown, init?: RequestInit) => {
+      const path = String(url);
+      const method = (init?.method ?? 'GET').toUpperCase();
+
+      if (path.endsWith('/api/v1/guests') && method === 'GET') {
+        return new Response(JSON.stringify(guests), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+
+      if (path.endsWith('/bookings') && method === 'POST') {
+        return new Response(JSON.stringify(booking('Meerab')), {
+          status: 201,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          session_id: 'session-1',
+          bookings,
+          unassigned_count: 0,
+          critical_allergy_count: 0,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+  }
+
+  async function openPicker(guests: Guest[], bookings: Booking[] = []) {
+    respondRosterAndGuests(bookings, guests);
+    render(<SessionRoster session={session()} />, { wrapper: Wrapper });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Book someone in' }));
+    await screen.findByLabelText('Find a guest');
+  }
+
+  it('books the guest the host picks', async () => {
+    await openPicker([guest('Meerab')]);
+
+    await userEvent.click(screen.getByRole('button', { name: /Meerab/ }));
+
+    await waitFor(() => {
+      const posted = fetchImpl.mock.calls.find(
+        (args) => ((args[1] as RequestInit | undefined)?.method ?? 'GET') === 'POST',
+      );
+      expect(posted).toBeDefined();
+      expect(JSON.parse(String((posted![1] as RequestInit).body))).toEqual({
+        guest_id: 'guest-Meerab',
+        booking_answers: null,
+      });
+    });
+  });
+
+  it('leaves out guests who are already in the class', async () => {
+    await openPicker([guest('Meerab'), guest('Sana R.')], [booking('Sana R.')]);
+
+    // Offering a choice the API refuses with a 409 is worse than not
+    // offering it.
+    expect(screen.getByRole('button', { name: /Meerab/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Sana R\./ })).not.toBeInTheDocument();
+  });
+
+  it('narrows the list as the host types', async () => {
+    await openPicker([guest('Meerab'), guest('Fatima')]);
+
+    await userEvent.type(screen.getByLabelText('Find a guest'), 'fat');
+
+    expect(screen.getByRole('button', { name: /Fatima/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Meerab/ })).not.toBeInTheDocument();
+  });
+
+  it('says why a full class cannot take one more', async () => {
+    respondRosterAndGuests([], [guest('Meerab')]);
+    render(
+      <SessionRoster
+        session={session({
+          capacity: {
+            seats: 10,
+            booked: 10,
+            available: 0,
+            state: 'sold_out',
+            waitlist_is_open: true,
+            accepts_bookings: false,
+          },
+        })}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Book someone in' }));
+
+    expect(await screen.findByText(/this class is full/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Meerab/ })).toBeDisabled();
+  });
+
+  it('reports a refusal rather than failing quietly', async () => {
+    await openPicker([guest('Meerab')]);
+
+    fetchImpl.mockImplementation(
+      () =>
+        new Response(
+          JSON.stringify({
+            code: 'conflict',
+            message: 'That class is fully booked. Add them to the waitlist instead?',
+          }),
+          { status: 409, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Meerab/ }));
+
+    expect(await screen.findByTestId('toast')).toHaveTextContent(/fully booked/);
+  });
+});

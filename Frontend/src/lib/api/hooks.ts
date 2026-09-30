@@ -23,6 +23,7 @@ import type {
   ChatBanner,
   ChatMessage,
   ChatRoom,
+  ClassType,
   ClaimResult,
   DeclineResult,
   Guest,
@@ -63,6 +64,40 @@ export function useSessions(start: string, end: string) {
     queryKey: queryKeys.sessions.window(start, end),
     queryFn: ({ signal }) =>
       api.get<Session[]>('/api/v1/sessions', { query: { start, end }, signal }),
+  });
+}
+
+/**
+ * The studio's catalogue.
+ *
+ * Long `staleTime` because it changes when the host edits their class types,
+ * which is rare — and the quick-add form should never open with an empty
+ * dropdown while a refetch it did not need is in flight.
+ */
+export function useClassTypes() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.classTypes.all,
+    queryFn: ({ signal }) => api.get<ClassType[]>('/api/v1/class-types', { signal }),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Every one-word answer in a window, by class date.
+ *
+ * Studio-wide rather than per session: Wrapped reads a whole season, and one
+ * request per class on page load is the reason the page carried sixteen
+ * hardcoded words instead of asking for any of them.
+ */
+export function useStudioFeedback(start: string, end: string) {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: queryKeys.feedback.window(start, end),
+    queryFn: ({ signal }) =>
+      api.get<Feedback[]>('/api/v1/feedback', { query: { start, end }, signal }),
   });
 }
 
@@ -197,6 +232,32 @@ export function useCreateGuest() {
   });
 }
 
+/**
+ * Edit a guest.
+ *
+ * Everything about a guest used to be write-once: the memory note — the
+ * headline of the mini-CRM — could only be typed in the add modal, a guest
+ * who asked to stop receiving messages could not be opted out, and a typo in
+ * a phone number was permanent.
+ */
+export function useUpdateGuest(guestId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.patch<Guest>(`/api/v1/guests/${guestId}`, body),
+    onSuccess: () => {
+      // `guests.all` is `['guests']`, a prefix of detail/list/birthdays/
+      // history, so one call covers them.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.guests.all });
+      // Opting someone out changes who a queued reminder will skip.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Roster and waitlist
 // ---------------------------------------------------------------------------
@@ -233,6 +294,41 @@ export function useAssignTable(sessionId: string) {
       // The unassigned counter lives on the session, not just the roster.
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.roster(sessionId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(sessionId) });
+    },
+  });
+}
+
+/**
+ * Seat a guest in a class.
+ *
+ * The endpoint was served and never called, so a booking taken over WhatsApp
+ * or the phone could not be recorded: the roster stayed empty and told the
+ * host "add a guest and they'll appear here", which was advice that could not
+ * be followed. Everything keyed off the roster — tables, name tags, prep
+ * quantities, reminders, the capacity ring — went with it.
+ */
+export function useCreateBooking(sessionId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      guestId,
+      answers,
+    }: {
+      guestId: string;
+      answers?: Record<string, string> | null;
+    }) =>
+      api
+        .post<Booking>(`/api/v1/sessions/${sessionId}/bookings`, {
+          guest_id: guestId,
+          booking_answers: answers ?? null,
+        })
+        .then((booking) => ({ booking, guestId })),
+    onSuccess: ({ guestId }) => {
+      for (const key of keysInvalidatedByBooking(sessionId, guestId)) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }
@@ -592,7 +688,8 @@ export function useAcceptInvite(sessionId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => api.post<PortalWorkshopDetail>(`/api/v1/portal/workshops/${sessionId}/accept`),
+    mutationFn: () =>
+      api.post<PortalWorkshopDetail>(`/api/v1/portal/workshops/${sessionId}/accept`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.portal.workshop(sessionId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.portal.workshops });

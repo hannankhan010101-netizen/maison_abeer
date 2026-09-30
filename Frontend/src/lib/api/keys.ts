@@ -18,7 +18,16 @@ export const queryKeys = {
     checklist: (id: string) => ['sessions', 'checklist', id] as const,
     messages: (id: string) => ['sessions', 'messages', id] as const,
     tags: (id: string) => ['sessions', 'tags', id] as const,
+    feedback: (id: string) => ['sessions', 'feedback', id] as const,
     exports: (id: string) => ['sessions', 'exports', id] as const,
+  },
+  classTypes: {
+    all: ['class-types'] as const,
+  },
+  feedback: {
+    all: ['feedback'] as const,
+    /** Studio-wide, by class date — what Wrapped reads. */
+    window: (start: string, end: string) => ['feedback', 'window', start, end] as const,
   },
   adminChat: {
     all: ['admin-chat'] as const,

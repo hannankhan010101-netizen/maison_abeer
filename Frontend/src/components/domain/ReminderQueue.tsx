@@ -12,7 +12,8 @@ import {
   useSessionMessages,
   useSessions,
 } from '@/lib/api/hooks';
-import { addWeeks, formatDateLong } from '@/lib/dates';
+import { formatDateLong, workingWindow } from '@/lib/dates';
+import { useResolvedNow } from '@/lib/useNow';
 import type { VoicePreset } from '@/lib/api/types';
 
 /**
@@ -33,14 +34,30 @@ const SKIP_COPY: Record<string, string> = {
 
 export interface ReminderQueueProps {
   now?: Date;
-  voice: VoicePreset;
+  /**
+   * The host's explicit pick, or undefined to let the API apply the studio's
+   * saved `default_voice`. Always sending a concrete value is what made the
+   * Settings voice a decoration — every queued reminder went out in
+   * `soft_sweet` no matter what the host had chosen.
+   */
+  voice?: VoicePreset;
 }
 
-export function ReminderQueue({ now = new Date(), voice }: ReminderQueueProps) {
-  const range = useMemo(
-    () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
-    [now],
-  );
+export function ReminderQueue({ now: nowProp, voice }: ReminderQueueProps) {
+  const now = useResolvedNow(nowProp);
+
+  // `now = new Date()` as a default prop was a fresh Date on every render, so
+  // the session window — and therefore the React Query key — changed by a few
+  // milliseconds each time. Every render started a new fetch whose resolution
+  // caused the next render: the card never had data, so it never showed its
+  // class picker or its buttons, while the browser refetched in a loop.
+  if (!now) return <TimeGateSkeleton />;
+
+  return <ReminderQueueInner now={now} voice={voice} />;
+}
+
+function ReminderQueueInner({ now, voice }: { now: Date; voice?: VoicePreset }) {
+  const range = useMemo(() => workingWindow(now), [now]);
 
   const sessions = useSessions(range.start, range.end);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -137,6 +154,21 @@ export function ReminderQueue({ now = new Date(), voice }: ReminderQueueProps) {
           ) : null}
         </>
       ) : null}
+    </Card>
+  );
+}
+
+function TimeGateSkeleton() {
+  return (
+    <Card>
+      <Eyebrow>Queue reminders</Eyebrow>
+      <div role="status" aria-live="polite">
+        <span className="sr-only">Loading…</span>
+        <div
+          aria-hidden="true"
+          className="border-line h-24 rounded-[var(--radius-sm)] border-[1.5px] border-dashed"
+        />
+      </div>
     </Card>
   );
 }

@@ -19,11 +19,13 @@ from fastapi import APIRouter, status
 from sqlalchemy import func, select
 
 from app.api.deps import Db
-from app.api.v1.portal import display_name_for
+from app.api.v1.chat import LOUNGE_NAME, ensure_lounge
+from app.api.v1.portal import SEAT_HOLDING, display_name_for
 from app.core.errors import ConflictError, NotFoundError
 from app.models.chat import Broadcast, ChatBanner, ChatMessage, ChatRoom
 from app.models.enums import ChatRoomKind
 from app.models.guest import Guest
+from app.models.session import Booking, Session
 from app.schemas.admin_chat import (
     AdminMessageRead,
     AdminRoomRead,
@@ -322,6 +324,75 @@ def remove_banner(room_id: UUID, db: Db) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _broadcast_rooms(db: Db) -> list[ChatRoom]:
+    """The rooms a studio-wide announcement belongs in.
+
+    Two exclusions, both of them things a broadcast did before:
+
+    * `DIRECT` rooms. The guest is told that thread is "just you and the
+      studio"; a studio-wide notice arriving there breaks that promise, and a
+      guest with a private thread and three booked classes received the same
+      announcement five times.
+    * Finished and archived workshops. Their rooms resurface as unread and
+      pull the guest back into a conversation about a class that is over.
+
+    The lounge is always included — it is the one room every guest can read.
+    """
+    rooms = db.scalars(
+        db.query(ChatRoom).where(ChatRoom.kind != ChatRoomKind.DIRECT).order_by(ChatRoom.name)
+    )
+
+    now = datetime.now(UTC)
+    keep: list[ChatRoom] = []
+
+    for room in rooms:
+        if room.kind is not ChatRoomKind.WORKSHOP:
+            keep.append(room)
+            continue
+
+        session = db.get(Session, room.session_id) if room.session_id else None
+
+        if session is not None and session.archived_at is None and session.ends_at > now:
+            keep.append(room)
+
+    return keep
+
+
+def _broadcast_reach(db: Db, rooms: list[ChatRoom]) -> int:
+    """How many guests would actually see it.
+
+    If the lounge is in the set, that is every guest in the studio: the lounge
+    is one shared room and `_may_read` grants it to every guest with no
+    membership row required, so guests who have never opened chat are reached
+    too. Counting memberships instead would under-report the reach of an
+    action that cannot be recalled, which is the worse direction to be wrong
+    in. Without the lounge, it is the seat-holders on the included classes.
+    """
+    if any(room.kind is ChatRoomKind.LOUNGE for room in rooms):
+        return int(
+            db.raw.execute(
+                select(func.count(Guest.id)).where(
+                    Guest.studio_id == db.studio_id, Guest.archived_at.is_(None)
+                )
+            ).scalar_one()
+        )
+
+    session_ids = [room.session_id for room in rooms if room.session_id is not None]
+
+    if not session_ids:
+        return 0
+
+    return int(
+        db.raw.execute(
+            select(func.count(func.distinct(Booking.guest_id))).where(
+                Booking.studio_id == db.studio_id,
+                Booking.session_id.in_(session_ids),
+                Booking.status.in_(SEAT_HOLDING),
+            )
+        ).scalar_one()
+    )
+
+
 @router.post("/broadcasts/preview", response_model=BroadcastPreview)
 def preview_broadcast(payload: BroadcastRequest, db: Db) -> BroadcastPreview:
     """What this would do, before it does it.
@@ -329,9 +400,21 @@ def preview_broadcast(payload: BroadcastRequest, db: Db) -> BroadcastPreview:
     A broadcast reaches every guest at once and cannot be recalled — only
     deleted message by message. Showing the room and guest counts first is the
     difference between a considered send and a regretted one.
+
+    The counts here are the ones `send_broadcast` will act on, including the
+    lounge whether or not a row for it exists yet — the send creates it. The
+    preview must not, because a preview that writes rows is not a preview.
     """
-    rooms = db.scalars(db.query(ChatRoom))
+    rooms = _broadcast_rooms(db)
+    has_lounge = any(room.kind is ChatRoomKind.LOUNGE for room in rooms)
+
     room_names = [room.name for room in rooms]
+    room_count = len(room_names)
+
+    if not has_lounge:
+        # The send will make it, so count it and name it.
+        room_names = [LOUNGE_NAME, *room_names]
+        room_count += 1
 
     guest_count = int(
         db.raw.execute(
@@ -343,7 +426,7 @@ def preview_broadcast(payload: BroadcastRequest, db: Db) -> BroadcastPreview:
 
     return BroadcastPreview(
         body=payload.body,
-        room_count=len(room_names),
+        room_count=room_count,
         room_names=room_names[:10],
         guest_count=guest_count,
     )
@@ -362,10 +445,25 @@ def send_broadcast(payload: BroadcastRequest, db: Db) -> BroadcastResult:
         # cannot be skipped by calling the wrong one.
         raise ConflictError("Confirm the broadcast before sending it.")
 
-    rooms = list(db.scalars(db.query(ChatRoom)))
+    # Get-or-create the lounge first.
+    #
+    # Rooms are created lazily when a guest opens chat, so a studio whose
+    # guests have not done that yet had nothing to broadcast into and got a
+    # 409 — on the announcement that most needs to reach everyone. The lounge
+    # is one idempotent row per studio and every guest can read it.
+    reachable = int(
+        db.raw.execute(
+            select(func.count(Guest.id)).where(
+                Guest.studio_id == db.studio_id, Guest.archived_at.is_(None)
+            )
+        ).scalar_one()
+    )
 
-    if not rooms:
-        raise ConflictError("There are no chats to broadcast into yet.")
+    if not reachable:
+        raise ConflictError("There's nobody in your guest book to broadcast to yet.")
+
+    ensure_lounge(db)
+    rooms = _broadcast_rooms(db)
 
     for room in rooms:
         db.add(

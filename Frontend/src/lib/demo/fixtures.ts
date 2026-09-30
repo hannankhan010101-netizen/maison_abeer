@@ -2,6 +2,7 @@ import type {
   Booking,
   Checklist,
   ChecklistItem,
+  ClassType,
   Guest,
   Roster,
   Session,
@@ -116,6 +117,45 @@ export function demoGuests(now: Date): Guest[] {
     }),
   ];
 }
+
+/**
+ * The studio's catalogue.
+ *
+ * Its own fixture, not something read off `demoSessions`, because the whole
+ * point of the endpoint it stands in for is that the catalogue outlives the
+ * week on screen. Includes one class type with no sessions booked, so the
+ * demo exercises the case that used to break quick-add.
+ */
+export const demoClassTypes: ClassType[] = [
+  {
+    id: 'ct-bento',
+    name: 'Bento cake decorating',
+    color_token: 'pink',
+    default_seats: 10,
+    default_duration_minutes: 150,
+  },
+  {
+    id: 'ct-ceramic',
+    name: 'Ceramic painting',
+    color_token: 'sage',
+    default_seats: 12,
+    default_duration_minutes: 120,
+  },
+  {
+    id: 'ct-glaze',
+    name: 'Glaze & fire (no classes yet)',
+    color_token: 'lilac',
+    default_seats: 6,
+    default_duration_minutes: 180,
+  },
+  {
+    id: 'ct-pottery',
+    name: 'Pottery & wheel throwing',
+    color_token: 'terra',
+    default_seats: 8,
+    default_duration_minutes: 180,
+  },
+];
 
 export function demoSessions(now: Date): Session[] {
   return [
@@ -430,4 +470,5 @@ export const demoBrandKit = {
   primary_color: null,
   accent_color: null,
   instagram_handle: 'maisonabeer',
+  booking_slug: 'maison-abeer',
 };

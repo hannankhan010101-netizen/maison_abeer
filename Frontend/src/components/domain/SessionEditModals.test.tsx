@@ -69,6 +69,7 @@ function impact(overrides: Partial<RescheduleImpact> = {}): RescheduleImpact {
       },
     ],
     newly_overdue_count: 0,
+    pending_message_count: 0,
     ...overrides,
   };
 }
@@ -219,7 +220,15 @@ describe('RescheduleModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
     await screen.findByRole('button', { name: 'Confirm move' });
 
-    respond(200, { preview: false, session: session(), impact: impact() });
+    respond(200, {
+      preview: false,
+      session: session(),
+      impact: impact(),
+      notified_count: 8,
+      skipped_count: 0,
+      messages_reanchored: 0,
+      messages_cancelled: 0,
+    });
     await userEvent.click(screen.getByRole('button', { name: 'Confirm move' }));
 
     const confirmCall = fetchImpl.mock.calls.at(-1)!;
@@ -245,5 +254,55 @@ describe('RescheduleModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
 
     expect(await screen.findByText('That slot is in the past.')).toBeInTheDocument();
+  });
+});
+
+describe('RescheduleModal · what the move does to queued reminders', () => {
+  it('says how many reminders move with the class', async () => {
+    respond(200, { preview: true, impact: impact({ pending_message_count: 3 }) });
+
+    render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
+
+    // Stated before anything saves: these used to keep both their original
+    // send time and the old date in their text.
+    expect(await screen.findByText(/queued reminder/)).toBeInTheDocument();
+    expect(screen.getByText(/rewritten for the new date/)).toBeInTheDocument();
+  });
+
+  it('says nothing about reminders when none are queued', async () => {
+    respond(200, { preview: true, impact: impact({ pending_message_count: 0 }) });
+
+    render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
+    await screen.findByRole('button', { name: 'Confirm move' });
+
+    expect(screen.queryByText(/queued reminder/)).not.toBeInTheDocument();
+  });
+
+  it('reports the real notified count, not the affected count', async () => {
+    respond(200, {
+      preview: true,
+      impact: impact({ affected_guest_count: 8, contactable_guest_count: 6 }),
+    });
+
+    render(<RescheduleModal session={session()} open onClose={() => {}} />, { wrapper: Wrapper });
+    await userEvent.click(screen.getByRole('button', { name: 'See what changes' }));
+    await screen.findByRole('button', { name: 'Confirm move' });
+
+    respond(200, {
+      preview: false,
+      session: session(),
+      impact: impact(),
+      notified_count: 6,
+      skipped_count: 2,
+      messages_reanchored: 0,
+      messages_cancelled: 0,
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm move' }));
+
+    // Not "8 guests notified" — two of them have no way to be reached.
+    // `findAllByText`: the toast renders visibly and in its aria-live region.
+    expect(await screen.findAllByText(/6 notified, 2 we couldn't reach/)).not.toHaveLength(0);
   });
 });

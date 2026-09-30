@@ -15,7 +15,24 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from enum import StrEnum
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+UTC_ZONE = ZoneInfo("UTC")
+
+
+def resolve_zone(name: str) -> ZoneInfo:
+    """A timezone, falling back to UTC rather than raising.
+
+    The schema rejects an unknown zone at the boundary, so this is for rows
+    written before it did. Degrading to UTC shifts a studio's quiet hours;
+    raising takes down quick-add, reminder previews and the whole cron drain,
+    which is a worse answer to the same bad data.
+    """
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return UTC_ZONE
+
 
 # Default quiet hours per PRD §2.6 — no guest is messaged at 3am.
 DEFAULT_QUIET_START = time(9, 0)
@@ -127,11 +144,27 @@ class DeadlineShift:
     previous_deadline: datetime
     new_deadline: datetime
     was_completed: bool
+    now: datetime
+    """The reference instant. Last, so keyword construction stays valid."""
 
     @property
     def becomes_overdue_immediately(self) -> bool:
-        """Moving a class earlier can pull an unfinished step into the past."""
-        return not self.was_completed and self.new_deadline < self.previous_deadline
+        """A move that drags an unfinished step from the future into the past.
+
+        Against the clock, not against the old deadline. `new < previous` is
+        true of *every* step on *every* earlier move, so the one warning meant
+        to stop a genuinely destructive reschedule fired on all the harmless
+        ones — which teaches the host to dismiss it unread.
+        """
+        if self.was_completed:
+            return False
+
+        # Already overdue before the move. The move is not what broke it, and
+        # saying otherwise is the same false alarm in a different disguise.
+        if self.previous_deadline < self.now:
+            return False
+
+        return self.new_deadline < self.now
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +181,13 @@ class RescheduleImpact:
     affected_guest_count: int
     contactable_guest_count: int
     deadline_shifts: list[DeadlineShift]
+
+    pending_message_count: int = 0
+    """Reminders already queued for this class, which the move will re-aim.
+
+    Passed in rather than read here — this function is pure — so the host can
+    be told before confirming. They used to keep both their old send time and
+    the old date in their text."""
 
     @property
     def moves_earlier(self) -> bool:
@@ -181,6 +221,7 @@ def plan_reschedule(
     deadlines: list[ChecklistDeadline],
     affected_guest_count: int,
     contactable_guest_count: int,
+    pending_message_count: int = 0,
 ) -> RescheduleImpact:
     """Compute the full impact of moving a session, without applying it.
 
@@ -207,6 +248,7 @@ def plan_reschedule(
             previous_deadline=item.deadline,
             new_deadline=item.offset.resolve(new_start),
             was_completed=item.completed,
+            now=now,
         )
         for item in deadlines
     ]
@@ -218,6 +260,7 @@ def plan_reschedule(
         affected_guest_count=affected_guest_count,
         contactable_guest_count=contactable_guest_count,
         deadline_shifts=shifts,
+        pending_message_count=pending_message_count,
     )
 
 
@@ -241,7 +284,7 @@ class QuietHours:
 
     @property
     def zone(self) -> ZoneInfo:
-        return ZoneInfo(self.timezone)
+        return resolve_zone(self.timezone)
 
     def allows(self, moment: datetime) -> bool:
         """Whether a guest message may send at `moment`."""
@@ -322,7 +365,7 @@ def assess_energy(
         timezone: The studio's timezone; all comparisons are local to it.
     """
     require_aware(proposed_start, "proposed_start")
-    zone = ZoneInfo(timezone)
+    zone = resolve_zone(timezone)
     local = proposed_start.astimezone(zone)
 
     if local.isoweekday() in rest_days:

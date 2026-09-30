@@ -65,14 +65,47 @@ function session(overrides: Partial<Session> = {}): Session {
   };
 }
 
+const CLASS_TYPES = [
+  {
+    id: 'ct-1',
+    name: 'Bento cake',
+    color_token: 'pink',
+    default_seats: 10,
+    default_duration_minutes: 150,
+  },
+];
+
+function reply(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/**
+ * Answers both reads the calendar makes.
+ *
+ * The catalogue is its own request now — quick-add must be able to offer a
+ * class type on a week with no sessions at all — so the stub has to route by
+ * path rather than return one body to everything.
+ */
 function respondWith(sessions: Session[]): void {
-  fetchImpl.mockImplementation(
-    () =>
-      new Response(JSON.stringify(sessions), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+  fetchImpl.mockImplementation((input: unknown) => {
+    const path = new URL(String(input)).pathname;
+
+    return reply(path === '/api/v1/class-types' ? CLASS_TYPES : sessions);
+  });
+}
+
+/** The session-window request, whichever order the two reads went out in. */
+function sessionWindowUrl(): URL {
+  const call = fetchImpl.mock.calls.find(
+    (args) => new URL(String(args[0])).pathname === '/api/v1/sessions',
   );
+
+  if (!call) throw new Error('The calendar never asked for its session window.');
+
+  return new URL(String(call[0]));
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -119,7 +152,7 @@ describe('CalendarView', () => {
 
     await screen.findAllByText(/Nothing scheduled/);
 
-    const url = new URL(String(fetchImpl.mock.calls[0]![0]));
+    const url = sessionWindowUrl();
     expect(new Date(url.searchParams.get('start')!).getDate()).toBe(3);
     expect(new Date(url.searchParams.get('end')!).getDate()).toBe(9);
   });

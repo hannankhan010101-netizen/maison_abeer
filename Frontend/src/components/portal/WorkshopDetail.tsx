@@ -10,8 +10,9 @@ import { ApiError } from '@/lib/api/errors';
 import { useAcceptInvite, useDeclineInvite, usePortalWorkshop } from '@/lib/api/hooks';
 import { useResolvedNow } from '@/lib/useNow';
 import { cn } from '@/lib/cn';
-import { formatDateLong, formatRange } from '@/lib/dates';
-import type { AttendeePeek } from '@/lib/api/types';
+import { formatDateLong, formatRange, formatTime } from '@/lib/dates';
+import { WORKSHOP_STATUS, holdsASeat } from '@/lib/portal/status';
+import type { AttendeePeek, WorkshopStatus } from '@/lib/api/types';
 
 /**
  * One workshop, and who else is going.
@@ -106,14 +107,25 @@ export function WorkshopDetail({ sessionId }: WorkshopDetailProps) {
           </p>
         ) : null}
 
+        {/* Every state, not just `cancelled`. A waitlisted guest used to land
+            on a page indistinguishable from a confirmed booking — no chip, no
+            queue position, and the full attendee roster underneath. */}
+        <p className="mt-2 flex flex-wrap items-center gap-1.5">
+          <Chip tone={WORKSHOP_STATUS[item.status].tone}>{WORKSHOP_STATUS[item.status].label}</Chip>
+
+          {item.status === 'waitlisted' && item.waitlist_position ? (
+            <Chip tone="neutral">#{item.waitlist_position} in the queue</Chip>
+          ) : null}
+        </p>
+
         {item.status === 'cancelled' ? (
-          <p className="mt-2">
-            <Chip tone="butter">This workshop was cancelled</Chip>
-          </p>
+          <p className="text-latte mt-1 text-sm">This workshop was cancelled.</p>
         ) : null}
       </header>
 
-      {item.status === 'invited' ? <InviteOffer sessionId={sessionId} /> : null}
+      {item.status === 'invited' ? (
+        <InviteOffer sessionId={sessionId} expiresAt={item.invite_expires_at} />
+      ) : null}
 
       {item.notes ? (
         <Card className="mb-4">
@@ -124,7 +136,11 @@ export function WorkshopDetail({ sessionId }: WorkshopDetailProps) {
 
       <Card>
         <Eyebrow>Who&rsquo;s pulling up</Eyebrow>
-        <AttendeeStack attendees={item.attendees} othersCount={item.others_count} />
+        <AttendeeStack
+          attendees={item.attendees}
+          othersCount={item.others_count}
+          status={item.status}
+        />
       </Card>
     </section>
   );
@@ -137,11 +153,18 @@ export function WorkshopDetail({ sessionId }: WorkshopDetailProps) {
  * exactly once, and burying that choice in a list card next to nine other
  * workshops is how it gets missed until the hold expires on its own.
  */
-function InviteOffer({ sessionId }: { sessionId: string }) {
+function InviteOffer({ sessionId, expiresAt }: { sessionId: string; expiresAt?: string | null }) {
   const accept = useAcceptInvite(sessionId);
   const decline = useDeclineInvite(sessionId);
+  const now = useResolvedNow();
 
   const pending = accept.isPending || decline.isPending;
+
+  // Resolved client-side, so the deadline is only rendered once `now` exists.
+  // A hold with no visible clock simply expired and passed to the next
+  // person, with the guest never having been told there was one.
+  const deadline = expiresAt && now ? new Date(expiresAt) : null;
+  const expired = deadline ? now! > deadline : false;
 
   return (
     <Card className="mb-4">
@@ -150,6 +173,22 @@ function InviteOffer({ sessionId }: { sessionId: string }) {
         It&rsquo;s yours if you want it — accept to lock it in, or let it pass to whoever&rsquo;s
         next.
       </p>
+
+      {deadline ? (
+        <p className="mt-2 text-sm font-extrabold" suppressHydrationWarning>
+          {expired ? (
+            // Said plainly rather than printing a past timestamp: the API
+            // still reports `invited` without comparing the hold to the clock.
+            <span className="text-danger">
+              The hold on this seat has run out — try claiming it anyway, or ask your host.
+            </span>
+          ) : (
+            <>
+              Yours until {formatDateLong(expiresAt!)} at {formatTime(expiresAt!)}
+            </>
+          )}
+        </p>
+      ) : null}
 
       {accept.isError ? (
         <p role="alert" className="text-danger mt-2 text-sm">
@@ -189,14 +228,24 @@ function InviteOffer({ sessionId }: { sessionId: string }) {
 function AttendeeStack({
   attendees,
   othersCount,
+  status,
 }: {
   attendees: AttendeePeek[];
   othersCount: number;
+  status: WorkshopStatus;
 }) {
+  // A guest in a queue is not one of the people going, and a page that tells
+  // them they are undoes the chip above it.
+  const seated = holdsASeat(status);
+
   if (attendees.length === 0) {
     return (
       <p className="text-latte text-sm">
-        <HandNote>You&rsquo;re first in — someone has to be ♡</HandNote>
+        {seated ? (
+          <HandNote>You&rsquo;re first in — someone has to be ♡</HandNote>
+        ) : (
+          'Nobody booked in yet.'
+        )}
       </p>
     );
   }
@@ -235,9 +284,11 @@ function AttendeeStack({
       </div>
 
       <p className="text-[15px] font-bold">
-        {othersCount === 0
-          ? 'Just you so far'
-          : `You + ${othersCount} other${othersCount === 1 ? '' : 's'} are going`}
+        {!seated
+          ? `${attendees.length} going`
+          : othersCount === 0
+            ? 'Just you so far'
+            : `You + ${othersCount} other${othersCount === 1 ? '' : 's'} are going`}
       </p>
 
       <ul className="text-latte mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm">

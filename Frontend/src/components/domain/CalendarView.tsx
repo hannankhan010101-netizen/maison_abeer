@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { NewSessionModal, classTypesFrom } from '@/components/domain/NewSessionModal';
+import { NewSessionModal } from '@/components/domain/NewSessionModal';
 import { RescheduleModal, SeatModal } from '@/components/domain/SessionEditModals';
 import { SessionChip } from '@/components/domain/SessionChip';
 import { Button } from '@/components/ui/Button';
@@ -54,7 +54,6 @@ function CalendarViewInner({ now }: { now: Date }) {
 
   const days = useMemo(() => weekDays(anchor), [anchor]);
   const byDay = useMemo(() => groupByDay(query.data ?? []), [query.data]);
-  const classTypes = useMemo(() => classTypesFrom(query.data ?? []), [query.data]);
 
   // One modal at a time: adding a class, or editing the one just tapped.
   const [addingOn, setAddingOn] = useState<Date | null>(null);
@@ -154,7 +153,6 @@ function CalendarViewInner({ now }: { now: Date }) {
         open={addingOn !== null}
         onClose={() => setAddingOn(null)}
         defaultDate={addingOn ?? undefined}
-        classTypes={classTypes}
       />
 
       {editing ? (

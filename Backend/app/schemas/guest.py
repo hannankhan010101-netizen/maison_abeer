@@ -19,6 +19,11 @@ RosterFilter = Literal[
 
 
 class AllergyIn(BaseModel):
+    # Stripped here: a nested model does not inherit its parent's config, so
+    # without this a label of "   " satisfied min_length=1 and then vanished
+    # when the write path trimmed it.
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     label: Annotated[str, Field(min_length=1, max_length=80)]
     severity: AllergySeverity = AllergySeverity.ALLERGY
     notes: str | None = Field(default=None, max_length=500)
@@ -30,6 +35,20 @@ class AllergyRead(AllergyIn):
     id: UUID
     is_critical: bool
     """Drives the red-outlined chip and the day-of dashboard alert."""
+
+
+class AllergyUpdate(BaseModel):
+    """Correct an allergy already on file.
+
+    Its own endpoint rather than a field on `GuestUpdate`: a wrong severity is
+    a safety problem, so changing one is a deliberate act with its own URL.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    label: Annotated[str | None, Field(default=None, min_length=1, max_length=80)] = None
+    severity: AllergySeverity | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class GuestCreate(BaseModel):

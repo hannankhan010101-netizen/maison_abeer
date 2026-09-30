@@ -106,7 +106,14 @@ class TestPlanReschedule:
         assert impact.deadline_shifts[0].new_deadline == at(2026, 8, 8, 14)
         assert impact.deadline_shifts[1].new_deadline == at(2026, 8, 9, 13)
 
-    def test_moving_earlier_flags_newly_overdue_prep(self) -> None:
+    def test_moving_earlier_within_the_future_flags_nothing(self) -> None:
+        """An earlier move is not by itself a problem.
+
+        Aug 8 → Aug 5 leaves the T-24h step due Aug 4 14:00 and the T-1h step
+        Aug 5 13:00, both after `now`. Warning here — which a straight
+        `new < previous` comparison did, on every earlier move ever made — is
+        how a host learns to dismiss the warning that matters.
+        """
         previous = at(2026, 8, 8, 14)
         new = at(2026, 8, 5, 14)
 
@@ -120,7 +127,70 @@ class TestPlanReschedule:
         )
 
         assert impact.moves_earlier is True
-        assert len(impact.newly_overdue) == 2
+        assert len(impact.newly_overdue) == 0
+
+    def test_flags_only_the_step_the_move_strands_in_the_past(self) -> None:
+        previous = at(2026, 8, 8, 14)
+        new = at(2026, 8, 4, 14)
+
+        impact = plan_reschedule(
+            previous_start=previous,
+            new_start=new,
+            now=at(2026, 8, 4, 9),
+            deadlines=self._deadlines(previous),
+            affected_guest_count=8,
+            contactable_guest_count=8,
+        )
+
+        # T-24h lands Aug 3 14:00, before `now`. T-1h lands Aug 4 13:00, after.
+        assert [shift.item_id for shift in impact.newly_overdue] == ["i1"]
+
+    def test_a_step_already_overdue_is_not_blamed_on_the_move(self) -> None:
+        """Today at 14:00 nudged to 13:00.
+
+        The T-24h step was overdue yesterday and is overdue after the move.
+        The reschedule did not break it, so the modal must not say it did.
+        """
+        previous = at(2026, 8, 4, 14)
+        new = at(2026, 8, 4, 13)
+
+        impact = plan_reschedule(
+            previous_start=previous,
+            new_start=new,
+            now=at(2026, 8, 4, 12),
+            deadlines=self._deadlines(previous),
+            affected_guest_count=8,
+            contactable_guest_count=8,
+        )
+
+        assert impact.moves_earlier is True
+        assert len(impact.newly_overdue) == 0
+
+    def test_a_completed_step_is_never_newly_overdue(self) -> None:
+        previous = at(2026, 8, 8, 14)
+        new = at(2026, 8, 4, 14)
+
+        deadlines = [
+            ChecklistDeadline(
+                "i1",
+                "bake cake bases",
+                TMinusOffset(24),
+                TMinusOffset(24).resolve(previous),
+                completed=True,
+            )
+        ]
+
+        impact = plan_reschedule(
+            previous_start=previous,
+            new_start=new,
+            now=at(2026, 8, 4, 9),
+            deadlines=deadlines,
+            affected_guest_count=8,
+            contactable_guest_count=8,
+        )
+
+        # Done is done — moving the class cannot un-bake the cake bases.
+        assert len(impact.newly_overdue) == 0
 
     def test_rejects_moving_into_the_past(self) -> None:
         with pytest.raises(RescheduleError, match="in the past"):

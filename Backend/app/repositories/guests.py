@@ -26,10 +26,11 @@ from app.models.enums import (
     SessionStatus,
     WaitlistStatus,
 )
-from app.models.guest import Guest, GuestCredit
+from app.models.guest import Guest, GuestAllergy, GuestCredit
 from app.models.session import Booking, ScheduledMessage, Session, WaitlistEntry
 from app.models.studio import StudioSettings
 from app.services.guests import (
+    AllergyDraft,
     AllergySnapshot,
     BookingSnapshot,
     GuestDraft,
@@ -78,12 +79,7 @@ class SqlGuestRepository:
                 credits if credits is not None else self._available_credits(guest.id)
             ),
             allergies=tuple(
-                AllergySnapshot(
-                    id=allergy.id,
-                    label=allergy.label,
-                    severity=allergy.severity,
-                    notes=allergy.notes,
-                )
+                self._allergy_snapshot(allergy)
                 # Severe first: the roster and the day-of alert both read the
                 # first entry when they only have room for one.
                 for allergy in sorted(
@@ -91,6 +87,15 @@ class SqlGuestRepository:
                     key=lambda item: (not item.is_critical, item.label),
                 )
             ),
+        )
+
+    @staticmethod
+    def _allergy_snapshot(allergy: GuestAllergy) -> AllergySnapshot:
+        return AllergySnapshot(
+            id=allergy.id,
+            label=allergy.label,
+            severity=allergy.severity,
+            notes=allergy.notes,
         )
 
     def _available_credits(self, guest_id: UUID) -> int:
@@ -174,7 +179,88 @@ class SqlGuestRepository:
         self._db.add(guest)
         self._db.flush()
 
+        # The endpoint has always documented and validated `allergies`, and
+        # then dropped them on the floor.
+        if draft.allergies:
+            self.add_allergies(guest.id, draft.allergies)
+
         return self._snapshot(guest)
+
+    # -- allergies ----------------------------------------------------------
+
+    def add_allergies(
+        self, guest_id: UUID, drafts: Sequence[AllergyDraft]
+    ) -> Sequence[AllergySnapshot]:
+        """Insert allergies, skipping labels already on file.
+
+        Case-insensitive on the label, the same rule the public booking form
+        uses, so a merge or a second mention does not double the chip.
+        """
+        guest = self._db.get_or_404(Guest, guest_id)
+
+        known = {
+            row.label.strip().lower()
+            for row in self._db.scalars(
+                self._db.query(GuestAllergy).where(GuestAllergy.guest_id == guest.id)
+            )
+        }
+
+        added: list[GuestAllergy] = []
+
+        for draft in drafts:
+            label = draft.label.strip()
+
+            if not label or label.lower() in known:
+                continue
+
+            known.add(label.lower())
+
+            row = GuestAllergy(
+                guest_id=guest.id,
+                label=label,
+                severity=draft.severity,
+                notes=draft.notes,
+            )
+            self._db.add(row)
+            added.append(row)
+
+        if added:
+            self._db.flush()
+
+        return [self._allergy_snapshot(row) for row in added]
+
+    def _allergy_row(self, guest_id: UUID, allergy_id: UUID) -> GuestAllergy:
+        """One allergy, scoped to the studio *and* to the named guest.
+
+        `get_or_404` already enforces the tenant; the guest check stops one
+        guest's record being edited through another guest's URL.
+        """
+        row = self._db.get_or_404(GuestAllergy, allergy_id)
+
+        if row.guest_id != guest_id:
+            raise NotFoundError("We couldn't find that.")
+
+        return row
+
+    def update_allergy(
+        self, guest_id: UUID, allergy_id: UUID, changes: dict[str, object]
+    ) -> AllergySnapshot:
+        row = self._allergy_row(guest_id, allergy_id)
+
+        # Explicit allowlist, mirroring `update_guest`: guest_id and studio_id
+        # must not be rewritable through a PATCH body.
+        editable = {"label", "severity", "notes"}
+
+        for field, value in changes.items():
+            if field in editable:
+                setattr(row, field, value)
+
+        self._db.flush()
+        return self._allergy_snapshot(row)
+
+    def remove_allergy(self, guest_id: UUID, allergy_id: UUID) -> None:
+        self._db.delete(self._allergy_row(guest_id, allergy_id))
+        self._db.flush()
 
     def update_guest(self, guest_id: UUID, changes: dict[str, object]) -> GuestSnapshot:
         guest = self._db.get_or_404(Guest, guest_id)

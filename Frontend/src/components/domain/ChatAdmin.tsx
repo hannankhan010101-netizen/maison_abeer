@@ -141,12 +141,18 @@ export function ChatAdmin() {
                   Pinning a banner is occasional; replying is the job. With
                   the editor above it, the reply box sat off the bottom of the
                   screen and had to be scrolled to every single time. */}
+              {/* Keyed by room. Without this React keeps both children
+                  mounted across a room switch, and their drafts come with
+                  them: room A's banner text sat in room B's editor, one tap
+                  from being pinned to the wrong class, and a half-typed reply
+                  followed the host into the next conversation. */}
               <div className="order-1 lg:order-2">
-                <RoomTranscript roomId={selected.id} roomName={selected.name} />
+                <RoomTranscript key={selected.id} roomId={selected.id} roomName={selected.name} />
               </div>
 
               <div className="order-2 lg:order-1">
                 <BannerEditor
+                  key={selected.id}
                   roomId={selected.id}
                   current={selected.banner?.body ?? null}
                   roomName={selected.name}

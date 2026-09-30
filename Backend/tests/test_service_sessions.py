@@ -20,6 +20,7 @@ from app.services.sessions import (
     MAX_RECURRENCE_OCCURRENCES,
     SessionDraft,
     SessionService,
+    SessionSnapshot,
     StudioContext,
 )
 from tests.fakes import FakeSessionRepository
@@ -225,7 +226,7 @@ class TestSeatChanges:
 
 
 class TestReschedule:
-    def _seed_with_deadlines(self, repo: FakeSessionRepository) -> object:
+    def _seed_with_deadlines(self, repo: FakeSessionRepository) -> SessionSnapshot:
         session = repo.seed(starts_at=SATURDAY, ends_at=SATURDAY + timedelta(hours=2, minutes=30))
         repo.deadlines[session.id] = [
             ChecklistDeadline(
@@ -244,12 +245,12 @@ class TestReschedule:
         session = self._seed_with_deadlines(repo)
         new_start = SATURDAY + timedelta(days=1)
 
-        impact = service.preview_reschedule(session.id, new_start)  # type: ignore[attr-defined]
+        impact = service.preview_reschedule(session.id, new_start)
 
         assert impact.affected_guest_count == 8
         assert len(impact.deadline_shifts) == 2
         # The host sees the impact before anything commits.
-        assert repo.sessions[session.id].starts_at == SATURDAY  # type: ignore[attr-defined]
+        assert repo.sessions[session.id].starts_at == SATURDAY
         assert repo.reanchored == []
 
     def test_reschedule_moves_the_class_and_its_deadlines(
@@ -258,18 +259,55 @@ class TestReschedule:
         session = self._seed_with_deadlines(repo)
         new_start = SATURDAY + timedelta(days=1)
 
-        updated, impact = service.reschedule(session.id, new_start)  # type: ignore[attr-defined]
+        result = service.reschedule(session.id, new_start)
 
-        assert updated.starts_at == new_start
+        assert result.session.starts_at == new_start
         # Duration is preserved.
-        assert updated.ends_at - updated.starts_at == timedelta(hours=2, minutes=30)
-        assert impact.affected_guest_count == 8
+        assert result.session.ends_at - result.session.starts_at == timedelta(hours=2, minutes=30)
+        assert result.impact.affected_guest_count == 8
 
         # Every T-minus deadline followed the class (PRD §2.5).
-        assert repo.reanchored == [(session.id, new_start)]  # type: ignore[attr-defined]
-        moved = repo.deadlines[session.id]  # type: ignore[attr-defined]
+        assert repo.reanchored == [(session.id, new_start)]
+        moved = repo.deadlines[session.id]
         assert moved[0].deadline == new_start - timedelta(hours=24)
         assert moved[1].deadline == new_start - timedelta(hours=1)
+
+    def test_a_move_says_nothing_to_guests_unless_asked(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed_with_deadlines(repo)
+
+        result = service.reschedule(session.id, SATURDAY + timedelta(days=1))
+
+        assert repo.change_notices == []
+        assert result.notified_count == 0
+        assert result.skipped_count == 0
+
+    def test_notifying_queues_the_change_notice_and_reports_the_counts(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed_with_deadlines(repo)
+        # Eight on the roster, six of them reachable.
+        repo.guests[session.id] = (8, 6)
+        new_start = SATURDAY + timedelta(days=1)
+
+        result = service.reschedule(session.id, new_start, notify_guests=True)
+
+        # The counts are what was actually queued, not what the preview hoped.
+        assert repo.change_notices == [(session.id, NOW)]
+        assert result.notified_count == 6
+        assert result.skipped_count == 2
+
+    def test_a_rejected_move_notifies_nobody(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed_with_deadlines(repo)
+
+        with pytest.raises(PastSlotError):
+            service.reschedule(session.id, NOW - timedelta(days=2), notify_guests=True)
+
+        # Nothing is told about a change that did not happen.
+        assert repo.change_notices == []
 
     def test_rejects_moving_into_the_past(
         self, service: SessionService, repo: FakeSessionRepository
@@ -277,7 +315,7 @@ class TestReschedule:
         session = self._seed_with_deadlines(repo)
 
         with pytest.raises(PastSlotError):
-            service.reschedule(session.id, NOW - timedelta(days=2))  # type: ignore[attr-defined]
+            service.reschedule(session.id, NOW - timedelta(days=2))
 
         assert repo.reanchored == []
 
@@ -296,3 +334,63 @@ class TestLookups:
         found = service.list_between(SATURDAY - timedelta(days=1), SATURDAY + timedelta(days=1))
 
         assert len(found) == 1
+
+
+class TestRescheduleFollowsItsReminders:
+    """The guarantee `app.domain.messages` documents and did not keep.
+
+    "Anchored to the session rather than stored as absolute times, so a
+    reschedule recomputes them instead of leaving them pointing at the old
+    date — the same rule the checklist deadlines follow." The deadlines did
+    follow; the reminders did not, so a class moved from Saturday to Sunday
+    still sent "your class is sat 08 nov at 2:00 pm" at the original T-24h.
+    """
+
+    def _seed(self, repo: FakeSessionRepository) -> SessionSnapshot:
+        return repo.seed(starts_at=SATURDAY, ends_at=SATURDAY + timedelta(hours=2, minutes=30))
+
+    def test_the_move_re_aims_the_queued_reminders(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed(repo)
+        repo.pending_messages[session.id] = 3
+        new_start = SATURDAY + timedelta(days=1)
+
+        result = service.reschedule(session.id, new_start)
+
+        assert repo.message_reanchors == [(session.id, new_start, NOW)]
+        assert result.messages_reanchored == 3
+        assert result.messages_cancelled == 0
+
+    def test_the_preview_says_how_many_are_waiting(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed(repo)
+        repo.pending_messages[session.id] = 2
+
+        impact = service.preview_reschedule(session.id, SATURDAY + timedelta(days=1))
+
+        # Stated before anything saves, which is the whole contract of the
+        # two-step move.
+        assert impact.pending_message_count == 2
+
+    def test_a_class_with_no_reminders_queued_reports_nothing(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed(repo)
+
+        result = service.reschedule(session.id, SATURDAY + timedelta(days=1))
+
+        assert result.messages_reanchored == 0
+        assert result.messages_cancelled == 0
+
+    def test_a_rejected_move_leaves_the_reminders_alone(
+        self, service: SessionService, repo: FakeSessionRepository
+    ) -> None:
+        session = self._seed(repo)
+        repo.pending_messages[session.id] = 3
+
+        with pytest.raises(PastSlotError):
+            service.reschedule(session.id, NOW - timedelta(days=2))
+
+        assert repo.message_reanchors == []

@@ -12,22 +12,43 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from app.domain.capacity import Capacity
+from app.domain.guests import is_contactable
+from app.domain.messages import plan_message, reminder_schedule
+from app.domain.messages import render as render_message
 from app.domain.quantities import (
     QuantityChange,
     QuantityLinkedItem,
     primary_quantity,
     render,
 )
-from app.domain.scheduling import ChecklistDeadline, TMinusOffset
+from app.domain.scheduling import ChecklistDeadline, QuietHours, TMinusOffset
 from app.models.catalog import ClassType
-from app.models.enums import BookingStatus, SessionStatus
+from app.models.enums import (
+    BookingStatus,
+    MessageKind,
+    MessageStatus,
+    SessionStatus,
+    VoicePreset,
+)
 from app.models.guest import Guest
-from app.models.session import Booking, ChecklistItem, ExportRecord, Session
+from app.models.session import (
+    Booking,
+    ChecklistItem,
+    ExportRecord,
+    ScheduledMessage,
+    Session,
+)
 from app.models.studio import StudioSettings
-from app.services.sessions import SessionDraft, SessionSnapshot, StudioContext
+from app.services.messages import plan_for, seated, studio_quiet_hours, template_values
+from app.services.sessions import (
+    ClassTypeOption,
+    SessionDraft,
+    SessionSnapshot,
+    StudioContext,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
     from datetime import datetime
     from uuid import UUID
 
@@ -67,6 +88,24 @@ class SqlSessionRepository:
             ClassType.id == class_type_id, ClassType.archived_at.is_(None)
         )
         return self._db.scalars(statement) != []
+
+    def list_class_types(self) -> Sequence[ClassTypeOption]:
+        statement = (
+            self._db.query(ClassType)
+            .where(ClassType.archived_at.is_(None))
+            .order_by(ClassType.name)
+        )
+
+        return [
+            ClassTypeOption(
+                id=row.id,
+                name=row.name,
+                color_token=row.color_token,
+                default_seats=row.default_seats,
+                default_duration_minutes=row.default_duration_minutes,
+            )
+            for row in self._db.scalars(statement)
+        ]
 
     # -- reads --------------------------------------------------------------
 
@@ -233,6 +272,15 @@ class SqlSessionRepository:
         self._db.flush()
         return self._snapshot(session)
 
+    def update_details(self, session_id: UUID, changes: Mapping[str, object]) -> SessionSnapshot:
+        session = self._db.get_or_404(Session, session_id)
+
+        for field, value in changes.items():
+            setattr(session, field, value)
+
+        self._db.flush()
+        return self._snapshot(session)
+
     def update_start(
         self, session_id: UUID, starts_at: datetime, ends_at: datetime
     ) -> SessionSnapshot:
@@ -343,8 +391,6 @@ class SqlSessionRepository:
             )
         ).all()
 
-        from app.domain.guests import is_contactable
-
         affected = len(rows)
         contactable = sum(
             1
@@ -353,6 +399,179 @@ class SqlSessionRepository:
         )
 
         return affected, contactable
+
+    def schedule_change_notices(self, session_id: UUID, now: datetime) -> tuple[int, int]:
+        """Queue the "your class moved" notice. Returns (queued, skipped).
+
+        Seat-holders only — `SEAT_OCCUPYING`, the same filter `guest_counts`
+        reports from, so a waitlisted guest is never told a class they are not
+        in has moved and a cancelled booking is never contacted at all.
+        """
+        session = self._db.get_or_404(Session, session_id)
+
+        rows = self._db.raw.execute(
+            select(Guest, Booking.id)
+            .join(Booking, Booking.guest_id == Guest.id)
+            .where(
+                Booking.studio_id == self._db.studio_id,
+                Booking.session_id == session_id,
+                Booking.status.in_(SEAT_OCCUPYING),
+            )
+        ).all()
+
+        if not rows:
+            return 0, 0
+
+        settings = self._db.scalars(self._db.query(StudioSettings))
+        row = settings[0] if settings else None
+
+        voice = row.default_voice if row else VoicePreset.SOFT_SWEET
+        quiet = (
+            QuietHours(start=row.quiet_hours_start, end=row.quiet_hours_end, timezone=row.timezone)
+            if row
+            else QuietHours()
+        )
+
+        body = render_message(
+            "schedule_change",
+            voice.value,
+            {
+                "class_name": session.class_type.name if session.class_type else "your class",
+                "date": session.starts_at.strftime("%a %d %b"),
+                "time": session.starts_at.strftime("%-I:%M %p").lower(),
+            },
+        )
+
+        queued = skipped = 0
+
+        for guest, _booking_id in rows:
+            # Anchored to *now*, not to the class. A move notice is urgent —
+            # the T-minus pattern the automatic reminders use would send it
+            # the day before a class the guest has already missed.
+            plan = plan_message(
+                desired_send_at=now,
+                now=now,
+                quiet_hours=quiet,
+                opted_out=guest.opted_out,
+                is_contactable=is_contactable(
+                    channel=guest.preferred_channel,
+                    phone=guest.phone,
+                    email=guest.email,
+                    opted_out=guest.opted_out,
+                ),
+            )
+
+            if not plan.will_send or plan.send_at is None:
+                skipped += 1
+                continue
+
+            self._db.add(
+                ScheduledMessage(
+                    session_id=session_id,
+                    guest_id=guest.id,
+                    kind=MessageKind.SCHEDULE_CHANGE,
+                    channel=guest.preferred_channel,
+                    status=MessageStatus.SCHEDULED,
+                    voice=voice,
+                    send_at=plan.send_at,
+                    body=body,
+                )
+            )
+            queued += 1
+
+        self._db.flush()
+
+        return queued, skipped
+
+    # -- messages -----------------------------------------------------------
+
+    def _pending_messages(self, session_id: UUID) -> list[ScheduledMessage]:
+        """Reminders that have not gone out yet.
+
+        SENT, DELIVERED, FAILED and CANCELLED rows are history and must never
+        be rewritten.
+        """
+        return self._db.scalars(
+            self._db.query(ScheduledMessage).where(
+                ScheduledMessage.session_id == session_id,
+                ScheduledMessage.status.in_((MessageStatus.SCHEDULED, MessageStatus.QUEUED)),
+                ScheduledMessage.kind.in_(
+                    (MessageKind.GUEST_REMINDER, MessageKind.GUEST_THANK_YOU)
+                ),
+            )
+        )
+
+    def pending_message_count(self, session_id: UUID) -> int:
+        return len(self._pending_messages(session_id))
+
+    def reanchor_messages(
+        self, session_id: UUID, new_start: datetime, now: datetime
+    ) -> tuple[int, int]:
+        """Follow the class with the reminders already queued for it.
+
+        Returns (re-anchored, cancelled).
+
+        `app.domain.messages` documents the guarantee this restores: the
+        reminders are "anchored to the session rather than stored as absolute
+        times, so a reschedule recomputes them instead of leaving them
+        pointing at the old date -- the same rule the checklist deadlines
+        follow". The deadlines did follow; these did not, so a class moved
+        from Saturday to Sunday still sent "your class is sat 08 nov at 2:00
+        pm" at the original T-24h instant.
+
+        Re-rendered in the voice stored on the row, not the studio default —
+        queueing accepts a one-off override, and rewriting a guest's message
+        in a tone the host never previewed would be its own defect.
+        """
+        pending = self._pending_messages(session_id)
+
+        if not pending:
+            return 0, 0
+
+        session = self._db.get_or_404(Session, session_id)
+        quiet = studio_quiet_hours(self._db)
+        schedule = reminder_schedule(new_start)
+
+        # Keyed by guest so the thank-you message keeps its per-booking
+        # feedback link: the guest alone is not enough to address it.
+        roster = {guest.id: (booking, guest) for booking, guest in seated(self._db, session_id)}
+
+        moved = cancelled = 0
+
+        for message in pending:
+            desired = schedule.get(message.kind.value)
+            pair = roster.get(message.guest_id) if message.guest_id else None
+
+            if desired is None or pair is None:
+                # No offset for this kind, or the guest is no longer on the
+                # roster. Either way there is nothing honest to re-aim it at.
+                continue
+
+            booking, guest = pair
+            plan = plan_for(guest, desired, now, quiet)
+
+            if not plan.will_send or plan.send_at is None:
+                # Most often the class moved inside the reminder window, so
+                # the new send time is already past. Sending it late says the
+                # wrong thing; sending it now blasts "see you tomorrow".
+                message.status = MessageStatus.CANCELLED
+                message.last_error = (
+                    "The class moved inside this reminder's window, so it was not sent."
+                )
+                cancelled += 1
+                continue
+
+            message.send_at = plan.send_at
+            message.body = render_message(
+                message.kind.value,
+                message.voice.value,
+                template_values(session, guest, booking.id),
+            )
+            moved += 1
+
+        self._db.flush()
+
+        return moved, cancelled
 
     def capacity(self, session_id: UUID) -> Capacity | None:
         session = self._db.get(Session, session_id)

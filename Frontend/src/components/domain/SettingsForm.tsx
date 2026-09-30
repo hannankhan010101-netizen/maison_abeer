@@ -288,6 +288,8 @@ export function SettingsForm() {
       <Card>
         <CardTitle>Your studio</CardTitle>
 
+        {brandKit.data ? <BookingLink slug={brandKit.data.booking_slug} /> : null}
+
         <Field
           label="Instagram handle"
           htmlFor="instagram"
@@ -324,6 +326,59 @@ export function SettingsForm() {
           loadingLabel="Saving…"
         >
           Save settings
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The link the studio puts in an ad.
+ *
+ * The public booking page is the whole guest-facing half of the product, and
+ * its address appeared in no API response and on no screen — a host could set
+ * up their brand, write their story and schedule a term of classes with no
+ * way to find, copy or share the link all of it was for.
+ */
+function BookingLink({ slug }: { slug: string }) {
+  const { toast } = useToast();
+
+  // Resolved after mount: `window.location.origin` does not exist on the
+  // server, and rendering it directly is a hydration mismatch.
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => setOrigin(window.location.origin), []);
+
+  const path = `/book/${slug}`;
+  const shown = origin ? `${origin}${path}` : path;
+
+  async function copy() {
+    try {
+      // Rejects on an insecure origin, and is absent entirely in some
+      // in-app browsers — so the link stays selectable either way.
+      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      toast('link copied ✨');
+    } catch {
+      toast('Select the link and copy it — your browser blocked the button.', 'error');
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <Eyebrow>Your booking link</Eyebrow>
+      <p className="text-latte mt-1 mb-2 text-[13.5px]">
+        This is the address to put in your bio and your ads.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={path}
+          className="border-line bg-buttercream text-cocoa min-h-[44px] flex-1 truncate rounded-[var(--radius-sm)] border-[1.5px] px-3.5 py-2.5 text-sm font-bold underline decoration-dotted"
+        >
+          {shown}
+        </a>
+        <Button variant="secondary" type="button" onClick={copy}>
+          Copy
         </Button>
       </div>
     </div>

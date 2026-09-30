@@ -139,6 +139,8 @@ export function ChatThread({ roomId }: ChatThreadProps) {
   const [now, setNow] = useState<Date | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  /** The room+newest pair already reported as read, so a re-render cannot double-post. */
+  const markedRef = useRef<string | null>(null);
 
   const count = messages.data?.length ?? 0;
   const room = rooms.data?.find((item) => item.id === roomId);
@@ -168,12 +170,32 @@ export function ChatThread({ roomId }: ChatThreadProps) {
     setPending((queue) => queue.filter((body) => !arrived.has(body)));
   }, [messages.data]);
 
-  // Opening a room is reading it. Marked once per room rather than on every
-  // poll, which would be a write every three seconds.
+  /**
+   * Being in a room is reading it.
+   *
+   * Once per *arriving batch*, not once per room: marking only on open left
+   * everything the three-second poll delivered while the guest sat reading it
+   * counted as unread, so backing out to the room list showed a badge for
+   * messages they had just finished reading.
+   *
+   * The guard compares a composite room+newest key for inequality rather than
+   * ordering. Ordering breaks on a room switch — leaving a room whose newest
+   * message is tonight for one whose newest is this morning would look like
+   * "nothing newer" and never mark it read at all.
+   */
+  const newest = messages.data?.at(-1)?.created_at ?? null;
+  const readKey = `${roomId}|${newest ?? 'empty'}`;
+
   useEffect(() => {
-    if (roomId) markRead.mutate();
+    // Gated on the query having loaded, not on a message existing, so an
+    // empty room is still marked read the moment it opens.
+    if (!roomId || !messages.data) return;
+    if (markedRef.current === readKey) return;
+
+    markedRef.current = readKey;
+    markRead.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [readKey, roomId, messages.data]);
 
   /**
    * Grow the composer to fit, up to the cap the CSS sets.

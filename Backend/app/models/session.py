@@ -35,6 +35,7 @@ from app.models.enums import (
     MessageKind,
     MessageStatus,
     SessionStatus,
+    VoicePreset,
     WaitlistStatus,
 )
 
@@ -275,6 +276,14 @@ class ScheduledMessage(Base, TenantMixin, TimestampMixin):
     kind: Mapped[MessageKind] = mapped_column(nullable=False)
     channel: Mapped[MessageChannel] = mapped_column(nullable=False)
     status: Mapped[MessageStatus] = mapped_column(default=MessageStatus.SCHEDULED, nullable=False)
+
+    voice: Mapped[VoicePreset] = mapped_column(default=VoicePreset.SOFT_SWEET, nullable=False)
+    """The voice this body was written in.
+
+    Stored because the body has to be re-rendered when the class moves, and
+    the studio default is not necessarily what produced it — queueing accepts
+    a one-off override. Without this, re-anchoring would quietly rewrite a
+    guest's message in a tone the host never previewed."""
 
     send_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     """Already adjusted for quiet hours before it is written."""

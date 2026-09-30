@@ -133,6 +133,9 @@ class RescheduleImpactRead(BaseModel):
     deadline_shifts: list[DeadlineShiftRead]
     newly_overdue_count: int
 
+    pending_message_count: int = 0
+    """Reminders already queued for this class. The move re-aims them."""
+
 
 class EnergyWarningRead(BaseModel):
     """Advisory only — never blocks saving (PRD §2.2)."""

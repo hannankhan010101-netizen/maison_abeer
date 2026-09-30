@@ -20,21 +20,16 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import select
 
 from app.api.deps import Db
-from app.core.config import get_settings
 from app.core.errors import ConflictError
-from app.domain.guests import is_contactable
 from app.domain.messages import (
-    MessagePlan,
     plan_message,
     reminder_schedule,
     render,
     unresolved_placeholders,
 )
-from app.domain.scheduling import QuietHours
-from app.models.enums import BookingStatus, MessageKind, MessageStatus, VoicePreset
+from app.models.enums import MessageKind, MessageStatus
 from app.models.guest import Guest
 from app.models.session import Booking, MessageFeedback, ScheduledMessage, Session
-from app.models.studio import StudioSettings
 from app.schemas.message import (
     CancelMessage,
     FeedbackCreate,
@@ -44,99 +39,20 @@ from app.schemas.message import (
     ScheduledMessageRead,
     SchedulePreviewRequest,
 )
+from app.services.messages import (
+    GUEST_KINDS,
+    plan_for,
+    seated,
+    studio_default_voice,
+    studio_quiet_hours,
+    template_values,
+)
 
 router = APIRouter(tags=["messages"])
-
-# The host nudge goes to the host, not a guest, so it is scheduled without a
-# recipient and never checked for opt-out.
-GUEST_KINDS = ("guest_reminder", "guest_thank_you")
-
-
-def _quiet_hours(db: Db) -> QuietHours:
-    rows = db.scalars(db.query(StudioSettings))
-
-    if not rows:
-        return QuietHours()
-
-    row = rows[0]
-    return QuietHours(
-        start=row.quiet_hours_start,
-        end=row.quiet_hours_end,
-        timezone=row.timezone,
-    )
-
-
-def _default_voice(db: Db) -> VoicePreset:
-    rows = db.scalars(db.query(StudioSettings))
-    return rows[0].default_voice if rows else VoicePreset.SOFT_SWEET
 
 
 def _session_or_404(db: Db, session_id: UUID) -> Session:
     return db.get_or_404(Session, session_id)
-
-
-def _feedback_link(booking_id: UUID | None) -> str:
-    """The guest's one-tap survey link, or nothing.
-
-    Omitted rather than sent broken when no public URL is configured — a
-    message ending in a dead link is worse than one that simply asks.
-    """
-    base = get_settings().public_web_url.rstrip("/")
-
-    if not base or booking_id is None:
-        return ""
-
-    return f"{base}/feedback/{booking_id}"
-
-
-def _template_values(
-    session: Session, guest: Guest | None, booking_id: UUID | None = None
-) -> dict[str, str]:
-    local = session.starts_at
-    return {
-        "class_name": session.class_type.name if session.class_type else "your class",
-        "guest_name": guest.full_name.split()[0] if guest else "there",
-        "time": local.strftime("%I:%M %p").lstrip("0").lower(),
-        "date": local.strftime("%a %d %b"),
-        "feedback_link": _feedback_link(booking_id),
-    }
-
-
-def _seated(db: Db, session_id: UUID) -> list[tuple[Booking, Guest]]:
-    """Everyone holding a seat, paired with their booking.
-
-    The booking comes along because the thank-you message links to a
-    per-booking feedback page; a guest alone is not enough to address it.
-    """
-    bookings = db.scalars(
-        db.query(Booking).where(
-            Booking.session_id == session_id,
-            Booking.status != BookingStatus.CANCELLED,
-        )
-    )
-
-    guest_ids = [booking.guest_id for booking in bookings]
-    if not guest_ids:
-        return []
-
-    guests = {g.id: g for g in db.scalars(db.query(Guest).where(Guest.id.in_(guest_ids)))}
-
-    return [(b, guests[b.guest_id]) for b in bookings if b.guest_id in guests]
-
-
-def _plan_for(guest: Guest, desired: datetime, now: datetime, quiet: QuietHours) -> MessagePlan:
-    return plan_message(
-        desired_send_at=desired,
-        now=now,
-        quiet_hours=quiet,
-        opted_out=guest.opted_out,
-        is_contactable=is_contactable(
-            channel=guest.preferred_channel,
-            phone=guest.phone,
-            email=guest.email,
-            opted_out=guest.opted_out,
-        ),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -157,13 +73,13 @@ def preview_messages(
     list.
     """
     session = _session_or_404(db, session_id)
-    voice = payload.voice or _default_voice(db)
-    quiet = _quiet_hours(db)
+    voice = payload.voice or studio_default_voice(db)
+    quiet = studio_quiet_hours(db)
     now = datetime.now(UTC)
 
-    seated = _seated(db, session_id)
-    sample_booking, sample = seated[0] if seated else (None, None)
-    values = _template_values(session, sample, sample_booking.id if sample_booking else None)
+    roster = seated(db, session_id)
+    sample_booking, sample = roster[0] if roster else (None, None)
+    values = template_values(session, sample, sample_booking.id if sample_booking else None)
     schedule = reminder_schedule(session.starts_at)
 
     previews: list[MessagePreview] = []
@@ -183,7 +99,7 @@ def preview_messages(
                 is_contactable=True,
             )
         else:
-            plan = _plan_for(sample, desired, now, quiet)
+            plan = plan_for(sample, desired, now, quiet)
 
         previews.append(
             MessagePreview(
@@ -222,12 +138,12 @@ def schedule_messages(
     duplicated, so pressing the button twice does not double-message anyone.
     """
     session = _session_or_404(db, session_id)
-    voice = payload.voice or _default_voice(db)
-    quiet = _quiet_hours(db)
+    voice = payload.voice or studio_default_voice(db)
+    quiet = studio_quiet_hours(db)
     now = datetime.now(UTC)
 
     schedule = reminder_schedule(session.starts_at)
-    seated = _seated(db, session_id)
+    roster = seated(db, session_id)
 
     existing = {
         (row.guest_id, row.kind)
@@ -244,14 +160,14 @@ def schedule_messages(
     queued: list[ScheduledMessage] = []
     skips: dict[str, int] = {}
 
-    for booking, guest in seated:
-        values = _template_values(session, guest, booking.id)
+    for booking, guest in roster:
+        values = template_values(session, guest, booking.id)
 
         for kind in GUEST_KINDS:
             if (guest.id, MessageKind(kind)) in existing:
                 continue
 
-            plan = _plan_for(guest, schedule[kind], now, quiet)
+            plan = plan_for(guest, schedule[kind], now, quiet)
 
             if not plan.will_send:
                 reason = plan.skip_reason.value if plan.skip_reason else "unknown"
@@ -265,6 +181,7 @@ def schedule_messages(
                 kind=MessageKind(kind),
                 channel=guest.preferred_channel,
                 status=MessageStatus.SCHEDULED,
+                voice=voice,
                 send_at=plan.send_at,
                 body=render(kind, voice.value, values),
             )
@@ -386,9 +303,40 @@ def upsert_feedback(booking_id: UUID, payload: FeedbackCreate, db: Db) -> Feedba
     return FeedbackRead.model_validate(existing)
 
 
+@router.get("/feedback", response_model=list[FeedbackRead])
+def list_studio_feedback(
+    db: Db,
+    start: Annotated[datetime | None, Query(description="Window start, by class date")] = None,
+    end: Annotated[datetime | None, Query(description="Window end, by class date")] = None,
+) -> list[FeedbackRead]:
+    """Every answer in a window, for the Wrapped word cloud.
+
+    Studio-wide rather than per session, because Wrapped reads a whole season
+    — a per-session fan-out would be one request per class on page load, and
+    the page held sixteen hardcoded words instead of asking for any of them.
+
+    Filtered by the *class* date, not the answer date, so the deck reflects
+    the same season the rest of the page is showing.
+    """
+    statement = (
+        db.query(MessageFeedback)
+        .join(Booking, Booking.id == MessageFeedback.booking_id)
+        .join(Session, Session.id == Booking.session_id)
+        .order_by(MessageFeedback.created_at.desc())
+    )
+
+    if start is not None:
+        statement = statement.where(Session.starts_at >= start)
+
+    if end is not None:
+        statement = statement.where(Session.starts_at <= end)
+
+    return [FeedbackRead.model_validate(f) for f in db.scalars(statement)]
+
+
 @router.get("/sessions/{session_id}/feedback", response_model=list[FeedbackRead])
 def list_feedback(session_id: UUID, db: Db) -> list[FeedbackRead]:
-    """Feeds the word cloud in Studio Wrapped."""
+    """One class's answers."""
     _session_or_404(db, session_id)
 
     booking_ids = [

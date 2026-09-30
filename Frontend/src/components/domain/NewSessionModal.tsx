@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Field, Modal, inputClasses } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { ApiError } from '@/lib/api/errors';
-import { useCreateSession } from '@/lib/api/hooks';
+import { useClassTypes, useCreateSession } from '@/lib/api/hooks';
 import { dayKey } from '@/lib/dates';
-import type { Session } from '@/lib/api/types';
+import type { ClassType } from '@/lib/api/types';
 
 /**
  * Quick-add (PRD §2.2).
@@ -16,6 +16,11 @@ import type { Session } from '@/lib/api/types';
  * "Tapping any blank date launches a lightweight modal." Kept deliberately
  * short — class type, time, seats, optional weekly repeat — because the host
  * is adding a class between other things, not filling in a form.
+ *
+ * The class types come from `useClassTypes`, which reads the studio's
+ * catalogue. They used to be derived from the sessions the calendar had
+ * loaded, which meant the dropdown was empty on any week without classes —
+ * including the only week a brand-new studio ever sees.
  */
 
 export interface NewSessionModalProps {
@@ -23,7 +28,6 @@ export interface NewSessionModalProps {
   onClose: () => void;
   /** Prefills the date when opened from a specific calendar day. */
   defaultDate?: Date;
-  classTypes: { id: string; name: string }[];
 }
 
 /** Local datetime string for `<input type="datetime-local">`. */
@@ -34,23 +38,111 @@ export function toLocalInputValue(date: Date): string {
   return `${dayKey(date)}T${hours}:${minutes}`;
 }
 
-export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewSessionModalProps) {
+/** Durations offered, plus whatever this class type actually runs for. */
+export function durationOptions(defaultMinutes: number): number[] {
+  const offered = new Set([90, 120, 150, 180, 240, defaultMinutes]);
+
+  return [...offered].filter((minutes) => minutes > 0).sort((a, b) => a - b);
+}
+
+export function NewSessionModal({ open, onClose, defaultDate }: NewSessionModalProps) {
+  const classTypes = useClassTypes();
+
+  // Unmounted while closed, so the form below always mounts fresh: its state
+  // is seeded from `defaultDate` and the loaded catalogue, and a `useState`
+  // initialiser only runs on mount. Keeping it mounted is what used to freeze
+  // the class type at '' and the date at whatever "now" was on first paint.
+  if (!open) return null;
+
+  const options = classTypes.data ?? [];
+
+  if (classTypes.isPending || classTypes.isError || options.length === 0) {
+    return (
+      <Modal
+        open
+        onClose={onClose}
+        title="New session ✨"
+        footer={
+          <Button variant="secondary" onClick={onClose} type="button">
+            Close
+          </Button>
+        }
+      >
+        <p className="text-latte text-sm" role={classTypes.isPending ? undefined : 'alert'}>
+          {classTypes.isPending
+            ? 'Fetching your class types…'
+            : classTypes.isError
+              ? "We couldn't load your class types. Try again in a moment?"
+              : 'No class types yet — add one in Settings and it will show up here.'}
+        </p>
+      </Modal>
+    );
+  }
+
+  return (
+    <NewSessionForm
+      onClose={onClose}
+      defaultDate={defaultDate}
+      classTypes={options}
+      // A different day is a different form. Remounting reseeds the date
+      // rather than leaving yesterday's value in a field the host will not
+      // think to check.
+      key={defaultDate ? dayKey(defaultDate) : 'today'}
+    />
+  );
+}
+
+function NewSessionForm({
+  onClose,
+  defaultDate,
+  classTypes,
+}: {
+  onClose: () => void;
+  defaultDate?: Date;
+  /** Non-empty: the caller has already handled the empty catalogue. */
+  classTypes: ClassType[];
+}) {
   const { toast, celebrate } = useToast();
   const createSession = useCreateSession();
 
+  const first = classTypes[0]!;
   const start = defaultDate ?? new Date();
-  const [classTypeId, setClassTypeId] = useState(classTypes[0]?.id ?? '');
+
+  const [classTypeId, setClassTypeId] = useState(first.id);
   const [startsAt, setStartsAt] = useState(toLocalInputValue(start));
-  const [durationMinutes, setDurationMinutes] = useState(150);
-  const [seats, setSeats] = useState(10);
+  const [durationMinutes, setDurationMinutes] = useState(first.default_duration_minutes);
+  const [seats, setSeats] = useState(first.default_seats);
   const [repeatUntil, setRepeatUntil] = useState('');
   const [error, setError] = useState<ApiError | null>(null);
+
+  /**
+   * Picking a class type brings its defaults with it.
+   *
+   * That is what `default_seats` and `default_duration_minutes` are for: the
+   * host who picks "Pottery" means the three-hour, eight-seat class they
+   * always run, and should not have to correct two fields to say so.
+   */
+  function selectClassType(id: string) {
+    setClassTypeId(id);
+
+    const picked = classTypes.find((type) => type.id === id);
+    if (!picked) return;
+
+    setSeats(picked.default_seats);
+    setDurationMinutes(picked.default_duration_minutes);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
     const startDate = new Date(startsAt);
+
+    if (Number.isNaN(startDate.getTime())) {
+      toast('That date and time needs a second look.', 'error');
+      return;
+    }
+
     const endDate = new Date(startDate.getTime() + durationMinutes * 60_000);
 
     try {
@@ -84,7 +176,7 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
 
   return (
     <Modal
-      open={open}
+      open
       onClose={onClose}
       title="New session ✨"
       footer={
@@ -104,11 +196,11 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
       }
     >
       <form id="new-session" onSubmit={handleSubmit} noValidate>
-        <Field label="Class type" htmlFor="class-type">
+        <Field label="Class type" htmlFor="class-type" error={error?.fieldError('class_type_id')}>
           <select
             id="class-type"
             value={classTypeId}
-            onChange={(event) => setClassTypeId(event.target.value)}
+            onChange={(event) => selectClassType(event.target.value)}
             className={inputClasses}
             required
           >
@@ -142,9 +234,9 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
             onChange={(event) => setDurationMinutes(Number(event.target.value))}
             className={inputClasses}
           >
-            {[90, 120, 150, 180, 240].map((minutes) => (
+            {durationOptions(durationMinutes).map((minutes) => (
               <option key={minutes} value={minutes}>
-                {minutes / 60} hours
+                {formatDuration(minutes)}
               </option>
             ))}
           </select>
@@ -194,15 +286,14 @@ export function NewSessionModal({ open, onClose, defaultDate, classTypes }: NewS
   );
 }
 
-/** Class types, derived from the sessions already loaded. */
-export function classTypesFrom(sessions: Session[]): { id: string; name: string }[] {
-  const seen = new Map<string, string>();
-
-  for (const session of sessions) {
-    if (!seen.has(session.class_type_id)) {
-      seen.set(session.class_type_id, session.class_type_name);
-    }
+/** "2 hours", "2.5 hours", "90 minutes" — whichever reads cleanly. */
+export function formatDuration(minutes: number): string {
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? '1 hour' : `${hours} hours`;
   }
 
-  return [...seen.entries()].map(([id, name]) => ({ id, name }));
+  if (minutes % 30 === 0) return `${minutes / 60} hours`;
+
+  return `${minutes} minutes`;
 }

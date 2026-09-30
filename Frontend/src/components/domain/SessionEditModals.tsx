@@ -168,16 +168,43 @@ export function RescheduleModal({
     setError(null);
 
     try {
-      await reschedule.mutateAsync({
+      const result = await reschedule.mutateAsync({
         startsAt: new Date(startsAt).toISOString(),
         notifyGuests: notify && (impact?.requires_guest_notification ?? false),
       });
 
-      toast(
-        notify && impact?.requires_guest_notification
-          ? `moved — ${impact.affected_guest_count} guests notified 💗`
-          : 'class moved ✨',
-      );
+      // Off the response, never off the preview. `affected_guest_count`
+      // includes guests who opted out or have no number on file, so even a
+      // working send would have over-reported it.
+      const notified = result.preview ? 0 : result.notified_count;
+      const skipped = result.preview ? 0 : result.skipped_count;
+
+      const dropped = result.preview ? 0 : result.messages_cancelled;
+
+      if (dropped > 0) {
+        // Said out loud: the class moved inside those reminders' windows, so
+        // they were cancelled rather than sent late or sent immediately.
+        setTimeout(
+          () =>
+            toast(
+              `${dropped} reminder${dropped === 1 ? '' : 's'} couldn't be re-timed — the class is too soon now`,
+            ),
+          400,
+        );
+      }
+
+      if (notified > 0) {
+        toast(
+          skipped > 0
+            ? `moved — ${notified} notified, ${skipped} we couldn't reach 💗`
+            : `moved — ${notified} ${notified === 1 ? 'guest' : 'guests'} notified 💗`,
+        );
+      } else if (skipped > 0) {
+        // Said out loud: the class moved and nobody heard about it.
+        toast(`class moved — we couldn't reach anyone on the roster`, 'error');
+      } else {
+        toast('class moved ✨');
+      }
 
       close();
     } catch (caught) {
@@ -244,6 +271,13 @@ export function RescheduleModal({
               <li className="text-danger font-extrabold">
                 {impact.newly_overdue_count} step
                 {impact.newly_overdue_count === 1 ? '' : 's'} would already be overdue
+              </li>
+            ) : null}
+            {impact.pending_message_count > 0 ? (
+              <li>
+                <b>{impact.pending_message_count}</b> queued reminder
+                {impact.pending_message_count === 1 ? '' : 's'} move with it, rewritten for the new
+                date
               </li>
             ) : null}
           </ul>

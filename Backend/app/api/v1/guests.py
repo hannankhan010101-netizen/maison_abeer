@@ -9,7 +9,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from app.schemas.guest import (
+    AllergyIn,
     AllergyRead,
+    AllergyUpdate,
     BirthdayRead,
     BookingCreate,
     BookingRead,
@@ -21,7 +23,13 @@ from app.schemas.guest import (
     RosterRead,
     TableAssignment,
 )
-from app.services.guests import GuestDraft, GuestService, GuestSnapshot
+from app.services.guests import (
+    AllergyDraft,
+    AllergySnapshot,
+    GuestDraft,
+    GuestService,
+    GuestSnapshot,
+)
 
 router = APIRouter(tags=["guests"])
 
@@ -31,6 +39,16 @@ def get_guest_service() -> GuestService:  # pragma: no cover - overridden in wir
 
 
 Service = Annotated[GuestService, Depends(get_guest_service)]
+
+
+def _allergy_read(allergy: AllergySnapshot) -> AllergyRead:
+    return AllergyRead(
+        id=allergy.id,
+        label=allergy.label,
+        severity=allergy.severity,
+        notes=allergy.notes,
+        is_critical=allergy.is_critical,
+    )
 
 
 def _to_read(guest: GuestSnapshot, *, today: date) -> GuestRead:
@@ -54,16 +72,7 @@ def _to_read(guest: GuestSnapshot, *, today: date) -> GuestRead:
         birthday=guest.birthday,
         days_until_birthday=guest.days_until_birthday(today),
         memory_note=guest.memory_note,
-        allergies=[
-            AllergyRead(
-                id=allergy.id,
-                label=allergy.label,
-                severity=allergy.severity,
-                notes=allergy.notes,
-                is_critical=allergy.is_critical,
-            )
-            for allergy in guest.allergies
-        ],
+        allergies=[_allergy_read(allergy) for allergy in guest.allergies],
         available_credits=guest.available_credits,
     )
 
@@ -127,6 +136,10 @@ def create_guest(
             preferred_channel=payload.preferred_channel,
             birthday=payload.birthday,
             memory_note=payload.memory_note,
+            allergies=tuple(
+                AllergyDraft(label=a.label, severity=a.severity, notes=a.notes)
+                for a in payload.allergies
+            ),
         ),
         merge_duplicates=merge_duplicates,
     )
@@ -138,6 +151,46 @@ def create_guest(
 def update_guest(guest_id: UUID, payload: GuestUpdate, service: Service) -> GuestRead:
     updated = service.update(guest_id, payload.model_dump(exclude_unset=True))
     return _to_read(updated, today=service.today)
+
+
+# ---------------------------------------------------------------------------
+# Allergies (PRD §2.4)
+# ---------------------------------------------------------------------------
+#
+# The read side of this was fully built — the red chip on the roster, the
+# critical count, the day-of dashboard alert — with nothing that could write
+# to it. The only allergy that could exist was one a guest typed into the
+# public booking form, force-stamped as `allergy`, so a host told about a
+# severe nut allergy on the phone had nowhere to put it and no way to correct
+# a severity that was wrong.
+
+
+@router.post(
+    "/guests/{guest_id}/allergies",
+    response_model=AllergyRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_allergy(guest_id: UUID, payload: AllergyIn, service: Service) -> AllergyRead:
+    """Record an allergy. Re-adding the same label returns the existing one."""
+    added = service.add_allergy(
+        guest_id,
+        AllergyDraft(label=payload.label, severity=payload.severity, notes=payload.notes),
+    )
+
+    return _allergy_read(added)
+
+
+@router.patch("/guests/{guest_id}/allergies/{allergy_id}", response_model=AllergyRead)
+def update_allergy(
+    guest_id: UUID, allergy_id: UUID, payload: AllergyUpdate, service: Service
+) -> AllergyRead:
+    updated = service.edit_allergy(guest_id, allergy_id, payload.model_dump(exclude_unset=True))
+    return _allergy_read(updated)
+
+
+@router.delete("/guests/{guest_id}/allergies/{allergy_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_allergy(guest_id: UUID, allergy_id: UUID, service: Service) -> None:
+    service.delete_allergy(guest_id, allergy_id)
 
 
 # ---------------------------------------------------------------------------

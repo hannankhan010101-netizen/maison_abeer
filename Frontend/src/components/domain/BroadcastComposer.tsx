@@ -63,8 +63,10 @@ export function BroadcastComposer() {
             🎀
           </p>
           <p className="font-display mt-2 text-xl">Sent to everyone</p>
+          {/* Not "every chat": private host↔guest threads are deliberately
+              left out, and so are classes that have already finished. */}
           <p className="text-latte mt-1 text-sm">
-            It&rsquo;s in every chat now, marked as coming from you.
+            It&rsquo;s in the lounge and every upcoming class, marked as coming from you.
           </p>
           <Link href="/chat" className={`${buttonClasses('secondary')} mt-4`}>
             Back to oversight

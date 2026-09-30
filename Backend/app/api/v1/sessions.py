@@ -132,12 +132,23 @@ def reschedule_session(
         impact = service.preview_reschedule(session_id, payload.starts_at)
         return {"preview": True, "impact": _impact_to_read(impact).model_dump(mode="json")}
 
-    session, impact = service.reschedule(session_id, payload.starts_at)
+    result = service.reschedule(
+        session_id,
+        payload.starts_at,
+        notify_guests=payload.notify_guests,
+    )
 
     return {
         "preview": False,
-        "session": _to_read(session).model_dump(mode="json"),
-        "impact": _impact_to_read(impact).model_dump(mode="json"),
+        "session": _to_read(result.session).model_dump(mode="json"),
+        "impact": _impact_to_read(result.impact).model_dump(mode="json"),
+        # What was actually queued, so the confirmation can report a send
+        # rather than assume one.
+        "notified_count": result.notified_count,
+        "skipped_count": result.skipped_count,
+        # And what happened to the reminders that were already waiting.
+        "messages_reanchored": result.messages_reanchored,
+        "messages_cancelled": result.messages_cancelled,
     }
 
 
@@ -151,13 +162,24 @@ def update_session(session_id: UUID, payload: SessionUpdate, service: Service) -
     """Quick-edit panel.
 
     Seat and time changes route through their dedicated operations so their
-    side effects — rescaling, re-anchoring — can never be bypassed.
+    side effects — rescaling, re-anchoring — can never be bypassed. Everything
+    else is a plain write.
     """
     if payload.seats is not None:
         service.change_seat_count(session_id, payload.seats)
 
     if payload.starts_at is not None:
         service.reschedule(session_id, payload.starts_at)
+
+    # After the reschedule, which recomputes `ends_at` from the old duration.
+    # Running the details write first would let that recomputation silently
+    # overwrite an `ends_at` the caller sent explicitly.
+    #
+    # `exclude_unset` is what separates "clear the notes" from "leave the
+    # notes alone": an explicit null is a change, an absent key is not.
+    details = payload.model_dump(exclude_unset=True, exclude={"seats", "starts_at"})
+    if details:
+        service.update_details(session_id, details)
 
     return _to_read(service.get(session_id))
 
@@ -185,6 +207,7 @@ def _impact_to_read(impact: object) -> RescheduleImpactRead:
             for shift in impact.deadline_shifts
         ],
         newly_overdue_count=len(impact.newly_overdue),
+        pending_message_count=impact.pending_message_count,
     )
 
 

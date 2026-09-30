@@ -18,6 +18,7 @@ from app.api.providers import (
 )
 from app.api.v1 import (
     admin_chat,
+    catalog,
     chat,
     checklist,
     cron,
@@ -89,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.dependency_overrides[checklist.get_checklist_service] = provide_checklist_service
 
     app.include_router(sessions.router, prefix=API_PREFIX)
+    app.include_router(catalog.router, prefix=API_PREFIX)
     app.include_router(guests.router, prefix=API_PREFIX)
     app.include_router(guest_history.router, prefix=API_PREFIX)
     app.include_router(checklist.router, prefix=API_PREFIX)

@@ -38,7 +38,9 @@ from app.api.deps import Issuer
 from app.core.db import get_session_factory
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.rate_limit import limiter
+from app.domain.waitlist import queue_number
 from app.models.enums import (
+    LIVE_WAITLIST_STATUSES,
     AllergySeverity,
     BookingStatus,
     MessageChannel,
@@ -415,36 +417,72 @@ def book_public_class(
         return result("booked")
 
     # Full: join the queue instead of turning them away.
-    already_waiting = db.execute(
+    #
+    # Status-agnostic on purpose. `uq_waitlist_entry_session_id_guest_id` has
+    # no status predicate — unlike Booking's, which is partial on
+    # `status <> 'cancelled'` — so one row per (session, guest) is all the
+    # table will ever hold. Looking only for WAITING meant a guest whose
+    # invite had expired, who had declined, or whose accepted booking was
+    # later cancelled fell through to an INSERT that raised IntegrityError and
+    # escaped as a bare 500. Retrying failed identically, forever.
+    existing_entry = db.execute(
         select(WaitlistEntry).where(
             WaitlistEntry.studio_id == studio.id,
             WaitlistEntry.session_id == session.id,
             WaitlistEntry.guest_id == guest.id,
-            WaitlistEntry.status == WaitlistStatus.WAITING,
         )
     ).scalar_one_or_none()
 
-    if already_waiting is not None:
-        return result("waitlisted", waitlist_position=already_waiting.position)
+    # Still in the queue: say where they are and change nothing, the same way
+    # an existing booking is answered idempotently above.
+    if existing_entry is not None and existing_entry.status in LIVE_WAITLIST_STATUSES:
+        return result("waitlisted", waitlist_position=queue_number(existing_entry.position))
 
-    highest = db.execute(
-        select(func.max(WaitlistEntry.position)).where(
-            WaitlistEntry.studio_id == studio.id,
-            WaitlistEntry.session_id == session.id,
-        )
-    ).scalar()
+    # Live entries only, and counted rather than max()+1.
+    #
+    # Positions are 0-based in storage — `normalise_positions` renumbers with
+    # `enumerate(live)` — and settled rows keep their old numbers. Taking an
+    # unfiltered `max(position) + 1` therefore counted withdrawn and expired
+    # people, so a guest with two ahead of them was told "number 6"; writing
+    # 1-based on top of 0-based storage told the person at the front of the
+    # queue they were "number 0". The session row is already held FOR UPDATE
+    # above, so this count cannot be stale.
+    tail = (
+        db.execute(
+            select(func.count())
+            .select_from(WaitlistEntry)
+            .where(
+                WaitlistEntry.studio_id == studio.id,
+                WaitlistEntry.session_id == session.id,
+                WaitlistEntry.status.in_(tuple(LIVE_WAITLIST_STATUSES)),
+            )
+        ).scalar()
+        or 0
+    )
+
+    # Settled — declined, expired, withdrawn, or accepted-then-cancelled.
+    # Re-join by reusing the row: the constraint forbids a second one, and the
+    # test is "is this entry still live", so no future status can slip past.
+    if existing_entry is not None:
+        existing_entry.status = WaitlistStatus.WAITING
+        existing_entry.invited_at = None
+        existing_entry.invite_expires_at = None
+        existing_entry.position = tail
+        db.flush()
+
+        return result("waitlisted", waitlist_position=queue_number(existing_entry.position))
 
     entry = WaitlistEntry(
         studio_id=studio.id,
         session_id=session.id,
         guest_id=guest.id,
-        position=(highest or 0) + 1,
+        position=tail,
         status=WaitlistStatus.WAITING,
     )
     db.add(entry)
     db.flush()
 
-    return result("waitlisted", waitlist_position=entry.position)
+    return result("waitlisted", waitlist_position=queue_number(entry.position))
 
 
 # ---------------------------------------------------------------------------

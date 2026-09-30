@@ -17,7 +17,7 @@ import {
   useToggleChecklistItem,
 } from '@/lib/api/hooks';
 import { useResolvedNow } from '@/lib/useNow';
-import { addWeeks, formatTime } from '@/lib/dates';
+import { formatTime, workingWindow } from '@/lib/dates';
 import type { ChecklistItem } from '@/lib/api/types';
 
 /**
@@ -56,10 +56,7 @@ export function PrepList({ now: nowProp }: PrepListProps) {
 }
 
 function PrepListInner({ now }: { now: Date }) {
-  const range = useMemo(
-    () => ({ start: now.toISOString(), end: addWeeks(now, 4).toISOString() }),
-    [now],
-  );
+  const range = useMemo(() => workingWindow(now), [now]);
 
   const sessions = useSessions(range.start, range.end);
   const [sessionId, setSessionId] = useState<string | null>(null);

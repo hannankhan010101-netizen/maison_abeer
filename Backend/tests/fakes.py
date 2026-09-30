@@ -8,14 +8,20 @@ quantity storage — not a general-purpose database.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from app.domain.quantities import QuantityChange, QuantityLinkedItem, primary_quantity, render
 from app.domain.scheduling import ChecklistDeadline
-from app.services.sessions import SessionDraft, SessionSnapshot, StudioContext
+from app.services.sessions import (
+    ClassTypeOption,
+    SessionDraft,
+    SessionSnapshot,
+    StudioContext,
+)
 
 
 class FakeSessionRepository:
@@ -29,12 +35,27 @@ class FakeSessionRepository:
             timezone="UTC", rest_days=frozenset(), weekly_class_cap=None
         )
         self.class_type_ids = class_type_ids or set()
+        self.class_types: dict[UUID, ClassTypeOption] = {
+            class_type_id: ClassTypeOption(
+                id=class_type_id,
+                name=f"Class {index + 1}",
+                # A palette token name, not a credential — the S105 heuristic
+                # only sees "token".
+                color_token="pink",  # noqa: S106
+                default_seats=10,
+                default_duration_minutes=150,
+            )
+            for index, class_type_id in enumerate(sorted(self.class_type_ids))
+        }
         self.sessions: dict[UUID, SessionSnapshot] = {}
         self.quantities: dict[UUID, list[QuantityLinkedItem]] = {}
         self.deadlines: dict[UUID, list[ChecklistDeadline]] = {}
         self.guests: dict[UUID, tuple[int, int]] = {}
         self.sold_out_marks: dict[UUID, datetime] = {}
         self.reanchored: list[tuple[UUID, datetime]] = []
+        self.change_notices: list[tuple[UUID, datetime]] = []
+        self.pending_messages: dict[UUID, int] = {}
+        self.message_reanchors: list[tuple[UUID, datetime, datetime]] = []
         self.applied_quantity_changes: list[tuple[UUID, Sequence[QuantityChange], int]] = []
 
     # -- helpers used by tests ---------------------------------------------
@@ -63,10 +84,39 @@ class FakeSessionRepository:
         defaults.update(overrides)
 
         snapshot = SessionSnapshot(**defaults)  # type: ignore[arg-type]
+        self.class_types.setdefault(
+            snapshot.class_type_id,
+            ClassTypeOption(
+                id=snapshot.class_type_id,
+                name=snapshot.class_type_name,
+                color_token=snapshot.color_token,
+                default_seats=snapshot.seats,
+                default_duration_minutes=150,
+            ),
+        )
         self.sessions[snapshot.id] = snapshot
         self.guests.setdefault(snapshot.id, (snapshot.booked, snapshot.booked))
 
         return snapshot
+
+    def seed_class_type(self, name: str, **overrides: object) -> ClassTypeOption:
+        """A class type with no sessions — a studio that has not opened yet."""
+        class_type_id = overrides.pop("id", None) or uuid4()
+
+        defaults: dict[str, object] = {
+            "id": class_type_id,
+            "name": name,
+            "color_token": "pink",
+            "default_seats": 10,
+            "default_duration_minutes": 150,
+        }
+        defaults.update(overrides)
+
+        option = ClassTypeOption(**defaults)  # type: ignore[arg-type]
+        self.class_types[option.id] = option
+        self.class_type_ids.add(option.id)
+
+        return option
 
     # -- SessionRepository --------------------------------------------------
 
@@ -76,8 +126,20 @@ class FakeSessionRepository:
     def class_type_exists(self, class_type_id: UUID) -> bool:
         return class_type_id in self.class_type_ids
 
+    def list_class_types(self) -> list[ClassTypeOption]:
+        return sorted(self.class_types.values(), key=lambda option: option.name)
+
     def get_snapshot(self, session_id: UUID) -> SessionSnapshot | None:
         return self.sessions.get(session_id)
+
+    def update_details(self, session_id: UUID, changes: Mapping[str, object]) -> SessionSnapshot:
+        # The service has already checked the keys against `DETAIL_FIELDS`, so
+        # the widening here is what the Protocol's `object` values cost, not a
+        # hole in the validation.
+        fields = cast("dict[str, Any]", dict(changes))
+        updated = replace(self.sessions[session_id], **fields)
+        self.sessions[session_id] = updated
+        return updated
 
     def list_snapshots(self, start: datetime, end: datetime) -> list[SessionSnapshot]:
         return sorted(
@@ -152,6 +214,42 @@ class FakeSessionRepository:
             replace(item, deadline=item.offset.resolve(new_start))
             for item in self.deadlines.get(session_id, [])
         ]
+
+    def schedule_change_notices(self, session_id: UUID, now: datetime) -> tuple[int, int]:
+        """Records the call and answers with (queued, skipped).
+
+        Skipped counts the guests the real repository would drop — those who
+        opted out or have no contact details — which is what `guest_counts`
+        already models as the affected/contactable split.
+        """
+        self.change_notices.append((session_id, now))
+
+        affected, contactable = self.guests.get(session_id, (0, 0))
+
+        return contactable, affected - contactable
+
+    def pending_message_count(self, session_id: UUID) -> int:
+        return self.pending_messages.get(session_id, 0)
+
+    def reanchor_messages(
+        self, session_id: UUID, new_start: datetime, now: datetime
+    ) -> tuple[int, int]:
+        """Records the call and answers with (re-anchored, cancelled).
+
+        Cancelled models the real rule: a class moved inside a reminder's
+        window has no honest send time left, so the row is cancelled rather
+        than sent late or blasted immediately.
+        """
+        self.message_reanchors.append((session_id, new_start, now))
+
+        pending = self.pending_messages.get(session_id, 0)
+
+        if not pending:
+            return 0, 0
+
+        cancelled = pending if new_start <= now else 0
+
+        return pending - cancelled, cancelled
 
     def guest_counts(self, session_id: UUID) -> tuple[int, int]:
         return self.guests.get(session_id, (0, 0))

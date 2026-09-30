@@ -138,6 +138,21 @@ export function timeOfDay(now: Date): 'morning' | 'afternoon' | 'evening' {
 }
 
 /** Query window for a calendar week, as the API expects. */
+/**
+ * The window the working screens (prep, reminders) load.
+ *
+ * Starts two days *behind* now, not at now. A class vanishing from the picker
+ * the moment it begins takes its post-class reset steps with it — "wash the
+ * wheels", "photograph the shelf" are T+2h by design (PRD §2.5), and they
+ * were unreachable while the window started at the present instant.
+ */
+export function workingWindow(now: Date): { start: string; end: string } {
+  return {
+    start: addDays(now, -2).toISOString(),
+    end: addWeeks(now, 4).toISOString(),
+  };
+}
+
 export function weekWindow(date: Date): { start: string; end: string } {
   return {
     start: startOfWeek(date).toISOString(),

@@ -19,6 +19,18 @@ import { expect, test } from '@playwright/test';
 // violation — a slow check misreported as a broken page.
 test.describe.configure({ timeout: 120_000 });
 
+/** The rule and the node, so a CI failure is actionable without a local repro. */
+function summarise(
+  violations: { id: string; impact?: string | null; help: string; nodes: { html: string }[] }[],
+) {
+  return violations.map((violation) => ({
+    rule: violation.id,
+    impact: violation.impact,
+    help: violation.help,
+    nodes: violation.nodes.map((node) => node.html.slice(0, 200)),
+  }));
+}
+
 const PAGES = [
   '/today',
   '/calendar',
@@ -41,20 +53,27 @@ for (const path of PAGES) {
 
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 
-    // Print the rule and the node, so a failure is actionable from CI output
-    // alone rather than needing a local repro.
-    const summary = results.violations.map((violation) => ({
-      rule: violation.id,
-      impact: violation.impact,
-      help: violation.help,
-      nodes: violation.nodes.map((node) => node.html.slice(0, 120)),
-    }));
+    const summary = summarise(results.violations);
 
     expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
   });
 }
 
+/*
+ * Reduced motion, for this page only.
+ *
+ * The booking page reveals its sections on scroll, which means anything below
+ * the fold is still at `opacity-0` when axe walks the tree — and zero-opacity
+ * text fails the contrast rule by definition. That made this check fail or
+ * pass depending on how much of the page happened to be on screen.
+ *
+ * Asking for reduced motion is not hiding the problem: `useRevealOnScroll`
+ * then renders every section in its settled state, which is exactly the state
+ * whose colours are worth checking.
+ */
 test('the booking page has no accessibility violations', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
   await page.route('**/api/v1/public/**', (route) =>
     route.fulfill({
       status: 200,
@@ -82,7 +101,12 @@ test('the booking page has no accessibility violations', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Pick your class' })).toBeVisible();
 
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-  expect(results.violations.map((v) => v.id)).toEqual([]);
+  // Same actionable summary as the pages above, rather than a bare list of
+  // rule ids: this is the one page a stranger sees, and "color-contrast"
+  // without the node is not something anyone can fix from a CI log.
+  const summary = summarise(results.violations);
+
+  expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
 });
 
 test('the whole dashboard is reachable by keyboard', async ({ page }) => {

@@ -4,9 +4,9 @@ import { useState } from 'react';
 
 import { ReminderQueue } from '@/components/domain/ReminderQueue';
 
-import { Button } from '@/components/ui/Button';
 import { Card, CardTitle, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { useSettings } from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
 import {
   SEND_SCHEDULE,
@@ -15,6 +15,7 @@ import {
   type EmojiDensity,
   type VoiceId,
 } from '@/lib/messages/voices';
+import type { VoicePreset } from '@/lib/api/types';
 
 /**
  * Messages (PRD §2.6).
@@ -38,9 +39,22 @@ const PREVIEW_VARS = {
 };
 
 export function MessagesStudio() {
-  const [voice, setVoice] = useState<VoiceId>('soft_sweet');
-  const [density, setDensity] = useState<EmojiDensity>('full');
+  const settings = useSettings();
+
+  /**
+   * Null until the host picks one on this screen.
+   *
+   * Derived at render rather than seeded from the query, so a settings
+   * response that lands after the first paint cannot overwrite a pick the
+   * host has already made — and so an unpicked voice stays null all the way
+   * to the API, where it means "use my saved default".
+   */
+  const [voice, setVoice] = useState<VoicePreset | null>(null);
+  const [density, setDensity] = useState<EmojiDensity | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+
+  const effectiveVoice: VoiceId = voice ?? settings.data?.default_voice ?? 'soft_sweet';
+  const effectiveDensity: EmojiDensity = density ?? settings.data?.emoji_density ?? 'full';
 
   return (
     <section>
@@ -52,7 +66,7 @@ export function MessagesStudio() {
       <Eyebrow>Voice</Eyebrow>
       <div role="radiogroup" aria-label="Message voice" className="mb-5 flex flex-wrap gap-2">
         {VOICES.map((option) => {
-          const active = option.id === voice;
+          const active = option.id === effectiveVoice;
 
           return (
             <button
@@ -73,7 +87,7 @@ export function MessagesStudio() {
       </div>
 
       <p className="text-latte mb-4 text-sm">
-        {VOICES.find((option) => option.id === voice)?.description}
+        {VOICES.find((option) => option.id === effectiveVoice)?.description}
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -88,11 +102,11 @@ export function MessagesStudio() {
           >
             <Bubble
               kind="T-24h · reminder"
-              text={renderMessage('reminder_24h', voice, density, PREVIEW_VARS)}
+              text={renderMessage('reminder_24h', effectiveVoice, effectiveDensity, PREVIEW_VARS)}
             />
             <Bubble
               kind="T+24h · thank you"
-              text={renderMessage('thank_you', voice, density, PREVIEW_VARS)}
+              text={renderMessage('thank_you', effectiveVoice, effectiveDensity, PREVIEW_VARS)}
             />
 
             <Eyebrow className="mt-4">How was it?</Eyebrow>
@@ -141,7 +155,7 @@ export function MessagesStudio() {
             </p>
           </Card>
 
-          <ReminderQueue voice={voice} />
+          <ReminderQueue voice={voice ?? undefined} />
 
           <Card>
             <Eyebrow>Emoji density</Eyebrow>
@@ -151,11 +165,11 @@ export function MessagesStudio() {
                   key={option.id}
                   type="button"
                   role="radio"
-                  aria-checked={density === option.id}
+                  aria-checked={effectiveDensity === option.id}
                   onClick={() => setDensity(option.id)}
                   className={cn(
                     'min-h-[44px] rounded-[var(--radius-pill)] border-[1.5px] px-4 text-xs font-extrabold',
-                    density === option.id
+                    effectiveDensity === option.id
                       ? 'border-pink bg-pink text-on-pink'
                       : 'border-line bg-paper text-latte',
                   )}
@@ -165,13 +179,18 @@ export function MessagesStudio() {
               ))}
             </div>
 
+            {/* Preview-only: `render` on the server takes a voice but no
+                density (app/domain/messages.py), so this picker changes what
+                the host sees here and not yet what a guest receives. */}
+            <p className="text-latte mt-3 text-[13.5px]">
+              Changes the preview above. Queue reminders below to see the real copy.
+            </p>
+
             <CardTitle className="mt-4">Before it goes out</CardTitle>
             <p className="text-latte mt-1 text-[13.5px]">
-              Nothing sends unseen — send yourself a test first.
+              Nothing sends unseen — Preview under “Queue reminders” shows the exact copy, send time
+              and who will be skipped.
             </p>
-            <Button variant="secondary" className="mt-3">
-              Send a test to me
-            </Button>
           </Card>
         </div>
       </div>

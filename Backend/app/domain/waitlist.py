@@ -33,6 +33,17 @@ class WaitlistStatus(StrEnum):
 LIVE_STATUSES = frozenset({WaitlistStatus.WAITING, WaitlistStatus.INVITED})
 
 
+def queue_number(position: int) -> int:
+    """A stored position as the guest is told it.
+
+    Storage is 0-based, because `normalise_positions` renumbers live entries
+    with `enumerate`. Every guest-facing surface has to add the one — handing
+    the raw value over is how the person at the front of the queue came to be
+    told they were "number 0 in the queue".
+    """
+    return position + 1
+
+
 @dataclass(frozen=True, slots=True)
 class WaitlistEntry:
     entry_id: str

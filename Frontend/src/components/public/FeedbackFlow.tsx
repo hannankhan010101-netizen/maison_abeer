@@ -14,6 +14,9 @@ import { apiBaseUrl } from '@/lib/api/base-url';
  *
  * The word is optional and asked for after the tap, not before — a text field
  * shown up front reads as work and suppresses the tap that was already free.
+ * Which means it belongs on the thank-you screen: it used to sit above the
+ * tap, where the tap's own success unmounted it, so the word half of the
+ * survey collected nothing at all.
  */
 
 const RATINGS = [
@@ -46,6 +49,13 @@ export function FeedbackFlow({ bookingId }: FeedbackFlowProps) {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /**
+   * The word already stored, so a blur that changed nothing does not re-post.
+   *
+   * It matters more than tidiness: the API assigns `one_word` unconditionally,
+   * so a second PUT carrying an empty word would erase a word already saved.
+   */
+  const [savedWord, setSavedWord] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,6 +95,7 @@ export function FeedbackFlow({ bookingId }: FeedbackFlowProps) {
       }
 
       setSaved(true);
+      setSavedWord(oneWord.trim() || null);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'We could not save that.');
     } finally {
@@ -114,6 +125,9 @@ export function FeedbackFlow({ bookingId }: FeedbackFlowProps) {
   }
 
   if (saved) {
+    const trimmed = word.trim();
+    const canAddWord = rating !== null && trimmed.length > 0 && trimmed !== savedWord;
+
     return (
       <Shell>
         <div className="text-center" aria-live="polite">
@@ -123,6 +137,51 @@ export function FeedbackFlow({ bookingId }: FeedbackFlowProps) {
           <h1 className="font-display mt-2 text-[clamp(24px,6vw,30px)]">Thank you</h1>
           <p className="font-hand text-latte mt-2 text-lg">
             That genuinely helps. See you at the next one ♡
+          </p>
+        </div>
+
+        {/* The second half of the survey, asked once the first is safely in.
+            Blur posts it; the button is for keyboards and for phones, where
+            "tap away to save" is not a thing anyone expects. */}
+        <div className="mt-6">
+          <label htmlFor={`${ids}-word`} className="mb-1 block text-center text-sm font-extrabold">
+            One word for it?
+            <span className="text-latte font-normal"> · optional</span>
+          </label>
+
+          <div className="flex gap-2">
+            <input
+              id={`${ids}-word`}
+              value={word}
+              maxLength={60}
+              disabled={saving}
+              onChange={(event) => setWord(event.target.value)}
+              onBlur={() => {
+                if (canAddWord) void submit(rating, word);
+              }}
+              className="border-line bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3 text-center"
+              placeholder="calm, messy, therapeutic…"
+            />
+            <button
+              type="button"
+              disabled={!canAddWord || saving}
+              onClick={() => {
+                if (canAddWord) void submit(rating, word);
+              }}
+              className="border-line bg-paper text-cocoa min-h-[48px] shrink-0 rounded-[var(--radius-sm)] border-[1.5px] px-4 text-sm font-extrabold disabled:opacity-50"
+            >
+              Add
+            </button>
+          </div>
+
+          {savedWord ? (
+            <p className="font-hand text-latte mt-2 text-center text-sm" aria-live="polite">
+              “{savedWord}” — noted ♡
+            </p>
+          ) : null}
+
+          <p role="alert" className="text-danger mt-2 text-center text-sm font-bold empty:hidden">
+            {saveError}
           </p>
         </div>
       </Shell>
@@ -173,25 +232,6 @@ export function FeedbackFlow({ bookingId }: FeedbackFlowProps) {
             <span aria-hidden="true">{option.emoji}</span>
           </button>
         ))}
-      </div>
-
-      <div className="mt-5">
-        <label htmlFor={`${ids}-word`} className="mb-1 block text-center text-sm font-extrabold">
-          One word for it?
-          <span className="text-latte font-normal"> · optional</span>
-        </label>
-        <input
-          id={`${ids}-word`}
-          value={word}
-          maxLength={60}
-          onChange={(event) => setWord(event.target.value)}
-          onBlur={() => {
-            // Only after a rating exists, so a stray word never posts alone.
-            if (rating !== null && word.trim()) void submit(rating, word);
-          }}
-          className="border-line bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3 text-center"
-          placeholder="calm, messy, therapeutic…"
-        />
       </div>
 
       <p role="alert" className="text-danger mt-3 text-center text-sm font-bold empty:hidden">

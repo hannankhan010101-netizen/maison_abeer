@@ -2,16 +2,24 @@
 
 import { useState } from 'react';
 
+import { AddGuestModal } from '@/components/domain/AddGuestModal';
 import { GuestRow } from '@/components/domain/GuestRow';
 import { AlertCard } from '@/components/ui/AlertCard';
 import { Button } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
-import { Modal } from '@/components/ui/Modal';
+import { Field, Modal, inputClasses } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { ApiError } from '@/lib/api/errors';
-import { useAssignTable, useCancelBooking, useInviteNext, useRoster } from '@/lib/api/hooks';
-import type { Booking, Session } from '@/lib/api/types';
+import {
+  useAssignTable,
+  useCancelBooking,
+  useCreateBooking,
+  useGuests,
+  useInviteNext,
+  useRoster,
+} from '@/lib/api/hooks';
+import type { Booking, Guest, Session } from '@/lib/api/types';
 
 /**
  * The roster for one class (PRD §2.4).
@@ -33,6 +41,7 @@ export function SessionRoster({ session }: SessionRosterProps) {
   const inviteNext = useInviteNext(session.id);
 
   const [cancelling, setCancelling] = useState<Booking | null>(null);
+  const [booking, setBooking] = useState(false);
 
   const bookings = (roster.data?.bookings ?? []).filter(
     (booking) => booking.status !== 'cancelled',
@@ -62,6 +71,12 @@ export function SessionRoster({ session }: SessionRosterProps) {
             {session.capacity.booked}/{session.capacity.seats} booked
           </Chip>
           {unassigned > 0 ? <Chip tone="butter">{unassigned} without a table</Chip> : null}
+          {/* Bookings taken over WhatsApp or the phone had nowhere to go: the
+              roster's own empty state said "add a guest and they'll appear
+              here", which was advice that could not be followed. */}
+          <Button variant="secondary" size="sm" onClick={() => setBooking(true)}>
+            Book someone in
+          </Button>
         </div>
       </div>
 
@@ -116,8 +131,18 @@ export function SessionRoster({ session }: SessionRosterProps) {
 
       {roster.isSuccess && bookings.length === 0 ? (
         <p className="text-latte py-5 text-center text-sm">
-          Nobody booked in yet — add a guest and they&rsquo;ll appear here
+          Nobody booked in yet — &ldquo;Book someone in&rdquo; puts them on this list
         </p>
+      ) : null}
+
+      {/* Mounted only while open: it reads the whole guest book, and the
+          roster should not fetch that on every render just in case. */}
+      {booking ? (
+        <BookSomeoneInModal
+          session={session}
+          onClose={() => setBooking(false)}
+          alreadyBooked={bookings.map((b) => b.guest.id)}
+        />
       ) : null}
 
       <ul>
@@ -300,5 +325,134 @@ function CancelBookingModal({
         <HandNote>Life happens 🫶</HandNote>
       </p>
     </Modal>
+  );
+}
+
+/**
+ * Seat a guest in this class.
+ *
+ * Picks from the guest book, or adds someone new and books them in the same
+ * step — `AddGuestModal` has exposed an `onCreated` callback for exactly this
+ * since it was written, and nothing ever passed one.
+ */
+function BookSomeoneInModal({
+  session,
+  onClose,
+  alreadyBooked,
+}: {
+  session: Session;
+  onClose: () => void;
+  alreadyBooked: string[];
+}) {
+  const { toast } = useToast();
+  const guests = useGuests({});
+  const createBooking = useCreateBooking(session.id);
+
+  const [search, setSearch] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  const booked = new Set(alreadyBooked);
+  const needle = search.trim().toLowerCase();
+
+  // Already-booked guests are filtered out rather than left to fail: the API
+  // refuses them with a 409, and offering a choice that cannot work is worse
+  // than not offering it.
+  const options = (guests.data ?? [])
+    .filter((guest) => !booked.has(guest.id))
+    .filter((guest) => !needle || guest.full_name.toLowerCase().includes(needle))
+    .slice(0, 30);
+
+  async function book(guest: Guest) {
+    try {
+      await createBooking.mutateAsync({ guestId: guest.id });
+      toast(`${guest.full_name.split(' ')[0]} is booked in ✨`);
+      onClose();
+    } catch (caught) {
+      // Two real refusals live behind this: the class filled up since the page
+      // loaded, and the guest is already in it. Both are worth reading.
+      toast(
+        caught instanceof ApiError ? caught.displayMessage : "We couldn't book them in.",
+        'error',
+      );
+    }
+  }
+
+  return (
+    <>
+      <Modal
+        open={!adding}
+        onClose={onClose}
+        title="Book someone in"
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => setAdding(true)}>
+              New guest
+            </Button>
+          </>
+        }
+      >
+        {!session.capacity.accepts_bookings ? (
+          <AlertCard
+            className="mb-3"
+            tone="warning"
+            icon="🫢"
+            title={session.capacity.available === 0 ? 'this class is full' : 'this class is closed'}
+            description="The waitlist is the path forward — invite from it once a seat frees up."
+          />
+        ) : null}
+
+        <Field label="Find a guest" htmlFor="book-search">
+          <input
+            id="book-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Start typing a name…"
+            className={inputClasses}
+          />
+        </Field>
+
+        {guests.isPending ? (
+          <p className="text-latte text-sm" role="status">
+            Fetching your guests…
+          </p>
+        ) : options.length === 0 ? (
+          <p className="text-latte text-sm">
+            {needle
+              ? 'Nobody by that name who is not already booked in.'
+              : 'Everyone in your guest book is already in this class.'}
+          </p>
+        ) : (
+          <ul className="grid gap-1.5">
+            {options.map((guest) => (
+              <li key={guest.id}>
+                <button
+                  type="button"
+                  disabled={createBooking.isPending || !session.capacity.accepts_bookings}
+                  onClick={() => void book(guest)}
+                  className="border-line bg-buttercream text-cocoa min-h-[44px] w-full rounded-[var(--radius-sm)] border-[1.5px] px-3.5 text-left text-sm font-bold disabled:opacity-50"
+                >
+                  {guest.full_name}
+                  {guest.visit_badge ? (
+                    <span className="text-latte font-normal"> · {guest.visit_badge}</span>
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+
+      <AddGuestModal
+        open={adding}
+        onClose={() => setAdding(false)}
+        onCreated={(guest) => {
+          setAdding(false);
+          void book(guest);
+        }}
+      />
+    </>
   );
 }

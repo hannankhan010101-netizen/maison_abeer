@@ -53,6 +53,14 @@ class WaitlistStatus(StrEnum):
     WITHDRAWN = "withdrawn"
 
 
+# Statuses that still occupy a place in the queue.
+#
+# The twin of `app.domain.waitlist.LIVE_STATUSES`, spelled in *this* enum so
+# persistence code can test membership without comparing members of two
+# different enums that only happen to share their values.
+LIVE_WAITLIST_STATUSES = frozenset({WaitlistStatus.WAITING, WaitlistStatus.INVITED})
+
+
 class CreditStatus(StrEnum):
     """Rain-check credits turn a refund into a retention moment (PRD §2.4)."""
 

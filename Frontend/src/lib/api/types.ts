@@ -38,6 +38,22 @@ export interface Session {
   roster_changed_since_export: boolean;
 }
 
+/**
+ * One entry in the studio's catalogue of workshops.
+ *
+ * Read from its own endpoint rather than derived from the sessions on screen:
+ * the calendar only ever loads one week, so a studio with an empty week would
+ * otherwise have nothing to pick from and no way to schedule its first class.
+ */
+export interface ClassType {
+  id: string;
+  name: string;
+  /** Token name, not a hex value — same contract as `Session.color_token`. */
+  color_token: string;
+  default_seats: number;
+  default_duration_minutes: number;
+}
+
 export interface EnergyAssessment {
   warning: EnergyWarning;
   message: string;
@@ -66,6 +82,14 @@ export interface RescheduleImpact {
   requires_guest_notification: boolean;
   deadline_shifts: DeadlineShift[];
   newly_overdue_count: number;
+  /**
+   * Reminders already queued for this class, which the move re-aims.
+   *
+   * Stated before the host confirms, because these used to keep both their
+   * original send time and the old date in their text — so a guest was told
+   * the wrong day by the studio's own reminder.
+   */
+  pending_message_count: number;
 }
 
 export type ReschedulePreview = { preview: true; impact: RescheduleImpact };
@@ -73,6 +97,24 @@ export type RescheduleApplied = {
   preview: false;
   session: Session;
   impact: RescheduleImpact;
+  /**
+   * Change notices actually queued, and guests the API could not reach.
+   *
+   * Reported rather than inferred from the impact: the confirmation used to
+   * claim "5 guests notified" straight off the preview while the endpoint
+   * queued nothing at all, so everyone turned up at the old time.
+   */
+  notified_count: number;
+  skipped_count: number;
+  /** Queued reminders re-aimed at the new time, with their text rewritten. */
+  messages_reanchored: number;
+  /**
+   * Reminders dropped because the class moved inside their window.
+   *
+   * There is no honest send time left for them: late says the wrong thing,
+   * and now would blast "see you tomorrow".
+   */
+  messages_cancelled: number;
 };
 export type RescheduleResponse = ReschedulePreview | RescheduleApplied;
 
@@ -199,6 +241,14 @@ export interface BrandKit {
   primary_color: string | null;
   accent_color: string | null;
   instagram_handle: string | null;
+  /**
+   * The studio's public booking page: `/book/<booking_slug>`.
+   *
+   * The whole point of the brand kit is the page that link opens, and the
+   * link itself was in no API response and on no screen — so the guest-facing
+   * half of the product could not be started from inside the product.
+   */
+  booking_slug: string;
 }
 
 // ---------------------------------------------------------------------------

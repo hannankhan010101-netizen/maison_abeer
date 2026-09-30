@@ -21,6 +21,7 @@ from app.core.errors import (
     PastSlotError,
     SeatsBelowBookingsError,
     SessionLockedError,
+    ValidationError,
 )
 from app.domain.capacity import Capacity, SeatChange, SeatChangeError, change_seats
 from app.domain.quantities import QuantityChange, QuantityLinkedItem, rescale
@@ -34,7 +35,7 @@ from app.domain.scheduling import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
     from uuid import UUID
 
 MAX_RECURRENCE_OCCURRENCES = 52
@@ -76,6 +77,22 @@ class StudioContext:
 
 
 @dataclass(frozen=True, slots=True)
+class ClassTypeOption:
+    """A class type as the quick-add form needs it.
+
+    Carries the defaults as well as the name: the host picking "Pottery"
+    expects the seats and duration that class normally runs with, and the
+    class type is the only place that knows them.
+    """
+
+    id: UUID
+    name: str
+    color_token: str
+    default_seats: int
+    default_duration_minutes: int
+
+
+@dataclass(frozen=True, slots=True)
 class SessionDraft:
     class_type_id: UUID
     starts_at: datetime
@@ -97,6 +114,8 @@ class SessionRepository(Protocol):
 
     def class_type_exists(self, class_type_id: UUID) -> bool: ...
 
+    def list_class_types(self) -> Sequence[ClassTypeOption]: ...
+
     def get_snapshot(self, session_id: UUID) -> SessionSnapshot | None: ...
 
     def list_snapshots(self, start: datetime, end: datetime) -> Sequence[SessionSnapshot]: ...
@@ -106,6 +125,12 @@ class SessionRepository(Protocol):
     def create(self, draft: SessionDraft, recurrence_group_id: UUID | None) -> SessionSnapshot: ...
 
     def update_seats(self, session_id: UUID, seats: int) -> SessionSnapshot: ...
+
+    # Only the keys present are written, so an explicit None clears a field
+    # while an absent key leaves it alone.
+    def update_details(
+        self, session_id: UUID, changes: Mapping[str, object]
+    ) -> SessionSnapshot: ...
 
     def update_start(
         self, session_id: UUID, starts_at: datetime, ends_at: datetime
@@ -125,10 +150,39 @@ class SessionRepository(Protocol):
 
     def reanchor_deadlines(self, session_id: UUID, new_start: datetime) -> None: ...
 
+    # Queues the "your class moved" notice for everyone holding a seat.
+    # Returns (queued, skipped).
+    def schedule_change_notices(self, session_id: UUID, now: datetime) -> tuple[int, int]: ...
+
+    def pending_message_count(self, session_id: UUID) -> int: ...
+
+    # Re-aims and re-renders the reminders already queued. Returns
+    # (re-anchored, cancelled).
+    def reanchor_messages(
+        self, session_id: UUID, new_start: datetime, now: datetime
+    ) -> tuple[int, int]: ...
+
     # Returns (affected, contactable). `contactable` excludes guests who have
     # opted out or have no contact details, so the caller never offers to
     # notify people it cannot reach.
     def guest_counts(self, session_id: UUID) -> tuple[int, int]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class RescheduleResult:
+    """A completed move, and what it actually told the guests.
+
+    The counts are returned rather than assumed: the confirmation toast used
+    to claim "5 guests notified" off the impact preview while nothing was ever
+    queued, so everyone turned up at the old time.
+    """
+
+    session: SessionSnapshot
+    impact: RescheduleImpact
+    notified_count: int = 0
+    skipped_count: int = 0
+    messages_reanchored: int = 0
+    messages_cancelled: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +213,16 @@ class SessionService:
             raise NotFoundError("We couldn't find that class.")
 
         return snapshot
+
+    def list_class_types(self) -> Sequence[ClassTypeOption]:
+        """The studio's class types.
+
+        Its own read rather than something derived from the sessions on screen:
+        a studio with an empty week still has a catalogue, and deriving the
+        list from visible sessions is what made the quick-add form
+        unusable — no sessions, no options, no way to add the first one.
+        """
+        return self._repo.list_class_types()
 
     def list_between(self, start: datetime, end: datetime) -> Sequence[SessionSnapshot]:
         if end < start:
@@ -222,6 +286,34 @@ class SessionService:
 
     # -- seats --------------------------------------------------------------
 
+    # Fields a detail edit may touch. Seats and the start time are excluded on
+    # purpose: they route through their own operations so the side effects —
+    # rescaling prep quantities, re-anchoring deadlines — cannot be bypassed.
+    DETAIL_FIELDS = frozenset({"title", "location", "notes", "ends_at"})
+
+    def update_details(self, session_id: UUID, changes: Mapping[str, object]) -> SessionSnapshot:
+        """Write the quick-edit panel's plain fields.
+
+        These were accepted by the endpoint and then dropped, so a venue
+        change typed into `notes` returned 200 with the old value and never
+        reached the guests reading it in the portal.
+        """
+        snapshot = self.get(session_id)
+
+        unknown = set(changes) - self.DETAIL_FIELDS
+        if unknown:
+            # A caller bug, not a host mistake.
+            raise ValueError(f"Not editable as details: {', '.join(sorted(unknown))}")
+
+        if not changes:
+            return snapshot
+
+        ends_at = changes.get("ends_at")
+        if isinstance(ends_at, datetime) and ends_at <= snapshot.starts_at:
+            raise ValidationError("A class has to end after it starts.")
+
+        return self._repo.update_details(session_id, changes)
+
     def change_seat_count(self, session_id: UUID, seats: int) -> SeatChangeResult:
         snapshot = self.get(session_id)
 
@@ -262,13 +354,14 @@ class SessionService:
                 deadlines=list(self._repo.checklist_deadlines(session_id)),
                 affected_guest_count=affected,
                 contactable_guest_count=contactable,
+                pending_message_count=self._repo.pending_message_count(session_id),
             )
         except RescheduleError as exc:
             raise PastSlotError(str(exc)) from exc
 
     def reschedule(
-        self, session_id: UUID, new_start: datetime
-    ) -> tuple[SessionSnapshot, RescheduleImpact]:
+        self, session_id: UUID, new_start: datetime, *, notify_guests: bool = False
+    ) -> RescheduleResult:
         snapshot = self.get(session_id)
 
         # Computed before the move so the caller can report exactly what
@@ -278,10 +371,29 @@ class SessionService:
         duration = snapshot.ends_at - snapshot.starts_at
         updated = self._repo.update_start(session_id, new_start, new_start + duration)
 
-        # Every T-minus deadline follows the class (PRD §2.5).
+        # Every T-minus deadline follows the class (PRD §2.5)...
         self._repo.reanchor_deadlines(session_id, new_start)
 
-        return updated, impact
+        # ...and so does every reminder already queued for it. They used to
+        # keep both their original send time and the old date in their text,
+        # so guests were told the wrong day by the studio's own reminder.
+        reanchored, dropped = self._repo.reanchor_messages(session_id, new_start, self._now)
+
+        notified = skipped = 0
+        if notify_guests:
+            # In the same unit of work as the move, so the two cannot
+            # half-commit and leave guests told about a change that rolled
+            # back — or moved without being told.
+            notified, skipped = self._repo.schedule_change_notices(session_id, self._now)
+
+        return RescheduleResult(
+            session=updated,
+            impact=impact,
+            notified_count=notified,
+            skipped_count=skipped,
+            messages_reanchored=reanchored,
+            messages_cancelled=dropped,
+        )
 
     # -- locking ------------------------------------------------------------
 

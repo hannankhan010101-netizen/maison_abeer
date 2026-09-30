@@ -21,6 +21,7 @@ from sqlalchemy import func, select
 from app.api.deps import CurrentPrincipal, GuestDb
 from app.core.db import TenantSession, get_session_factory
 from app.core.errors import NotFoundError
+from app.domain.waitlist import queue_number
 from app.models.enums import BookingStatus, SessionStatus, WaitlistStatus
 from app.models.guest import Guest
 from app.models.session import Booking, Session, WaitlistEntry
@@ -186,7 +187,7 @@ def list_my_workshops(caller: GuestDb) -> list[PortalWorkshop]:
             color_token=session.class_type.color_token if session.class_type else "pink",
             status="invited" if entry.status is WaitlistStatus.INVITED else "waitlisted",
             attendee_count=_seat_count(caller, session.id),
-            waitlist_position=entry.position,
+            waitlist_position=queue_number(entry.position),
             invite_expires_at=entry.invite_expires_at,
         )
         for entry, session in waiting
@@ -254,7 +255,7 @@ def get_my_workshop(session_id: UUID, caller: GuestDb) -> PortalWorkshopDetail:
         assert waiting is not None
         entry, session = waiting
         row_id = entry.id
-        position = entry.position
+        position = queue_number(entry.position)
         workshop_status = "invited" if entry.status is WaitlistStatus.INVITED else "waitlisted"
         invite_expires_at = entry.invite_expires_at
 

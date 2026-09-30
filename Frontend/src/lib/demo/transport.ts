@@ -2,6 +2,7 @@ import {
   demoBirthdays,
   demoBrandKit,
   demoChecklist,
+  demoClassTypes,
   demoGuests,
   demoRoster,
   demoSessions,
@@ -11,6 +12,7 @@ import type {
   ChatMessage,
   Checklist,
   ChecklistItem,
+  ClassType,
   ExportRecord,
   Guest,
   MessagePreview,
@@ -20,6 +22,23 @@ import type {
   StudioSettings,
   TagSheet,
 } from '@/lib/api/types';
+
+/**
+ * One-word answers demo guests left.
+ *
+ * Fixture data, in the demo transport where fixtures belong — the real page
+ * used to hold a list like this inline and render it as testimonials.
+ */
+const DEMO_WORDS = [
+  'therapeutic',
+  'calm',
+  'messy',
+  'joyful',
+  'nostalgic',
+  'proud',
+  'giggly',
+  'grounding',
+];
 
 /** Demo chat, module-scoped so a sent message survives to the next poll. */
 const demoChat: ChatMessage[] = [];
@@ -42,6 +61,7 @@ const GUEST_MESSAGE_KINDS = ['guest_reminder', 'guest_thank_you'] as const;
 
 interface Store {
   sessions: Session[];
+  classTypes: ClassType[];
   guests: Guest[];
   rosters: Map<string, Roster>;
   checklists: Map<string, Checklist>;
@@ -56,6 +76,7 @@ function createStore(now: Date): Store {
 
   return {
     sessions,
+    classTypes: demoClassTypes.map((type) => ({ ...type })),
     guests: demoGuests(now),
     rosters: new Map(sessions.map((s) => [s.id, demoRoster(now, s.id)])),
     checklists: new Map(sessions.map((s) => [s.id, demoChecklist(now, s.id)])),
@@ -117,6 +138,42 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
     // A touch of latency so loading states are visible rather than skipped.
     await new Promise((resolve) => setTimeout(resolve, 120));
 
+    // ---- feedback --------------------------------------------------------
+
+    if (path === '/api/v1/feedback' && method === 'GET') {
+      const start = new Date(url.searchParams.get('start') ?? 0).getTime();
+      const end = new Date(url.searchParams.get('end') ?? 0).getTime();
+
+      // Derived from the sessions the fixtures define, so Wrapped shows words
+      // that belong to classes actually on the calendar.
+      const inWindow = store.sessions.filter((session) => {
+        const at = new Date(session.starts_at).getTime();
+        return at >= start && at <= end && at < now.getTime();
+      });
+
+      return json(
+        inWindow.flatMap((session, sessionIndex) => {
+          const roster = store.rosters.get(session.id);
+
+          return (roster?.bookings ?? [])
+            .filter((booking) => booking.status !== 'cancelled')
+            .map((booking, index) => ({
+              id: `fb-${session.id}-${booking.id}`,
+              booking_id: booking.id,
+              rating: 3 - ((sessionIndex + index) % 3 === 2 ? 1 : 0),
+              one_word: DEMO_WORDS[(sessionIndex * 3 + index) % DEMO_WORDS.length]!,
+              created_at: session.ends_at,
+            }));
+        }),
+      );
+    }
+
+    // ---- catalogue -------------------------------------------------------
+
+    if (path === '/api/v1/class-types' && method === 'GET') {
+      return json([...store.classTypes].sort((a, b) => a.name.localeCompare(b.name)));
+    }
+
     // ---- sessions --------------------------------------------------------
 
     if (path === '/api/v1/sessions' && method === 'GET') {
@@ -132,6 +189,12 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
     }
 
     if (path === '/api/v1/sessions' && method === 'POST') {
+      const classType = store.classTypes.find((type) => type.id === body.class_type_id);
+
+      if (!classType) {
+        return error(404, 'not_found', "We couldn't find that class type.");
+      }
+
       const starts = new Date(body.starts_at);
       const created: Session[] = [];
       const weeks = body.repeat_weekly_until
@@ -148,12 +211,8 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
         const session = recalculate({
           id: `s-new-${Date.now()}-${index}`,
           class_type_id: body.class_type_id,
-          class_type_name:
-            store.sessions.find((s) => s.class_type_id === body.class_type_id)?.class_type_name ??
-            'new class',
-          color_token:
-            store.sessions.find((s) => s.class_type_id === body.class_type_id)?.color_token ??
-            'pink',
+          class_type_name: classType?.name ?? 'new class',
+          color_token: classType?.color_token ?? 'pink',
           title: body.title ?? null,
           location: body.location ?? null,
           notes: body.notes ?? null,
@@ -235,7 +294,12 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
         label: item.text,
         previous_deadline: item.deadline_at,
         new_deadline: new Date(newStart.getTime() - item.hours_before * 3_600_000).toISOString(),
-        becomes_overdue_immediately: false,
+        // Against the clock, and only when the move is what broke it — a step
+        // already overdue before the move is not news.
+        becomes_overdue_immediately:
+          !item.completed_at &&
+          new Date(item.deadline_at).getTime() >= now.getTime() &&
+          newStart.getTime() - item.hours_before * 3_600_000 < now.getTime(),
       }));
 
       const roster = store.rosters.get(session.id);
@@ -250,7 +314,12 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
         contactable_guest_count: contactable,
         requires_guest_notification: contactable > 0,
         deadline_shifts: shifts,
-        newly_overdue_count: 0,
+        newly_overdue_count: shifts.filter((shift) => shift.becomes_overdue_immediately).length,
+        pending_message_count: store.messages.filter(
+          (message) =>
+            message.session_id === session.id &&
+            (message.status === 'scheduled' || message.status === 'queued'),
+        ).length,
       };
 
       if (!body.confirm) return json({ preview: true, impact });
@@ -264,7 +333,20 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       };
 
       store.sessions[index] = updated;
-      return json({ preview: false, session: updated, impact });
+
+      // Only the reachable guests, and only when asked — the same contract the
+      // API now reports, so the confirmation toast reads the same in demo mode.
+      const notified = body.notify_guests ? contactable : 0;
+
+      return json({
+        preview: false,
+        session: updated,
+        impact,
+        notified_count: notified,
+        skipped_count: body.notify_guests ? affected - contactable : 0,
+        messages_reanchored: impact.pending_message_count,
+        messages_cancelled: 0,
+      });
     }
 
     const lockMatch = /^\/api\/v1\/sessions\/([^/]+)\/lock$/.exec(path);
@@ -354,8 +436,7 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       const session = store.sessions.find((s) => s.id === addItemMatch[1]);
       const hoursBefore = Number(body.hours_before ?? 1);
       const deadline = new Date(
-        (session ? new Date(session.starts_at).getTime() : now.getTime()) -
-          hoursBefore * 3_600_000,
+        (session ? new Date(session.starts_at).getTime() : now.getTime()) - hoursBefore * 3_600_000,
       ).toISOString();
 
       const item: ChecklistItem = {
@@ -404,7 +485,7 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
           guest_id: b.guest.id,
           full_name: b.guest.full_name,
           table_number: b.table_number,
-          subtext: b.booking_answers ? Object.values(b.booking_answers)[0] ?? null : null,
+          subtext: b.booking_answers ? (Object.values(b.booking_answers)[0] ?? null) : null,
         }))
         .sort((a, b) =>
           a.table_number === b.table_number
@@ -882,7 +963,80 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
       return json(created, 201);
     }
 
+    const guestPatch = /^\/api\/v1\/guests\/([^/]+)$/.exec(path);
+    if (guestPatch && method === 'PATCH') {
+      const index = store.guests.findIndex((g) => g.id === guestPatch[1]);
+      if (index < 0) return error(404, 'not_found', "We couldn't find that guest.");
+
+      const merged = { ...store.guests[index]!, ...body };
+
+      // Derived, not stored: the fixtures carry `is_contactable`, so an edit
+      // that clears a number has to recompute it or the roster keeps showing
+      // the guest as reachable.
+      merged.is_contactable = Boolean(!merged.opted_out && (merged.phone || merged.email));
+
+      store.guests[index] = merged;
+      return json(merged);
+    }
+
     // ---- bookings --------------------------------------------------------
+
+    const createBookingMatch = /^\/api\/v1\/sessions\/([^/]+)\/bookings$/.exec(path);
+    if (createBookingMatch && method === 'POST') {
+      const sessionId = createBookingMatch[1]!;
+      const index = store.sessions.findIndex((s) => s.id === sessionId);
+      if (index < 0) return error(404, 'not_found', "We couldn't find that class.");
+
+      const session = store.sessions[index]!;
+      const guest = store.guests.find((g) => g.id === body.guest_id);
+      if (!guest) return error(404, 'not_found', "We couldn't find that guest.");
+
+      const roster = store.rosters.get(sessionId) ?? {
+        session_id: sessionId,
+        bookings: [],
+        unassigned_count: 0,
+        critical_allergy_count: 0,
+      };
+
+      // The same two refusals the API makes, so the error paths are reachable
+      // in demo mode rather than only in production.
+      if (roster.bookings.some((b) => b.guest.id === guest.id && b.status !== 'cancelled')) {
+        return error(409, 'conflict', "They're already booked into this class.");
+      }
+
+      if (!session.capacity.accepts_bookings) {
+        return error(
+          409,
+          'conflict',
+          'That class is fully booked. Add them to the waitlist instead?',
+        );
+      }
+
+      const booking = {
+        id: `b-new-${roster.bookings.length + 1}-${session.capacity.booked + 1}`,
+        guest,
+        status: 'confirmed' as const,
+        table_number: null,
+        sit_with_note: null,
+        booking_answers: body.booking_answers ?? null,
+      };
+
+      roster.bookings.push(booking);
+      roster.unassigned_count = roster.bookings.filter(
+        (b) => b.table_number === null && b.status !== 'cancelled',
+      ).length;
+      roster.critical_allergy_count = roster.bookings.filter(
+        (b) => b.status !== 'cancelled' && b.guest.allergies.some((a) => a.is_critical),
+      ).length;
+      store.rosters.set(sessionId, roster);
+
+      store.sessions[index] = recalculate({
+        ...session,
+        capacity: { ...session.capacity, booked: session.capacity.booked + 1 },
+      });
+
+      return json(booking, 201);
+    }
 
     const tableMatch = /^\/api\/v1\/bookings\/([^/]+)\/table$/.exec(path);
     if (tableMatch && method === 'PATCH') {

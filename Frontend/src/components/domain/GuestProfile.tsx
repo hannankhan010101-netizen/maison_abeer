@@ -2,16 +2,25 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
 
 import { AlertCard } from '@/components/ui/AlertCard';
-import { buttonClasses } from '@/components/ui/Button';
+import { Button, buttonClasses } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { Field, Modal, inputClasses } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 import { ApiError } from '@/lib/api/errors';
-import { useGuest, useGuestHistory, useGuestMessages, useOpenDirectRoom } from '@/lib/api/hooks';
+import {
+  useGuest,
+  useGuestHistory,
+  useGuestMessages,
+  useOpenDirectRoom,
+  useUpdateGuest,
+} from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
 import { formatDateLong, formatTime } from '@/lib/dates';
-import type { GuestVisit, ScheduledMessage } from '@/lib/api/types';
+import type { Guest, GuestVisit, MessageChannel, ScheduledMessage } from '@/lib/api/types';
 
 /**
  * One guest, everything about them (PRD §2.4).
@@ -126,16 +135,7 @@ export function GuestProfile({ guestId }: GuestProfileProps) {
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="grid content-start gap-4">
           <Card>
-            <Eyebrow>Remember</Eyebrow>
-            {person.memory_note ? (
-              <p className="text-[15px]">
-                <HandNote>{person.memory_note}</HandNote>
-              </p>
-            ) : (
-              <p className="text-latte text-sm">
-                Nothing noted yet — add something you&rsquo;d want to remember at the door.
-              </p>
-            )}
+            <MemoryNote guest={person} />
 
             <dl className="mt-4 grid gap-1.5 text-sm">
               <Detail label="Phone" value={person.phone} />
@@ -146,6 +146,8 @@ export function GuestProfile({ guestId }: GuestProfileProps) {
               />
               <Detail label="Reach them on" value={person.preferred_channel} />
             </dl>
+
+            <GuestDetailControls guest={person} />
 
             {person.allergies.length > 0 ? (
               <>
@@ -318,5 +320,277 @@ function MessageGuestButton({ guestId, name }: { guestId: string; name: string }
       <span aria-hidden="true">✿</span>
       {open.isPending ? 'Opening…' : 'Message'}
     </button>
+  );
+}
+
+/**
+ * The memory note, editable in place.
+ *
+ * The headline of the mini-CRM — "came with her sister; loved the matcha
+ * buttercream" — used to be typeable only in the add-a-guest modal and
+ * read-only forever after, so a host who learned something at the class had
+ * nowhere to write it down.
+ */
+function MemoryNote({ guest }: { guest: Guest }) {
+  const { toast } = useToast();
+  const update = useUpdateGuest(guest.id);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(guest.memory_note ?? '');
+
+  async function save() {
+    const next = draft.trim() || null;
+
+    if (next === (guest.memory_note ?? null)) {
+      setEditing(false);
+      return;
+    }
+
+    try {
+      await update.mutateAsync({ memory_note: next });
+      setEditing(false);
+    } catch (caught) {
+      toast(
+        caught instanceof ApiError ? caught.displayMessage : "We couldn't save that note.",
+        'error',
+      );
+    }
+  }
+
+  if (!editing) {
+    return (
+      <>
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <Eyebrow className="mb-0">Remember</Eyebrow>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(guest.memory_note ?? '');
+              setEditing(true);
+            }}
+            className="text-latte min-h-[44px] text-xs font-extrabold underline decoration-dotted"
+          >
+            {guest.memory_note ? 'Edit' : 'Add a note'}
+          </button>
+        </div>
+
+        {guest.memory_note ? (
+          <p className="text-[15px]">
+            <HandNote>{guest.memory_note}</HandNote>
+          </p>
+        ) : (
+          <p className="text-latte text-sm">
+            Nothing noted yet — add something you&rsquo;d want to remember at the door.
+          </p>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Eyebrow>Remember</Eyebrow>
+      <label className="sr-only" htmlFor={`note-${guest.id}`}>
+        What to remember about {guest.full_name}
+      </label>
+      <textarea
+        id={`note-${guest.id}`}
+        value={draft}
+        rows={3}
+        maxLength={2000}
+        disabled={update.isPending}
+        onChange={(event) => setDraft(event.target.value)}
+        className="border-line bg-buttercream text-cocoa w-full rounded-[var(--radius-sm)] border-[1.5px] p-3 text-[15px]"
+        placeholder="Came with her sister; loved the matcha buttercream"
+      />
+
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => void save()} loading={update.isPending}>
+          Save
+        </Button>
+        <Button variant="secondary" size="sm" type="button" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/** The opt-out switch and the details editor, neither of which existed. */
+function GuestDetailControls({ guest }: { guest: Guest }) {
+  const { toast } = useToast();
+  const update = useUpdateGuest(guest.id);
+  const [editing, setEditing] = useState(false);
+
+  async function toggleOptOut(optedOut: boolean) {
+    try {
+      await update.mutateAsync({ opted_out: optedOut });
+      toast(optedOut ? 'They won&rsquo;t be messaged again ♡' : 'messages back on ✨');
+    } catch (caught) {
+      toast(caught instanceof ApiError ? caught.displayMessage : "We couldn't save that.", 'error');
+    }
+  }
+
+  return (
+    <>
+      <label className="border-line mt-3 flex min-h-[44px] items-center justify-between gap-3 border-t-[1.5px] border-dashed pt-2 text-[13.5px] font-bold">
+        Opted out of messages
+        <input
+          type="checkbox"
+          checked={guest.opted_out}
+          disabled={update.isPending}
+          onChange={(event) => void toggleOptOut(event.target.checked)}
+          className="accent-rose size-6"
+        />
+      </label>
+
+      <Button variant="secondary" size="sm" className="mt-2" onClick={() => setEditing(true)}>
+        Edit details
+      </Button>
+
+      {editing ? <EditGuestModal guest={guest} onClose={() => setEditing(false)} /> : null}
+    </>
+  );
+}
+
+const CHANNELS: { id: MessageChannel; label: string }[] = [
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'sms', label: 'SMS' },
+  { id: 'email', label: 'Email' },
+];
+
+/**
+ * Correct a guest's details.
+ *
+ * Mounted only while open, so its state is seeded from the guest it is
+ * actually editing rather than from whoever was on screen first.
+ */
+function EditGuestModal({ guest, onClose }: { guest: Guest; onClose: () => void }) {
+  const { toast } = useToast();
+  const update = useUpdateGuest(guest.id);
+
+  const [fullName, setFullName] = useState(guest.full_name);
+  const [phone, setPhone] = useState(guest.phone ?? '');
+  const [email, setEmail] = useState(guest.email ?? '');
+  const [channel, setChannel] = useState<MessageChannel>(guest.preferred_channel);
+  const [birthday, setBirthday] = useState(guest.birthday ?? '');
+  const [error, setError] = useState<ApiError | null>(null);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    try {
+      // Every field is sent, including the blanks: an explicit null is how a
+      // wrong email or a wrong birthday gets cleared rather than kept.
+      await update.mutateAsync({
+        full_name: fullName.trim(),
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        preferred_channel: channel,
+        birthday: birthday || null,
+      });
+
+      toast('saved ✨');
+      onClose();
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setError(caught);
+        return;
+      }
+
+      toast("We couldn't save that. Try again?", 'error');
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Edit ${guest.full_name}`}
+      footer={
+        <>
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="edit-guest" loading={update.isPending} loadingLabel="Saving…">
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id="edit-guest" onSubmit={submit} noValidate>
+        <Field label="Name" htmlFor="edit-name" error={error?.fieldError('full_name')}>
+          <input
+            id="edit-name"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
+            className={inputClasses}
+            required
+          />
+        </Field>
+
+        <Field
+          label="Phone"
+          htmlFor="edit-phone"
+          hint="Leave empty to remove it"
+          error={error?.fieldError('phone')}
+        >
+          <input
+            id="edit-phone"
+            type="tel"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            className={inputClasses}
+          />
+        </Field>
+
+        <Field
+          label="Email"
+          htmlFor="edit-email"
+          hint="Leave empty to remove it"
+          error={error?.fieldError('email')}
+        >
+          <input
+            id="edit-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={inputClasses}
+          />
+        </Field>
+
+        <Field label="Reach them on" htmlFor="edit-channel">
+          <select
+            id="edit-channel"
+            value={channel}
+            onChange={(event) => setChannel(event.target.value as MessageChannel)}
+            className={inputClasses}
+          >
+            {CHANNELS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Birthday" htmlFor="edit-birthday" error={error?.fieldError('birthday')}>
+          <input
+            id="edit-birthday"
+            type="date"
+            value={birthday}
+            onChange={(event) => setBirthday(event.target.value)}
+            className={inputClasses}
+          />
+        </Field>
+
+        {error && error.fields.length === 0 ? (
+          <p role="alert" className="text-danger mt-2 text-sm font-extrabold">
+            {error.displayMessage}
+          </p>
+        ) : null}
+      </form>
+    </Modal>
   );
 }

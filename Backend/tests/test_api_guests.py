@@ -257,3 +257,230 @@ class TestWaitlistEndpoint:
 
         assert body["invited_guest_id"] is None
         assert body["message"] == "Nobody's waiting right now."
+
+
+class TestAllergyWrites:
+    """The one write path safety-critical data had none of.
+
+    `POST /guests` documented and validated an `allergies` array and then
+    dropped it, and no endpoint anywhere could add, correct or remove one. The
+    only allergy that could exist was one a guest typed into the public
+    booking form, force-stamped as `allergy` — so a host told about a severe
+    nut allergy on the phone had nowhere to put it, and the red chip, the
+    critical count and the day-of alert all stayed empty.
+    """
+
+    def test_create_records_the_allergies_it_was_given(self, client: TestClient) -> None:
+        response = client.post(
+            "/api/v1/guests",
+            json={
+                "full_name": "Ayesha K.",
+                "phone": "03002222222",
+                "allergies": [
+                    {"label": "Nuts", "severity": "severe", "notes": "EpiPen in her bag"},
+                    {"label": "Dairy", "severity": "intolerance"},
+                ],
+            },
+        )
+
+        assert response.status_code == 201
+        allergies = response.json()["allergies"]
+
+        assert {a["label"] for a in allergies} == {"Nuts", "Dairy"}
+        nuts = next(a for a in allergies if a["label"] == "Nuts")
+        assert nuts["severity"] == "severe"
+        assert nuts["notes"] == "EpiPen in her bag"
+        assert nuts["is_critical"] is True
+        # An intolerance is real but does not get the red chip.
+        assert next(a for a in allergies if a["label"] == "Dairy")["is_critical"] is False
+
+    def test_adds_one_to_an_existing_guest(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest(full_name="Ayesha K.")
+
+        response = client.post(
+            f"/api/v1/guests/{guest.id}/allergies",
+            json={"label": "Nuts", "severity": "severe"},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["is_critical"] is True
+
+        # And it is on the guest, not just in the response.
+        fetched = client.get(f"/api/v1/guests/{guest.id}").json()
+        assert [a["label"] for a in fetched["allergies"]] == ["Nuts"]
+
+    def test_adding_the_same_label_twice_does_not_double_the_chip(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest()
+
+        client.post(f"/api/v1/guests/{guest.id}/allergies", json={"label": "Nuts"})
+        response = client.post(f"/api/v1/guests/{guest.id}/allergies", json={"label": " nuts "})
+
+        assert response.status_code == 201
+        assert len(client.get(f"/api/v1/guests/{guest.id}").json()["allergies"]) == 1
+
+    def test_a_wrong_severity_can_be_corrected(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest()
+        created = client.post(
+            f"/api/v1/guests/{guest.id}/allergies",
+            json={"label": "Dairy", "severity": "preference"},
+        ).json()
+
+        response = client.patch(
+            f"/api/v1/guests/{guest.id}/allergies/{created['id']}",
+            json={"severity": "severe", "notes": "Turned out to be serious"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["severity"] == "severe"
+        assert response.json()["is_critical"] is True
+        assert response.json()["notes"] == "Turned out to be serious"
+
+    def test_an_allergy_can_be_removed(self, client: TestClient, repo: FakeGuestRepository) -> None:
+        guest = repo.add_guest()
+        created = client.post(f"/api/v1/guests/{guest.id}/allergies", json={"label": "Nuts"}).json()
+
+        assert (
+            client.delete(f"/api/v1/guests/{guest.id}/allergies/{created['id']}").status_code == 204
+        )
+        assert client.get(f"/api/v1/guests/{guest.id}").json()["allergies"] == []
+
+    def test_another_guests_allergy_is_not_reachable(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        ayesha = repo.add_guest(full_name="Ayesha K.")
+        sana = repo.add_guest(full_name="Sana R.")
+
+        created = client.post(
+            f"/api/v1/guests/{ayesha.id}/allergies", json={"label": "Nuts"}
+        ).json()
+
+        # Same allergy id, wrong guest in the path.
+        response = client.patch(
+            f"/api/v1/guests/{sana.id}/allergies/{created['id']}",
+            json={"severity": "preference"},
+        )
+
+        assert response.status_code == 404
+
+    def test_a_blank_label_is_rejected(self, client: TestClient, repo: FakeGuestRepository) -> None:
+        guest = repo.add_guest()
+
+        response = client.post(f"/api/v1/guests/{guest.id}/allergies", json={"label": "   "})
+
+        assert response.status_code == 422
+
+    def test_merging_a_duplicate_keeps_the_allergies_just_typed(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        """ "Add to their history instead" promises exactly this."""
+        existing = repo.add_guest(full_name="Ayesha K.", phone="03002222222")
+
+        response = client.post(
+            "/api/v1/guests?merge_duplicates=true",
+            json={
+                "full_name": "Ayesha",
+                "phone": "03002222222",
+                "allergies": [{"label": "Nuts", "severity": "severe"}],
+            },
+        )
+
+        assert response.status_code == 201
+        body = response.json()
+        # Merged into the existing record, carrying the new allergy with it.
+        assert body["id"] == str(existing.id)
+        assert [a["label"] for a in body["allergies"]] == ["Nuts"]
+
+
+class TestGuestEdits:
+    """Nothing about a guest could be corrected after the moment of creation.
+
+    The endpoint was served and never called, and the service filtered out
+    every `None` on top of the route's `exclude_unset` — so even once a caller
+    existed, clearing a wrong email or wiping a stale memory note would have
+    returned 200 with the old value still stored.
+    """
+
+    def test_a_memory_note_can_be_added_later(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest(memory_note=None)
+
+        body = client.patch(
+            f"/api/v1/guests/{guest.id}",
+            json={"memory_note": "Came with her sister; loved the matcha buttercream"},
+        ).json()
+
+        assert body["memory_note"] == "Came with her sister; loved the matcha buttercream"
+
+    def test_a_wrong_email_can_be_cleared(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest(email="typo@example.com", preferred_channel="whatsapp")
+
+        body = client.patch(f"/api/v1/guests/{guest.id}", json={"email": None}).json()
+
+        assert body["email"] is None
+
+    def test_an_untouched_field_is_not_cleared(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest(memory_note="Loves the wheel", phone="03001234567")
+
+        body = client.patch(f"/api/v1/guests/{guest.id}", json={"full_name": "Sana Riaz"}).json()
+
+        assert body["full_name"] == "Sana Riaz"
+        assert body["memory_note"] == "Loves the wheel"
+        assert body["phone"] == "03001234567"
+
+    def test_a_guest_can_be_opted_out(self, client: TestClient, repo: FakeGuestRepository) -> None:
+        guest = repo.add_guest()
+
+        body = client.patch(f"/api/v1/guests/{guest.id}", json={"opted_out": True}).json()
+
+        assert body["opted_out"] is True
+        # And they drop out of automated sends, which is the point.
+        assert body["is_contactable"] is False
+
+    def test_refuses_a_channel_with_nothing_to_send_to(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        guest = repo.add_guest(phone="03001234567", email=None)
+
+        response = client.patch(f"/api/v1/guests/{guest.id}", json={"preferred_channel": "email"})
+
+        # Validated against the merged state: `GuestUpdate` cannot see it,
+        # because either half of the pair may be absent from the patch.
+        assert response.status_code == 422
+        assert "only a phone number" in response.json()["message"]
+
+    def test_refuses_pointing_a_guest_at_another_guests_number(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        repo.add_guest(full_name="Ayesha K.", phone="03002222222")
+        sana = repo.add_guest(full_name="Sana R.", phone="03001111111")
+
+        response = client.patch(f"/api/v1/guests/{sana.id}", json={"phone": "03002222222"})
+
+        # The same collision `create` refuses — and now that both entry points
+        # store normalised numbers, the unique index would otherwise catch it
+        # as a bare 500.
+        assert response.status_code == 409
+        assert "Ayesha K." in response.json()["message"]
+
+    def test_re_saving_a_guests_own_number_is_not_a_duplicate(
+        self, client: TestClient, repo: FakeGuestRepository
+    ) -> None:
+        sana = repo.add_guest(full_name="Sana R.", phone="03001111111")
+
+        response = client.patch(
+            f"/api/v1/guests/{sana.id}",
+            json={"phone": "03001111111", "full_name": "Sana Riaz"},
+        )
+
+        assert response.status_code == 200

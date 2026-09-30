@@ -25,6 +25,7 @@ from sqlalchemy import and_, func, or_, select
 
 from app.api.deps import GuestDb
 from app.api.v1.portal import SEAT_HOLDING, display_name_for
+from app.core.db import TenantSession
 from app.core.errors import NotFoundError
 from app.models.chat import (
     ChatBanner,
@@ -51,29 +52,37 @@ LOUNGE_NAME = "The lounge"
 PAGE_SIZE = 50
 
 
-def _lounge(caller: GuestDb) -> ChatRoom:
+def ensure_lounge(db: TenantSession) -> ChatRoom:
     """The studio's one lounge, created on first use.
 
     Per studio, never global: this is a multi-tenant app and guests of
     different studios must not share a room.
+
+    Takes the session rather than a guest caller because the host side needs
+    it too — a broadcast has to have somewhere to land even in a studio where
+    no guest has opened chat yet.
     """
-    room = caller.db.raw.execute(
+    room = db.raw.execute(
         select(ChatRoom).where(
-            ChatRoom.studio_id == caller.studio_id,
+            ChatRoom.studio_id == db.studio_id,
             ChatRoom.kind == ChatRoomKind.LOUNGE,
         )
     ).scalar_one_or_none()
 
     if room is None:
         room = ChatRoom(
-            studio_id=caller.studio_id,
+            studio_id=db.studio_id,
             kind=ChatRoomKind.LOUNGE,
             name=LOUNGE_NAME,
         )
-        caller.db.add(room)
-        caller.db.flush()
+        db.add(room)
+        db.flush()
 
     return room
+
+
+def _lounge(caller: GuestDb) -> ChatRoom:
+    return ensure_lounge(caller.db)
 
 
 def _room_for_session(caller: GuestDb, session: Session) -> ChatRoom:
@@ -364,7 +373,13 @@ def list_rooms(caller: GuestDb) -> list[ChatRoomRead]:
                     .where(
                         ChatMessage.studio_id == caller.studio_id,
                         ChatMessage.deleted_at.is_(None),
-                        ChatMessage.guest_id != caller.guest_id,
+                        # IS DISTINCT FROM, not `!=`: the host writes messages
+                        # with `guest_id = NULL`, and `NULL <> '<uuid>'` is
+                        # NULL rather than true in SQL. A plain `!=` therefore
+                        # dropped every host reply and every broadcast from the
+                        # count, so the one room where all the messages come
+                        # from the host could never show a badge at all.
+                        ChatMessage.guest_id.is_distinct_from(caller.guest_id),
                         or_(*per_room),
                     )
                     .group_by(ChatMessage.room_id)

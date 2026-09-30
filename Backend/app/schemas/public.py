@@ -20,6 +20,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.domain.guests import normalise_email, normalise_phone
+
 
 class PublicStudio(BaseModel):
     """Branding only. No settings, no contact details, no counts.
@@ -92,7 +94,7 @@ class PublicBookingRequest(BaseModel):
             raise ValueError("Please tell us your name.")
         return cleaned
 
-    @field_validator("phone", "email", "allergies", "note")
+    @field_validator("allergies", "note")
     @classmethod
     def _blank_to_none(cls, value: str | None) -> str | None:
         """An empty input is "not provided", not an empty string in the database."""
@@ -100,6 +102,30 @@ class PublicBookingRequest(BaseModel):
             return None
         cleaned = value.strip()
         return cleaned or None
+
+    @field_validator("phone")
+    @classmethod
+    def _canonical_phone(cls, value: str | None) -> str | None:
+        """Normalised here, at the boundary.
+
+        The public path used to match returning guests on the raw string, so a
+        regular whose record says "03001111111" typing "0300 1111111" became a
+        second Guest row — visit count back to zero, memory note and recorded
+        allergies attached to the other row, no allergy chip on the roster for
+        someone with a severe allergy. The host path has always normalised;
+        this makes the two agree, which is also what makes the partial unique
+        indexes on these columns a real guard.
+
+        `normalise_phone` infers no country code on purpose, so a genuinely
+        international spelling still lands as its own record for the host's
+        merge prompt to resolve. That is the intended answer to it, not a gap.
+        """
+        return normalise_phone(value)
+
+    @field_validator("email")
+    @classmethod
+    def _canonical_email(cls, value: str | None) -> str | None:
+        return normalise_email(value)
 
 
 class PublicBookingResult(BaseModel):
