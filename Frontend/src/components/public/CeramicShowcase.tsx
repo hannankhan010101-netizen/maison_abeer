@@ -32,7 +32,10 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 
   override componentDidCatch(error: unknown) {
-    console.warn('[ceramic showcase] 3D scene unavailable, showing the static form instead:', error);
+    console.warn(
+      '[ceramic showcase] 3D scene unavailable, showing the static form instead:',
+      error,
+    );
   }
 
   override render() {
@@ -50,7 +53,9 @@ function useMayAnimate(): boolean {
     type NetworkInformation = { saveData?: boolean; effectiveType?: string };
     const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
     const dataConscious = Boolean(
-      connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g',
+      connection?.saveData ||
+      connection?.effectiveType === 'slow-2g' ||
+      connection?.effectiveType === '2g',
     );
 
     const evaluate = () => setAllowed(!motionQuery.matches && !dataConscious);
@@ -108,7 +113,7 @@ export function CeramicShowcase() {
       <div
         className={cn(
           'flex flex-col justify-center px-6 py-12 text-center transition-[opacity,transform] duration-700 sm:py-16 md:px-10 md:text-left',
-          visible ? 'opacity-100' : 'opacity-0 translate-y-4',
+          visible ? 'opacity-100' : 'translate-y-4 opacity-0',
         )}
       >
         <p className="font-hand text-rose-ink text-lg">turn, and turn again</p>

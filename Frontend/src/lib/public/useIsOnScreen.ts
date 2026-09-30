@@ -14,9 +14,12 @@ export function useIsOnScreen<T extends HTMLElement>(): [React.RefObject<T | nul
     const node = ref.current;
     if (!node) return;
 
-    const observer = new IntersectionObserver(([entry]) => setOnScreen(Boolean(entry?.isIntersecting)), {
-      rootMargin: '200px',
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => setOnScreen(Boolean(entry?.isIntersecting)),
+      {
+        rootMargin: '200px',
+      },
+    );
 
     observer.observe(node);
     return () => observer.disconnect();

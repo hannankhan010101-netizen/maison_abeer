@@ -25,7 +25,10 @@ blob-report/
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
+# `.venv*`, not `.venv`: a second interpreter on the same checkout lands in
+# `.venv-windows` or `.venv-311`, and one of those showing up as untracked is
+# a whole site-packages tree one `git add -A` away from being committed.
+.venv*/
 venv/
 .pytest_cache/
 .mypy_cache/

@@ -41,11 +41,35 @@ const DEFAULT_PINK = '#F2AABE';
 // against structurally rather than trusting position tuning alone.
 function shapesFor(primaryColor?: string, accentColor?: string) {
   return [
-    { geometry: 'icosahedron', color: primaryColor ?? DEFAULT_ROSE, position: [-2.3, 0.8, -1.4], scale: 0.46, speed: 0.6 },
-    { geometry: 'torus', color: accentColor ?? DEFAULT_PINK, position: [2.2, -0.7, -1.6], scale: 0.4, speed: 0.45 },
-    { geometry: 'octahedron', color: '#C96F4A', position: [-1.9, -1.0, -2.0], scale: 0.28, speed: 0.8 },
+    {
+      geometry: 'icosahedron',
+      color: primaryColor ?? DEFAULT_ROSE,
+      position: [-2.3, 0.8, -1.4],
+      scale: 0.46,
+      speed: 0.6,
+    },
+    {
+      geometry: 'torus',
+      color: accentColor ?? DEFAULT_PINK,
+      position: [2.2, -0.7, -1.6],
+      scale: 0.4,
+      speed: 0.45,
+    },
+    {
+      geometry: 'octahedron',
+      color: '#C96F4A',
+      position: [-1.9, -1.0, -2.0],
+      scale: 0.28,
+      speed: 0.8,
+    },
     { geometry: 'sphere', color: '#ADBE93', position: [2.0, 1.1, -1.8], scale: 0.24, speed: 0.5 },
-    { geometry: 'dodecahedron', color: '#F7DC94', position: [2.6, -0.1, -2.4], scale: 0.22, speed: 0.7 },
+    {
+      geometry: 'dodecahedron',
+      color: '#F7DC94',
+      position: [2.6, -0.1, -2.4],
+      scale: 0.22,
+      speed: 0.7,
+    },
   ] as const;
 }
 
@@ -66,7 +90,11 @@ function FloatingShape({ shape, index }: { shape: Shape; index: number }) {
   });
 
   return (
-    <mesh ref={ref} position={shape.position as unknown as [number, number, number]} scale={shape.scale}>
+    <mesh
+      ref={ref}
+      position={shape.position as unknown as [number, number, number]}
+      scale={shape.scale}
+    >
       {shape.geometry === 'icosahedron' ? <icosahedronGeometry args={[1, 0]} /> : null}
       {shape.geometry === 'torus' ? <torusGeometry args={[0.7, 0.28, 16, 48]} /> : null}
       {shape.geometry === 'octahedron' ? <octahedronGeometry args={[1, 0]} /> : null}

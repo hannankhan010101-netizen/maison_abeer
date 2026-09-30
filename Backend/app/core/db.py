@@ -33,6 +33,10 @@ if TYPE_CHECKING:
 
 ModelT = TypeVar("ModelT", bound=Base)
 
+# `Select` is variadic from SQLAlchemy 2.1 (PEP 646): a single-entity select is
+# `Select[Model]`, not `Select[tuple[Model]]`. The annotations below follow the
+# installed version rather than 2.0's spelling, which mypy rejects outright.
+
 _engine: Engine | None = None
 _session_factory: sessionmaker[SASession] | None = None
 
@@ -187,7 +191,7 @@ class TenantSession:
 
     # -- reads --------------------------------------------------------------
 
-    def query(self, model: type[ModelT]) -> Select[tuple[ModelT]]:
+    def query(self, model: type[ModelT]) -> Select[ModelT]:
         """A SELECT already filtered to this studio.
 
         Reads the mapped column off the class rather than narrowing with
@@ -220,7 +224,7 @@ class TenantSession:
 
         return entity
 
-    def scalars(self, statement: Select[tuple[ModelT]]) -> list[ModelT]:
+    def scalars(self, statement: Select[ModelT]) -> list[ModelT]:
         return list(self._session.execute(statement).scalars().all())
 
     # -- writes -------------------------------------------------------------

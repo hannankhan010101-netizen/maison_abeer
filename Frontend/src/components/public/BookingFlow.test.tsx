@@ -413,7 +413,9 @@ describe('BookingFlow', () => {
     const { container } = render(<BookingFlow slug="maison-abeer" />);
     await screen.findByText('What we make here');
 
-    const craftImgs = container.querySelectorAll('img[src="https://images.unsplash.com/photo-cake-test"]');
+    const craftImgs = container.querySelectorAll(
+      'img[src="https://images.unsplash.com/photo-cake-test"]',
+    );
     expect(craftImgs).toHaveLength(1);
     // The pottery craft has no photo, so it still shows via the SVG motif
     // fallback rather than an empty card — the strip itself still renders it.

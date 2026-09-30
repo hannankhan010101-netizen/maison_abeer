@@ -32,7 +32,11 @@ function craftsFrom(classes: PublicClass[]): Craft[] {
 
   for (const item of classes) {
     if (!seen.has(item.color_token)) {
-      seen.set(item.color_token, { token: item.color_token, name: item.name, photoUrl: item.photo_url });
+      seen.set(item.color_token, {
+        token: item.color_token,
+        name: item.name,
+        photoUrl: item.photo_url,
+      });
     }
   }
 

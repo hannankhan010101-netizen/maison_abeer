@@ -6,7 +6,6 @@ tested exhaustively — including forgery attempts — without a Supabase projec
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -117,26 +116,24 @@ def settings() -> Any:
 
 @pytest.fixture
 def jwks_cache(keypair: KeyPair, monkeypatch: pytest.MonkeyPatch) -> Any:
-    """A JWKSCache wired to an in-memory JWKS instead of the network."""
+    """A JWKSCache wired to an in-memory JWKS instead of the network.
+
+    Patched at `PyJWKClient.fetch_data`, which is the library's own seam for
+    "go and get the document". Patching urllib underneath it worked until
+    PyJWT swapped `urlopen` for `build_opener().open()`, at which point every
+    token test quietly started making a real DNS lookup for a hostname that
+    does not exist.
+    """
+    from jwt import PyJWKClient
+
     from app.core import security
 
-    document = json.dumps(keypair.jwks()).encode()
+    document = keypair.jwks()
 
-    class _FakeResponse:
-        def read(self) -> bytes:
-            return document
+    def _fake_fetch_data(_self: PyJWKClient) -> dict[str, list[dict[str, str]]]:
+        return document
 
-        def __enter__(self) -> _FakeResponse:
-            return self
-
-        def __exit__(self, *args: object) -> None:
-            return None
-
-    def _fake_urlopen(*args: object, **kwargs: object) -> _FakeResponse:
-        return _FakeResponse()
-
-    # PyJWKClient fetches via urllib under the hood.
-    monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen)
+    monkeypatch.setattr(PyJWKClient, "fetch_data", _fake_fetch_data)
 
     security.reset_jwks_cache()
     cache = security.JWKSCache(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json")

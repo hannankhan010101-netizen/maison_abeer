@@ -83,7 +83,9 @@ function useMayAnimate(): boolean {
     type NetworkInformation = { saveData?: boolean; effectiveType?: string };
     const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
     const dataConscious = Boolean(
-      connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g',
+      connection?.saveData ||
+      connection?.effectiveType === 'slow-2g' ||
+      connection?.effectiveType === '2g',
     );
 
     const evaluate = () => setAllowed(!motionQuery.matches && !dataConscious);
@@ -140,7 +142,7 @@ export function BookingHero({
       style={brandVars}
       className={cn(
         'relative isolate overflow-hidden',
-        'rounded-b-[2.5rem] border-b-[1.5px] border-line',
+        'border-line rounded-b-[2.5rem] border-b-[1.5px]',
         'px-4 pt-12 pb-24 text-center sm:px-6 sm:pt-16 sm:pb-28',
       )}
     >
@@ -151,7 +153,11 @@ export function BookingHero({
               two transforms never fight over the same `transform`
               property. `overflow-hidden` plus the zoom's 6% overscan is
               what keeps a few pixels of drift from ever revealing an edge. */}
-          <div ref={parallaxRef} aria-hidden="true" className="absolute inset-0 overflow-hidden will-change-transform">
+          <div
+            ref={parallaxRef}
+            aria-hidden="true"
+            className="absolute inset-0 overflow-hidden will-change-transform"
+          >
             {/* A real photo, full-bleed. `<img>`, not next/image: a host
                 pastes any URL they like into Brand Kit (same pattern as
                 logo_url), so there is no fixed set of hosts to allowlist the
@@ -182,7 +188,10 @@ export function BookingHero({
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[var(--color-buttercream)] sm:h-48"
           />
-          <div aria-hidden="true" className="grain-overlay absolute inset-0 mix-blend-overlay opacity-10" />
+          <div
+            aria-hidden="true"
+            className="grain-overlay absolute inset-0 opacity-10 mix-blend-overlay"
+          />
           {mayAnimate ? <ParticleField /> : null}
         </>
       ) : (
@@ -231,13 +240,21 @@ export function BookingHero({
           }}
         >
           <CanvasBoundary>
-            <Hero3D primaryColor={primaryColor ?? undefined} accentColor={accentColor ?? undefined} />
+            <Hero3D
+              primaryColor={primaryColor ?? undefined}
+              accentColor={accentColor ?? undefined}
+            />
           </CanvasBoundary>
         </div>
       ) : null}
 
       <div className="relative z-10">
-        <p className={cn('font-hand animate-rise-in text-lg', hasPhoto ? 'text-pink' : 'text-rose-ink')}>
+        <p
+          className={cn(
+            'font-hand animate-rise-in text-lg',
+            hasPhoto ? 'text-pink' : 'text-rose-ink',
+          )}
+        >
           your studio bestie ✨
         </p>
 
@@ -294,7 +311,10 @@ export function BookingHero({
           style={{ animationDelay: `${80 + words.length * 110 + 180}ms` }}
         >
           Explore classes
-          <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-1">
+          <span
+            aria-hidden="true"
+            className="transition-transform duration-300 group-hover:translate-x-1"
+          >
             →
           </span>
         </a>
@@ -321,16 +341,26 @@ export function BookingHero({
 /** A small nudge downward — the booking widget is one scroll away, not a tap. */
 function ScrollCue({ delay, light }: { delay: string; light?: boolean }) {
   return (
-    <div aria-hidden="true" className="animate-rise-in mt-8 flex justify-center" style={{ animationDelay: delay }}>
+    <div
+      aria-hidden="true"
+      className="animate-rise-in mt-8 flex justify-center"
+      style={{ animationDelay: delay }}
+    >
       <svg
         viewBox="0 0 24 24"
         className={cn(
-          'motion-safe:animate-bounce size-6 motion-reduce:animate-none',
+          'size-6 motion-safe:animate-bounce motion-reduce:animate-none',
           light ? 'text-photo-ink' : 'text-rose-ink',
         )}
         fill="none"
       >
-        <path d="M12 4v14M6 12l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M12 4v14M6 12l6 6 6-6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     </div>
   );

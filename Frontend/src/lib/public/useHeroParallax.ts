@@ -23,7 +23,8 @@ export function useHeroParallax<T extends HTMLElement>(maxOffsetPx = 12) {
     if (!node) return;
 
     if (prefersReducedMotion()) return;
-    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches) return;
+    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches)
+      return;
 
     let targetX = 0;
     let targetY = 0;

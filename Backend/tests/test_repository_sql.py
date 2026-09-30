@@ -52,7 +52,9 @@ SCOPED_MODELS = [
 ]
 
 
-def compile_sql(statement: Select[Any]) -> str:
+def compile_sql(statement: Select[*tuple[Any, ...]]) -> str:
+    # Variadic, because the tenancy assertions compile multi-column selects as
+    # well as whole-entity ones, and `Select` is variadic from SQLAlchemy 2.1.
     # SQLAlchemy ships no annotations for `compile`; mypy attributes the call
     # to the line the arguments start on.
     compiled = statement.compile(

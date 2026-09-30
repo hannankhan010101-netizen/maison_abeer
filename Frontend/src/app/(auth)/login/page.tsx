@@ -30,7 +30,12 @@ function MailIcon() {
         stroke="currentColor"
         strokeWidth="1.6"
       />
-      <path d="m3.5 5.5 6.5 5 6.5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="m3.5 5.5 6.5 5 6.5-5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -323,14 +328,7 @@ function ShowcaseCard() {
 
       <div className="mt-3 flex items-center gap-3">
         <svg viewBox="0 0 44 44" className="size-11 -rotate-90">
-          <circle
-            cx="22"
-            cy="22"
-            r="18"
-            fill="none"
-            stroke="var(--color-blush)"
-            strokeWidth="5"
-          />
+          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--color-blush)" strokeWidth="5" />
           <circle
             cx="22"
             cy="22"

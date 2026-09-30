@@ -24,7 +24,8 @@ export function CustomCursor() {
 
   useEffect(() => {
     if (prefersReducedMotion()) return;
-    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches) return;
+    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches)
+      return;
 
     const ring = ringRef.current;
     const label = labelRef.current;
@@ -61,7 +62,9 @@ export function CustomCursor() {
       y += (targetY - y) * 0.22;
       ring.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
 
-      const hovered = document.elementFromPoint(targetX, targetY)?.closest<HTMLElement>('[data-cursor-label]');
+      const hovered = document
+        .elementFromPoint(targetX, targetY)
+        ?.closest<HTMLElement>('[data-cursor-label]');
       const nextLabel = hovered?.dataset.cursorLabel ?? '';
       if (nextLabel !== currentLabel) {
         currentLabel = nextLabel;
@@ -86,9 +89,9 @@ export function CustomCursor() {
       aria-hidden="true"
       className={[
         'pointer-events-none fixed top-0 left-0 z-50 flex items-center justify-center rounded-full',
-        'border-[1.5px] border-cocoa/70 bg-paper/10 opacity-0',
+        'border-cocoa/70 bg-paper/10 border-[1.5px] opacity-0',
         'size-8 transition-[width,height,opacity] duration-200 ease-out',
-        'data-[expanded=true]:size-16 data-[expanded=true]:bg-paper/90 data-[expanded=true]:border-transparent',
+        'data-[expanded=true]:bg-paper/90 data-[expanded=true]:size-16 data-[expanded=true]:border-transparent',
       ].join(' ')}
     >
       <span ref={labelRef} className="text-cocoa text-[10px] font-extrabold tracking-wide" />

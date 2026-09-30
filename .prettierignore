@@ -3,7 +3,7 @@ node_modules
 dist
 build
 coverage
-.venv
+.venv*
 __pycache__
 creative-workshop-portal-design.html
 package-lock.json
@@ -19,3 +19,10 @@ next-env.d.ts
 # Written by the Claude CLI, not by hand.
 .mcp.json
 **/.mcp.json
+
+# Vendored agent skills installed by the Claude CLI — same reasoning as
+# `.agents/` above: not our code, and reformatting them fights the next
+# update. Left out originally, which is why `format:check` failed on forty
+# markdown files nobody in this repo wrote.
+.claude/skills/
+**/.claude/skills/

@@ -320,7 +320,7 @@ function StorySection({ story }: { story: string }) {
         className={cn(
           'mx-auto max-w-[46ch] text-center',
           'transition-[opacity,transform] duration-700',
-          visible ? 'opacity-100' : 'opacity-0 translate-y-4',
+          visible ? 'opacity-100' : 'translate-y-4 opacity-0',
         )}
       >
         <span aria-hidden="true" className="bg-rose mx-auto mb-6 block h-[3px] w-10 rounded-full" />
@@ -382,7 +382,7 @@ function ClassPicker({
                 className={cn(
                   'group border-line bg-paper relative w-full overflow-hidden rounded-[var(--radius-md)] border-[1.5px]',
                   'min-h-[44px] py-4 pr-4 pl-5 text-left transition-[transform,box-shadow] duration-200',
-                  'hover:border-transparent hover:[transform:perspective(600px)_rotateX(1.5deg)_translateY(-4px)]',
+                  'hover:[transform:perspective(600px)_rotateX(1.5deg)_translateY(-4px)] hover:border-transparent',
                   accent.hoverGlow,
                   'motion-reduce:transform-none',
                   'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
@@ -644,14 +644,24 @@ function DetailsStep({
 type FieldIcon = 'user' | 'phone' | 'mail' | 'heart' | 'sparkle';
 
 function FieldIconGlyph({ icon }: { icon: FieldIcon }) {
-  const common = { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': true, className: 'size-[18px]' } as const;
+  const common = {
+    viewBox: '0 0 20 20',
+    fill: 'none',
+    'aria-hidden': true,
+    className: 'size-[18px]',
+  } as const;
 
   switch (icon) {
     case 'user':
       return (
         <svg {...common}>
           <circle cx="10" cy="6.5" r="3.25" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M3.5 17c1-3.6 4-5.5 6.5-5.5s5.5 1.9 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path
+            d="M3.5 17c1-3.6 4-5.5 6.5-5.5s5.5 1.9 6.5 5.5"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
         </svg>
       );
     case 'phone':
@@ -668,8 +678,17 @@ function FieldIconGlyph({ icon }: { icon: FieldIcon }) {
     case 'mail':
       return (
         <svg {...common}>
-          <path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-9Z" stroke="currentColor" strokeWidth="1.6" />
-          <path d="m3.5 5.5 6.5 5 6.5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path
+            d="M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-9Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path
+            d="m3.5 5.5 6.5 5 6.5-5"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
         </svg>
       );
     case 'heart':
@@ -692,7 +711,10 @@ function FieldIconGlyph({ icon }: { icon: FieldIcon }) {
             strokeWidth="1.4"
             strokeLinejoin="round"
           />
-          <path d="M15.5 13c.2 1.4.6 2 1.9 2.3-1.3.3-1.7 1-1.9 2.3-.2-1.4-.6-2-1.9-2.3 1.3-.3 1.7-1 1.9-2.3Z" fill="currentColor" />
+          <path
+            d="M15.5 13c.2 1.4.6 2 1.9 2.3-1.3.3-1.7 1-1.9 2.3-.2-1.4-.6-2-1.9-2.3 1.3-.3 1.7-1 1.9-2.3Z"
+            fill="currentColor"
+          />
         </svg>
       );
   }
@@ -745,7 +767,7 @@ function Field({
           className={cn(
             'bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] py-2.5 pr-3 pl-10',
             'transition-[border-color,box-shadow] duration-150',
-            'focus-visible:outline-none focus-visible:border-rose focus-visible:shadow-[0_0_0_4px_var(--color-blush)]',
+            'focus-visible:border-rose focus-visible:shadow-[0_0_0_4px_var(--color-blush)] focus-visible:outline-none',
             invalid ? 'border-danger' : 'border-line',
           )}
         />
@@ -802,12 +824,18 @@ function Confirmation({ result }: { result: BookingResult }) {
       </p>
 
       {waitlisted ? (
-        <p className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm" style={{ animationDelay: '260ms' }}>
+        <p
+          className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm"
+          style={{ animationDelay: '260ms' }}
+        >
           You&rsquo;re number <b>{result.waitlist_position}</b> in the queue. If a seat opens up
           we&rsquo;ll message you straight away — no need to check back.
         </p>
       ) : (
-        <p className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm" style={{ animationDelay: '260ms' }}>
+        <p
+          className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm"
+          style={{ animationDelay: '260ms' }}
+        >
           We&rsquo;ll send you a reminder the day before with everything you need. Just bring
           yourself — aprons are on us.
         </p>

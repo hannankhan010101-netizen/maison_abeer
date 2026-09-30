@@ -122,6 +122,4 @@ def issue_portal_link(guest_id: UUID, db: Db, issuer: Issuer) -> PortalLink:
 
     base = get_settings().public_web_url.rstrip("/")
 
-    return PortalLink(
-        url=f"{base}/enter?token={quote(token.token_hash)}&type={token.otp_type}"
-    )
+    return PortalLink(url=f"{base}/enter?token={quote(token.token_hash)}&type={token.otp_type}")
