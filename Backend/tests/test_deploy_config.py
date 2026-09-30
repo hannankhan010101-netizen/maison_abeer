@@ -23,6 +23,21 @@ VERCEL = ROOT / "vercel.json"
 RUNTIME_ONLY_LOCALLY = {"uvicorn"}
 
 
+def _app() -> Any:
+    """The app, built from explicit settings.
+
+    Not a bare `create_app()`: that falls through to `get_settings()`, which
+    reads the ambient environment — so these checks passed on a developer
+    machine, where `Backend/.env` exists, and failed in CI, where it does not.
+    Nothing here depends on a particular studio's configuration, only on the
+    routes and middleware the factory wires up.
+    """
+    from app.main import create_app
+    from tests.conftest import build_settings
+
+    return create_app(build_settings())
+
+
 def _package_name(spec: str) -> str:
     """`psycopg[binary]>=3.2.3` → `psycopg`."""
     return re.split(r"[<>=!\[;]", spec, maxsplit=1)[0].strip().lower()
@@ -93,9 +108,7 @@ def test_the_entrypoint_exists_and_exposes_app() -> None:
 
 def test_the_cron_target_is_a_real_route(vercel: dict[str, Any]) -> None:
     """A typo here fails silently — the scheduler 404s and nobody is told."""
-    from app.main import create_app
-
-    paths = set(create_app().openapi()["paths"])
+    paths = set(_app().openapi()["paths"])
 
     for job in vercel["crons"]:
         assert job["path"] in paths, f"cron points at {job['path']}, which is not a route"
@@ -103,9 +116,7 @@ def test_the_cron_target_is_a_real_route(vercel: dict[str, Any]) -> None:
 
 def test_the_cron_route_accepts_the_method_vercel_sends(vercel: dict[str, Any]) -> None:
     """Vercel Cron issues GET. A POST-only handler would 405 forever."""
-    from app.main import create_app
-
-    schema = create_app().openapi()["paths"]
+    schema = _app().openapi()["paths"]
 
     for job in vercel["crons"]:
         assert "get" in schema[job["path"]], f"{job['path']} must accept GET"
@@ -144,9 +155,7 @@ def _cors_allowed_methods() -> set[str]:
     """The methods the CORS middleware will approve at preflight."""
     from starlette.middleware.cors import CORSMiddleware
 
-    from app.main import create_app
-
-    for middleware in create_app().user_middleware:
+    for middleware in _app().user_middleware:
         # Matched by name via getattr: Starlette types `.cls` as a middleware
         # *factory* protocol, so neither an identity check against the class
         # nor a plain `.__name__` type-checks against it.
@@ -170,11 +179,9 @@ def test_cors_allows_every_method_the_api_actually_serves() -> None:
     Derived from the OpenAPI schema rather than hardcoded, so a route added
     with a new method is covered the day it lands.
     """
-    from app.main import create_app
-
     served = {
         method.upper()
-        for operations in create_app().openapi()["paths"].values()
+        for operations in _app().openapi()["paths"].values()
         for method in operations
         if method.upper() in {"GET", "POST", "PUT", "PATCH", "DELETE"}
     }

@@ -102,16 +102,53 @@ def attacker_keypair() -> KeyPair:
     return KeyPair(private_key=private_key, kid=KEY_ID)
 
 
-@pytest.fixture
-def settings() -> Any:
+# The three settings that have no default, plus a safe environment. Anything
+# that builds the app needs all of them.
+REQUIRED_SETTINGS: dict[str, Any] = {
+    "supabase_url": SUPABASE_URL,
+    "supabase_service_role_key": "test-service-role-key",
+    "database_url": "postgresql+psycopg://user:pass@localhost:5432/test",
+    "environment": "development",
+}
+
+
+def build_settings(**overrides: Any) -> Any:
+    """Settings that do not depend on the developer's `.env`.
+
+    `_env_file=None` is the point. Without it pydantic reads `Backend/.env`
+    for anything not passed here, so a test's behaviour depends on a
+    gitignored file that exists on a developer's machine and not in CI.
+    """
     from app.core.config import Settings
 
-    return Settings(
-        supabase_url=SUPABASE_URL,
-        supabase_service_role_key="test-service-role-key",
-        database_url="postgresql+psycopg://user:pass@localhost:5432/test",
-        environment="development",
-    )
+    return Settings(_env_file=None, **{**REQUIRED_SETTINGS, **overrides})
+
+
+@pytest.fixture
+def settings() -> Any:
+    return build_settings()
+
+
+@pytest.fixture
+def required_env(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """The required settings in the *environment*, for code that reads them there.
+
+    Some routes call the module-level `get_settings()` at request time rather
+    than taking the app's settings, so passing settings to `create_app` does
+    not reach them — they need real environment variables.
+
+    Deliberately not autouse: `test_config.py` asserts that `Settings`
+    refuses to start when one of these is missing, and satisfying them
+    globally from the environment would make that assertion vacuous.
+    """
+    from app.core.config import get_settings
+
+    for field, value in REQUIRED_SETTINGS.items():
+        monkeypatch.setenv(field.upper(), str(value))
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture

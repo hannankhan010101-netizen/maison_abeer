@@ -89,7 +89,11 @@ class TestExampleFileMatchesReality:
         This is the test that would have caught the CORS bug: the example
         file was the thing that did not work.
         """
-        example = Path("app").parent / ".env.example"
+        # Anchored to this file, not the working directory. `Path("app").parent`
+        # is `Path(".")`, so this only ever resolved when pytest happened to be
+        # run from `Backend/` — the same "works on my machine" shape as the
+        # tests that were reading a developer's `.env`.
+        example = Path(__file__).resolve().parents[1] / ".env.example"
         values: dict[str, str] = {}
 
         for line in example.read_text(encoding="utf-8").splitlines():

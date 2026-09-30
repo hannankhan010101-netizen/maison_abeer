@@ -19,7 +19,11 @@ SECRET = "test-secret-value"  # noqa: S105 - a fixture, not a credential
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+def client(monkeypatch: pytest.MonkeyPatch, required_env: None) -> Iterator[TestClient]:
+    # `required_env` because the route resolves `get_settings()` per request
+    # rather than taking the app's settings: without it these tests read the
+    # ambient environment, which meant they passed on a developer machine
+    # because `Backend/.env` is there, and failed in CI, where it is not.
     monkeypatch.setenv("CRON_SECRET", SECRET)
     get_settings.cache_clear()
 
@@ -33,7 +37,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def unconfigured(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+def unconfigured(monkeypatch: pytest.MonkeyPatch, required_env: None) -> Iterator[TestClient]:
     monkeypatch.setenv("CRON_SECRET", "")
     get_settings.cache_clear()
 
