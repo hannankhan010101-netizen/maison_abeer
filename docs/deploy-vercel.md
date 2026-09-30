@@ -23,12 +23,14 @@ every real route 404s.
 ### Region
 
 `vercel.json`'s `regions` field pins the function to the **same region as the
-Supabase project's pooler** — currently `syd1` (Sydney), matching
-`ap-southeast-2`. Vercel otherwise defaults new functions to `iad1` (US
+Supabase project's pooler** — currently `sin1` (Singapore), matching
+`ap-southeast-1`. Vercel otherwise defaults new functions to `iad1` (US
 East), and every one of this endpoint's several queries per request pays that
 distance twice. Measured warm-request latency: 2.4-3.3s from `iad1` against
-an `ap-southeast-2` database, 0.6-0.9s once colocated. If the database ever
-moves region, update this to match, or the fix silently reverts.
+an `ap-southeast-2` database, 0.6-0.9s once colocated — measured while the
+database was in `ap-southeast-2`; the pairing is what matters, not the
+region. If the database moves again, update this to match, or the fix
+silently reverts.
 
 ### Environment variables
 
