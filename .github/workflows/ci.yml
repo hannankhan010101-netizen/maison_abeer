@@ -1,8 +1,12 @@
 name: CI
 
 on:
+  # The branches that actually exist. This said `[main]`, which this
+  # repository has never had — the default branch is `feat/deploy-vercel` and
+  # the other is `master` — so no push has ever triggered CI, and nothing here
+  # had run even once. Rename a branch and this list has to follow it.
   push:
-    branches: [main]
+    branches: [feat/deploy-vercel, master]
   pull_request:
 
 concurrency:
