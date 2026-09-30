@@ -12,7 +12,13 @@ leaves settled rows alone, exactly as `normalise_positions` does. It is
 order-preserving: nobody moves up or down the queue, the numbers just become
 consistent.
 
-Revision ID: 0009_waitlist_positions_zero_based
+Revision ID: 0009_waitlist_zero_based
+
+Shortened from `0009_waitlist_positions_zero_based`: Alembic stores the applied
+revision in `alembic_version.version_num`, a `varchar(32)`, so a longer id
+raises StringDataRightTruncation *after* the migration body has run — the
+version never records and the whole upgrade rolls back. Keep ids under 32
+characters.
 Revises: 0008_workshop_content
 """
 
@@ -20,7 +26,7 @@ from __future__ import annotations
 
 from alembic import op
 
-revision = "0009_waitlist_positions_zero_based"
+revision = "0009_waitlist_zero_based"
 down_revision = "0008_workshop_content"
 branch_labels = None
 depends_on = None

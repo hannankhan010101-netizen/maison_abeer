@@ -9,7 +9,7 @@ Existing rows are backfilled from their studio's current default, which is
 the best available answer for messages queued before the column existed.
 
 Revision ID: 0010_scheduled_message_voice
-Revises: 0009_waitlist_positions_zero_based
+Revises: 0009_waitlist_zero_based
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0010_scheduled_message_voice"
-down_revision = "0009_waitlist_positions_zero_based"
+down_revision = "0009_waitlist_zero_based"
 branch_labels = None
 depends_on = None
 
