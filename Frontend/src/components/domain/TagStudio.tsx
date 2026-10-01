@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { SessionPicker } from '@/components/domain/SessionPicker';
 import { AlertCard } from '@/components/ui/AlertCard';
@@ -15,6 +15,7 @@ import {
   LAYOUTS,
   THEMES,
   buildTags,
+  layoutById,
   nameFontSize,
   pageCount,
   themeById,
@@ -22,7 +23,9 @@ import {
   unassignedNames,
   type LayoutId,
   type TagData,
+  type TagLayout,
   type TagOptions,
+  type TagTheme,
   type ThemeId,
 } from '@/lib/tags/themes';
 
@@ -69,7 +72,7 @@ function TagStudioInner({ now }: { now: Date }) {
   const recordExport = useRecordExport(selected?.id ?? '');
 
   const [theme, setTheme] = useState<ThemeId | null>(null);
-  const [layout, setLayout] = useState<LayoutId>('a4-8');
+  const [layout, setLayout] = useState<LayoutId>('stand-a4-6');
   const [options, setOptions] = useState<TagOptions>({
     showTableNumber: true,
     showSubtext: true,
@@ -218,6 +221,7 @@ function TagStudioInner({ now }: { now: Date }) {
               <TagSheet
                 tags={tags}
                 theme={activeTheme.id}
+                layout={layout}
                 options={options}
                 loading={roster.isPending}
               />
@@ -240,6 +244,7 @@ function TagStudioInner({ now }: { now: Date }) {
                   {tags.length} tag{tags.length === 1 ? '' : 's'} · {pageCount(tags.length, layout)}{' '}
                   page
                   {pageCount(tags.length, layout) === 1 ? '' : 's'} · trim marks included
+                  {layoutById(layout).foldable ? ' · cut, then fold along the dashes' : null}
                 </HandNote>
               </div>
 
@@ -298,15 +303,18 @@ function Toggle({
 export function TagSheet({
   tags,
   theme,
+  layout,
   options,
   loading = false,
 }: {
   tags: TagData[];
   theme: ThemeId;
+  layout: LayoutId;
   options: TagOptions;
   loading?: boolean;
 }) {
   const resolved = themeById(theme);
+  const resolvedLayout = layoutById(layout);
 
   if (loading) {
     return (
@@ -331,63 +339,174 @@ export function TagSheet({
   }
 
   return (
-    <div className="border-latte bg-paper rounded-[var(--radius-md)] border-[1.5px] border-dashed p-5">
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3.5">
+    <div className="border-latte bg-paper rounded-[var(--radius-md)] border-[1.5px] border-dashed p-5 print:rounded-none print:border-0 print:bg-white print:p-0">
+      <ul
+        className="tag-sheet grid grid-cols-[repeat(auto-fill,minmax(188px,1fr))] gap-4"
+        // Read by the print stylesheet, which lays the sheet out in the
+        // layout's own column count rather than whatever fits the screen.
+        style={{ '--tag-columns': resolvedLayout.columns } as CSSProperties}
+      >
         {tags.map((tag) => (
           <li key={tag.id}>
-            <article
-              className={cn(
-                'relative min-h-32 rounded-2xl border-[1.5px] px-3.5 pt-4 pb-3',
-                resolved.tagClass,
-              )}
-            >
-              {resolved.ornament ? (
-                <span aria-hidden="true" className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                  {resolved.ornament}
-                </span>
-              ) : null}
-
-              <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase">
-                Hello, I&rsquo;m
-              </span>
-
-              {/* Type scales down rather than wrapping (PRD §2.3). */}
-              <div
-                className="font-display leading-tight"
-                style={{ fontSize: `${nameFontSize(tag.name)}px` }}
-              >
-                {tag.name}
-              </div>
-
-              {tag.subtext ? <div className="font-hand text-base">{tag.subtext}</div> : null}
-
-              {tag.tableNumber !== null ? (
-                <span className="mt-2 inline-block rounded-[var(--radius-pill)] bg-white/60 px-2 py-0.5 text-[11px] font-extrabold">
-                  table {tag.tableNumber}
-                </span>
-              ) : null}
-
-              {options.showQrCode ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute right-3 bottom-3 grid size-6 grid-cols-5 gap-px opacity-80"
-                >
-                  {Array.from({ length: 25 }, (_, index) => (
-                    <i
-                      key={index}
-                      className={cn(
-                        'rounded-[1px]',
-                        index % 3 === 0 ? 'bg-transparent' : 'bg-current',
-                      )}
-                    />
-                  ))}
-                </span>
-              ) : null}
-            </article>
+            <TagCard tag={tag} theme={resolved} layout={resolvedLayout} options={options} />
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * One standing card: face, scored fold line, flap.
+ *
+ * The flap is the whole point — fold it back along the crease and the card
+ * stands up on the table instead of lying face-down where nobody can read
+ * it. It is tinted a shade deeper than the face so the crease is findable at
+ * a glance on a stack of forty, and it is tall enough to carry the card's
+ * weight at roughly a right angle.
+ */
+function TagCard({
+  tag,
+  theme,
+  layout,
+  options,
+}: {
+  tag: TagData;
+  theme: TagTheme;
+  layout: TagLayout;
+  options: TagOptions;
+}) {
+  const nameSize = nameFontSize(tag.name);
+
+  return (
+    <article
+      className={cn(
+        'tag-card relative overflow-hidden rounded-[18px] border-[1.5px]',
+        'shadow-[0_6px_16px_-12px_rgb(64_48_42/0.45)] print:shadow-none',
+        theme.tagClass,
+      )}
+      style={{ aspectRatio: `${layout.faceMm.width} / ${layout.faceMm.height + layout.flapMm}` }}
+    >
+      {/* A hairline inset keyline — the thing that reads as "printed", not "boxed". */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[5px] rounded-[13px] border border-current opacity-[0.18]"
+      />
+
+      <TrimMarks />
+
+      <div className="relative flex h-full flex-col">
+        <div className="flex min-h-0 flex-1 flex-col justify-center px-4 py-3">
+          {theme.ornament ? (
+            <span aria-hidden="true" className="absolute top-2.5 right-3 text-[15px] opacity-80">
+              {theme.ornament}
+            </span>
+          ) : null}
+
+          <span className="text-[9.5px] font-extrabold tracking-[0.2em] uppercase opacity-70">
+            Hello, I&rsquo;m
+          </span>
+
+          {/* Type scales down rather than wrapping (PRD §2.3). */}
+          <div className="font-display mt-0.5 leading-[1.08]" style={{ fontSize: `${nameSize}px` }}>
+            {tag.name}
+          </div>
+
+          <span
+            aria-hidden="true"
+            className={cn('mt-1.5 block h-[2px] w-9 rounded-full', theme.ruleClass)}
+          />
+
+          {tag.subtext ? (
+            <div className="font-hand mt-1 text-[15px] leading-tight opacity-90">{tag.subtext}</div>
+          ) : null}
+
+          <div className="mt-auto flex items-end justify-between gap-2 pt-1.5">
+            {tag.tableNumber !== null ? (
+              <span
+                className={cn(
+                  'inline-block rounded-[var(--radius-pill)] border bg-white/70 px-2 py-0.5',
+                  'text-[10.5px] font-extrabold tracking-wide',
+                  theme.pillBorderClass,
+                )}
+              >
+                table {tag.tableNumber}
+              </span>
+            ) : (
+              <span />
+            )}
+
+            {options.showQrCode ? <QrPlaceholder /> : null}
+          </div>
+        </div>
+
+        {layout.foldable ? <FoldFlap theme={theme} layout={layout} /> : null}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * The crease and the flap below it.
+ *
+ * The dashed rule is the scoring line, and the two notches sitting on it at
+ * either edge are what a pair of scissors aims at before folding — the same
+ * convention a printed invitation uses.
+ */
+function FoldFlap({ theme, layout }: { theme: TagTheme; layout: TagLayout }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('relative shrink-0', theme.flapClass)}
+      style={{ height: `${(layout.flapMm / (layout.faceMm.height + layout.flapMm)) * 100}%` }}
+    >
+      <span className="absolute inset-x-0 top-0 border-t-[1.5px] border-dashed border-current opacity-40" />
+      <span className="absolute top-0 left-0 h-px w-2 -translate-y-px bg-current opacity-70" />
+      <span className="absolute top-0 right-0 h-px w-2 -translate-y-px bg-current opacity-70" />
+
+      <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[8px] font-extrabold tracking-[0.18em] uppercase opacity-45">
+        fold back to stand
+      </span>
+    </div>
+  );
+}
+
+/** Faint corner crosses to cut to — the "trim marks included" the UI promises. */
+function TrimMarks() {
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-30">
+      {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map(
+        (corner) => (
+          <span key={corner} className={cn('absolute size-2', corner)}>
+            <i className="absolute top-1/2 h-px w-full bg-current" />
+            <i className="absolute left-1/2 h-full w-px bg-current" />
+          </span>
+        ),
+      )}
+    </span>
+  );
+}
+
+/**
+ * Stand-in for the studio's Instagram QR.
+ *
+ * Deliberately not a real code: nothing here knows the studio's handle yet,
+ * and printing a scannable code that leads nowhere is worse than printing an
+ * obvious placeholder.
+ */
+function QrPlaceholder() {
+  return (
+    <span aria-hidden="true" className="grid size-7 shrink-0 grid-cols-6 gap-px opacity-70">
+      {Array.from({ length: 36 }, (_, index) => (
+        <i
+          key={index}
+          className={cn(
+            'rounded-[0.5px]',
+            index % 3 === 0 || index % 7 === 0 ? 'bg-transparent' : 'bg-current',
+          )}
+        />
+      ))}
+    </span>
   );
 }
 

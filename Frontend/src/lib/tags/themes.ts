@@ -4,10 +4,15 @@
  * The studio turns booking data into a print-ready set in under three
  * minutes, so everything here is deterministic: the same roster and theme
  * must always produce the same sheet.
+ *
+ * The paper layouts are *standing* cards: the face prints above a fold-back
+ * flap, so one crease along the scored line and the card stands on the table
+ * in front of its guest. The flap is real paper and costs real sheet space,
+ * which is why these hold fewer per page than the flat tags they replaced.
  */
 
 export type ThemeId = 'coquette' | 'clay' | 'pastel' | 'autumn';
-export type LayoutId = 'a4-8' | 'a4-10' | 'sticker' | 'thermal';
+export type LayoutId = 'stand-a4-6' | 'stand-a4-4' | 'sticker' | 'thermal';
 
 export interface TagTheme {
   id: ThemeId;
@@ -18,7 +23,23 @@ export interface TagTheme {
   /** Seasonal drops carry a "New" badge for their season (PRD §2.3). */
   seasonal?: boolean;
   swatch: string;
+  /**
+   * The card face: fill, ink and edge.
+   *
+   * Literal hex rather than the palette tokens, deliberately. `bg-blush` and
+   * friends are re-pointed by `.mocha`, so a host working in the dark theme
+   * used to get a preview — and a print — of near-black cards. A printed
+   * object has no colour scheme; it is always ink on pale paper.
+   */
   tagClass: string;
+  /** Fill for the short rule under the name. */
+  ruleClass: string;
+  /** Edge for the table pill. Separate from `ruleClass` because Tailwind
+   * needs both as literal classes, and splitting one string at runtime to
+   * get them is a habit that breaks the moment a value contains a slash. */
+  pillBorderClass: string;
+  /** The fold-back flap, a shade deeper so the crease reads as a crease. */
+  flapClass: string;
   ornament?: string;
 }
 
@@ -29,7 +50,10 @@ export const THEMES: readonly TagTheme[] = [
     description: 'Bows, blush, cursive',
     suitsColorToken: 'pink',
     swatch: 'bg-gradient-to-br from-blush to-pink',
-    tagClass: 'bg-blush text-rose-ink border-[#F2C9D4]',
+    tagClass: 'bg-gradient-to-b from-[#FFF4F6] to-[#FADFE6] text-[#A93C5C] border-[#F0C3D0]',
+    ruleClass: 'bg-[#E2849E]/55',
+    pillBorderClass: 'border-[#E6A3B6]',
+    flapClass: 'bg-[#F6D6DF]',
     ornament: '🎀',
   },
   {
@@ -38,7 +62,10 @@ export const THEMES: readonly TagTheme[] = [
     description: 'Earthy, organic, rustic',
     suitsColorToken: 'terra',
     swatch: 'bg-gradient-to-br from-[#EBD9C7] to-terra',
-    tagClass: 'bg-[#EBD9C7] text-[#5E3A24] border-[#D9BC9F] rounded-[18px_22px_16px_24px]',
+    tagClass: 'bg-gradient-to-b from-[#F7EBDD] to-[#E7D3BE] text-[#5E3A24] border-[#D7B99B]',
+    ruleClass: 'bg-[#C96F4A]/50',
+    pillBorderClass: 'border-[#CE9A77]',
+    flapClass: 'bg-[#E1CAB2]',
   },
   {
     id: 'pastel',
@@ -46,7 +73,10 @@ export const THEMES: readonly TagTheme[] = [
     description: 'Line-art florals, sage',
     suitsColorToken: 'sage',
     swatch: 'bg-gradient-to-br from-paper to-sage',
-    tagClass: 'bg-paper text-sage-ink border-dashed border-sage',
+    tagClass: 'bg-gradient-to-b from-[#FFFDFA] to-[#EBF1E0] text-[#55663F] border-[#B9C8A1]',
+    ruleClass: 'bg-[#ADBE93]/60',
+    pillBorderClass: 'border-[#BDCBA6]',
+    flapClass: 'bg-[#E2EAD3]',
     ornament: '❀',
   },
   {
@@ -56,7 +86,10 @@ export const THEMES: readonly TagTheme[] = [
     suitsColorToken: 'butter',
     seasonal: true,
     swatch: 'bg-gradient-to-br from-butter to-terra',
-    tagClass: 'bg-butter-soft text-butter-ink border-butter',
+    tagClass: 'bg-gradient-to-b from-[#FEF9E8] to-[#F8EACB] text-[#7E601C] border-[#EFD48B]',
+    ruleClass: 'bg-[#C96F4A]/45',
+    pillBorderClass: 'border-[#E0B573]',
+    flapClass: 'bg-[#F4E3B7]',
     ornament: '🍂',
   },
 ] as const;
@@ -67,22 +100,70 @@ export interface TagLayout {
   /** Tags per printed page. Thermal prints one at a time. */
   perPage: number;
   description: string;
+  /** Cards on a sheet sit in this many columns. */
+  columns: number;
+  /**
+   * Whether the card carries a fold-back base flap so it stands on a table.
+   *
+   * Paper does; adhesive does not. A sticker is worn, and a thermal label is
+   * peeled off its backing, so neither has anything to fold — offering them a
+   * crease would print a line nobody can use.
+   */
+  foldable: boolean;
+  /** The readable face, in millimetres. Excludes the flap. */
+  faceMm: { width: number; height: number };
+  /** Depth of the fold-back flap, in millimetres. Zero when not foldable. */
+  flapMm: number;
 }
 
+/**
+ * Sheet geometry.
+ *
+ * A4 is 210×297mm and `@page` takes a 10mm margin, leaving 190×277mm. Each
+ * standing card costs `faceMm.height + flapMm` of that, which is why the
+ * paper layouts hold fewer than the flat tags they replaced: the flap is real
+ * paper, not a drawn line.
+ */
 export const LAYOUTS: readonly TagLayout[] = [
-  { id: 'a4-8', label: 'A4 grid · 8 per page', perPage: 8, description: 'With faint trim marks' },
   {
-    id: 'a4-10',
-    label: 'A4 grid · 10 per page',
-    perPage: 10,
-    description: 'Tighter, smaller tags',
+    id: 'stand-a4-6',
+    label: 'A4 · 6 standing cards',
+    perPage: 6,
+    description: 'Folds to stand · 90×62mm',
+    columns: 2,
+    foldable: true,
+    faceMm: { width: 90, height: 62 },
+    flapMm: 20,
   },
-  { id: 'sticker', label: 'Sticker sheet', perPage: 10, description: 'Pre-cut label paper' },
+  {
+    id: 'stand-a4-4',
+    label: 'A4 · 4 standing cards',
+    perPage: 4,
+    description: 'Larger, bolder type',
+    columns: 2,
+    foldable: true,
+    faceMm: { width: 92, height: 95 },
+    flapMm: 24,
+  },
+  {
+    id: 'sticker',
+    label: 'Sticker sheet',
+    perPage: 10,
+    description: 'Pre-cut label paper · worn, not folded',
+    columns: 2,
+    foldable: false,
+    faceMm: { width: 90, height: 50 },
+    flapMm: 0,
+  },
   {
     id: 'thermal',
     label: 'Thermal · one at a time',
     perPage: 1,
     description: 'Desktop label printer',
+    columns: 1,
+    foldable: false,
+    faceMm: { width: 62, height: 44 },
+    flapMm: 0,
   },
 ] as const;
 

@@ -51,22 +51,64 @@ describe('themes', () => {
   });
 });
 
+describe('layouts', () => {
+  it('folds the paper layouts and not the adhesive ones', () => {
+    // A sticker is worn and a thermal label is peeled off its backing, so
+    // neither has anything to fold. Scoring them would print a dead line.
+    expect(layoutById('stand-a4-6').foldable).toBe(true);
+    expect(layoutById('stand-a4-4').foldable).toBe(true);
+    expect(layoutById('sticker').foldable).toBe(false);
+    expect(layoutById('thermal').foldable).toBe(false);
+  });
+
+  it('gives every foldable layout a flap with real depth', () => {
+    for (const layout of LAYOUTS.filter((option) => option.foldable)) {
+      expect(layout.flapMm).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives the flat layouts no flap at all', () => {
+    for (const layout of LAYOUTS.filter((option) => !option.foldable)) {
+      expect(layout.flapMm).toBe(0);
+    }
+  });
+
+  it('fits its stated cards inside an A4 sheet', () => {
+    // 210x297mm less the 10mm @page margin on each side.
+    const usable = { width: 190, height: 277 };
+
+    for (const layout of LAYOUTS.filter((option) => option.id.startsWith('stand-a4'))) {
+      const rows = Math.ceil(layout.perPage / layout.columns);
+      const width = layout.columns * layout.faceMm.width;
+      const height = rows * (layout.faceMm.height + layout.flapMm);
+
+      expect(width).toBeLessThanOrEqual(usable.width);
+      expect(height).toBeLessThanOrEqual(usable.height);
+    }
+  });
+});
+
 describe('pageCount', () => {
   it('fills whole pages', () => {
-    expect(pageCount(16, 'a4-8')).toBe(2);
+    expect(pageCount(12, 'stand-a4-6')).toBe(2);
   });
 
   it('rounds a partial page up', () => {
-    // 9 tags still needs a second sheet.
-    expect(pageCount(9, 'a4-8')).toBe(2);
+    // 7 cards still needs a second sheet at 6 per page.
+    expect(pageCount(7, 'stand-a4-6')).toBe(2);
   });
 
   it('is zero for an empty roster', () => {
-    expect(pageCount(0, 'a4-8')).toBe(0);
+    expect(pageCount(0, 'stand-a4-6')).toBe(0);
   });
 
   it('gives one page per tag on thermal', () => {
     expect(pageCount(8, 'thermal')).toBe(8);
+  });
+
+  it('needs more sheets once the flap takes space', () => {
+    // The same roster that fit on two flat 8-up sheets needs three now.
+    expect(pageCount(16, 'stand-a4-6')).toBe(3);
   });
 });
 
