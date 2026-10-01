@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   LAYOUTS,
+  cardSheetMm,
+  isFoldable,
   NAME_SIZES,
   THEMES,
   buildTags,
@@ -55,21 +57,24 @@ describe('layouts', () => {
   it('folds the paper layouts and not the adhesive ones', () => {
     // A sticker is worn and a thermal label is peeled off its backing, so
     // neither has anything to fold. Scoring them would print a dead line.
-    expect(layoutById('stand-a4-6').foldable).toBe(true);
-    expect(layoutById('stand-a4-4').foldable).toBe(true);
-    expect(layoutById('sticker').foldable).toBe(false);
-    expect(layoutById('thermal').foldable).toBe(false);
+    expect(isFoldable(layoutById('stand-a4-6'))).toBe(true);
+    expect(isFoldable(layoutById('stand-a4-4'))).toBe(true);
+    expect(isFoldable(layoutById('sticker'))).toBe(false);
+    expect(isFoldable(layoutById('thermal'))).toBe(false);
   });
 
-  it('gives every foldable layout a flap with real depth', () => {
-    for (const layout of LAYOUTS.filter((option) => option.foldable)) {
-      expect(layout.flapMm).toBeGreaterThan(0);
+  it('prints a tent at twice its face height', () => {
+    // The back of the fold is real paper. Anything that sizes a sheet off
+    // `faceMm` alone promises twice as many cards as fit.
+    for (const layout of LAYOUTS.filter((option) => option.fold === 'tent')) {
+      expect(cardSheetMm(layout).height).toBe(layout.faceMm.height * 2);
+      expect(cardSheetMm(layout).width).toBe(layout.faceMm.width);
     }
   });
 
-  it('gives the flat layouts no flap at all', () => {
-    for (const layout of LAYOUTS.filter((option) => !option.foldable)) {
-      expect(layout.flapMm).toBe(0);
+  it('costs a flat layout no extra paper', () => {
+    for (const layout of LAYOUTS.filter((option) => option.fold === null)) {
+      expect(cardSheetMm(layout)).toEqual(layout.faceMm);
     }
   });
 
@@ -78,12 +83,11 @@ describe('layouts', () => {
     const usable = { width: 190, height: 277 };
 
     for (const layout of LAYOUTS.filter((option) => option.id.startsWith('stand-a4'))) {
+      const sheet = cardSheetMm(layout);
       const rows = Math.ceil(layout.perPage / layout.columns);
-      const width = layout.columns * layout.faceMm.width;
-      const height = rows * (layout.faceMm.height + layout.flapMm);
 
-      expect(width).toBeLessThanOrEqual(usable.width);
-      expect(height).toBeLessThanOrEqual(usable.height);
+      expect(layout.columns * sheet.width).toBeLessThanOrEqual(usable.width);
+      expect(rows * sheet.height).toBeLessThanOrEqual(usable.height);
     }
   });
 });

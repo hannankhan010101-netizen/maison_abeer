@@ -15,6 +15,8 @@ import {
   LAYOUTS,
   THEMES,
   buildTags,
+  cardSheetMm,
+  isFoldable,
   layoutById,
   nameFontSize,
   pageCount,
@@ -244,7 +246,7 @@ function TagStudioInner({ now }: { now: Date }) {
                   {tags.length} tag{tags.length === 1 ? '' : 's'} · {pageCount(tags.length, layout)}{' '}
                   page
                   {pageCount(tags.length, layout) === 1 ? '' : 's'} · trim marks included
-                  {layoutById(layout).foldable ? ' · cut, then fold along the dashes' : null}
+                  {isFoldable(layoutById(layout)) ? ' · cut, then fold in half' : null}
                 </HandNote>
               </div>
 
@@ -357,13 +359,22 @@ export function TagSheet({
 }
 
 /**
- * One standing card: face, scored fold line, flap.
+ * One tent card: back panel, crease, front face.
  *
- * The flap is the whole point — fold it back along the crease and the card
- * stands up on the table instead of lying face-down where nobody can read
- * it. It is tinted a shade deeper than the face so the crease is findable at
- * a glance on a stack of forty, and it is tall enough to carry the card's
- * weight at roughly a right angle.
+ * Printed as a double-height sheet and folded once across the middle, so the
+ * card becomes a self-supporting triangle — the shape a place card has to be
+ * to survive a workshop bench. A shallow fold-back flap was tried first and
+ * is the wrong mechanism: it props the card at too steep an angle and tips at
+ * the first nudge of the table.
+ *
+ * The back panel prints rotated 180°, which is the old tent-card trick. Fold
+ * the top half backwards and its top edge becomes the bottom edge, so
+ * anything set the right way up there ends up upside down to someone standing
+ * behind the table.
+ *
+ * The name is on the front only. A tent folds for structure here, not to be
+ * read from both sides: the guest sits behind their own card, and the room
+ * reads the front.
  */
 function TagCard({
   tag,
@@ -376,7 +387,8 @@ function TagCard({
   layout: TagLayout;
   options: TagOptions;
 }) {
-  const nameSize = nameFontSize(tag.name);
+  const sheet = cardSheetMm(layout);
+  const tent = layout.fold === 'tent';
 
   return (
     <article
@@ -385,43 +397,54 @@ function TagCard({
         'shadow-[0_6px_16px_-12px_rgb(64_48_42/0.45)] print:shadow-none',
         theme.tagClass,
       )}
-      style={{ aspectRatio: `${layout.faceMm.width} / ${layout.faceMm.height + layout.flapMm}` }}
+      style={{ aspectRatio: `${sheet.width} / ${sheet.height}` }}
     >
-      {/* A hairline inset keyline — the thing that reads as "printed", not "boxed". */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-[5px] rounded-[13px] border border-current opacity-[0.18]"
-      />
-
       <TrimMarks />
 
       <div className="relative flex h-full flex-col">
-        <div className="flex min-h-0 flex-1 flex-col justify-center px-4 py-3">
-          {theme.ornament ? (
-            <span aria-hidden="true" className="absolute top-2.5 right-3 text-[15px] opacity-80">
-              {theme.ornament}
-            </span>
-          ) : null}
+        {tent ? <TentBackPanel theme={theme} /> : null}
+        {tent ? <Crease /> : null}
 
-          <span className="text-[9.5px] font-extrabold tracking-[0.2em] uppercase opacity-70">
-            Hello, I&rsquo;m
-          </span>
-
-          {/* Type scales down rather than wrapping (PRD §2.3). */}
-          <div className="font-display mt-0.5 leading-[1.08]" style={{ fontSize: `${nameSize}px` }}>
-            {tag.name}
-          </div>
-
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          {/* A pale bloom behind the name, so the type sits on light rather
+              than on flat colour. Kept faint enough to survive a cheap inkjet
+              without banding. */}
           <span
             aria-hidden="true"
-            className={cn('mt-1.5 block h-[2px] w-9 rounded-full', theme.ruleClass)}
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_15%,rgb(255_255_255/0.55),transparent_70%)]"
           />
 
-          {tag.subtext ? (
-            <div className="font-hand mt-1 text-[15px] leading-tight opacity-90">{tag.subtext}</div>
-          ) : null}
+          {/* Double keyline: a hairline edge with a dotted inner rule. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-[5px] rounded-[12px] border border-current opacity-[0.16]"
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-[9px] rounded-[9px] border border-dotted border-current opacity-[0.14]"
+          />
 
-          <div className="mt-auto flex items-end justify-between gap-2 pt-1.5">
+          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-3 text-center">
+            <span className="text-[9px] font-extrabold tracking-[0.26em] uppercase opacity-65">
+              Hello, I&rsquo;m
+            </span>
+
+            {/* Type scales down rather than wrapping (PRD §2.3). */}
+            <div
+              className="font-display mt-1 leading-[1.06]"
+              style={{ fontSize: `${nameFontSize(tag.name)}px` }}
+            >
+              {tag.name}
+            </div>
+
+            <OrnamentDivider theme={theme} />
+
+            {tag.subtext ? (
+              <div className="font-hand text-[15px] leading-tight opacity-90">{tag.subtext}</div>
+            ) : null}
+          </div>
+
+          <div className="relative flex items-end justify-between gap-2 px-3.5 pb-2.5">
             {tag.tableNumber !== null ? (
               <span
                 className={cn(
@@ -439,35 +462,62 @@ function TagCard({
             {options.showQrCode ? <QrPlaceholder /> : null}
           </div>
         </div>
-
-        {layout.foldable ? <FoldFlap theme={theme} layout={layout} /> : null}
       </div>
     </article>
   );
 }
 
 /**
- * The crease and the flap below it.
+ * The upper half of the sheet, which becomes the rear leg of the tent.
  *
- * The dashed rule is the scoring line, and the two notches sitting on it at
- * either edge are what a pair of scissors aims at before folding — the same
- * convention a printed invitation uses.
+ * Rotated 180° so it reads upright from behind the table once folded, and
+ * kept near-empty on purpose: this panel is the back of a place card, and the
+ * only thing worth putting there is whose studio it is.
  */
-function FoldFlap({ theme, layout }: { theme: TagTheme; layout: TagLayout }) {
+function TentBackPanel({ theme }: { theme: TagTheme }) {
   return (
     <div
       aria-hidden="true"
-      className={cn('relative shrink-0', theme.flapClass)}
-      style={{ height: `${(layout.flapMm / (layout.faceMm.height + layout.flapMm)) * 100}%` }}
+      className={cn(
+        'relative flex flex-1 rotate-180 items-center justify-center',
+        theme.backPanelClass,
+      )}
     >
-      <span className="absolute inset-x-0 top-0 border-t-[1.5px] border-dashed border-current opacity-40" />
-      <span className="absolute top-0 left-0 h-px w-2 -translate-y-px bg-current opacity-70" />
-      <span className="absolute top-0 right-0 h-px w-2 -translate-y-px bg-current opacity-70" />
+      <span className="text-center">
+        <span className="block text-[8.5px] font-extrabold tracking-[0.3em] uppercase opacity-45">
+          Maison Abeer
+        </span>
+        {theme.ornament ? (
+          <span className="mt-0.5 block text-[11px] opacity-50">{theme.ornament}</span>
+        ) : null}
+      </span>
 
-      <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[8px] font-extrabold tracking-[0.18em] uppercase opacity-45">
-        fold back to stand
+      <span className="absolute inset-x-0 bottom-1 text-center text-[7.5px] font-bold tracking-[0.2em] uppercase opacity-35">
+        fold here
       </span>
     </div>
+  );
+}
+
+/** The scoring line the card is folded along, notched at both edges. */
+function Crease() {
+  return (
+    <span aria-hidden="true" className="relative block h-0 shrink-0">
+      <span className="absolute inset-x-0 top-0 border-t-[1.5px] border-dashed border-current opacity-40" />
+      <span className="absolute top-0 left-0 h-px w-2.5 -translate-y-px bg-current opacity-70" />
+      <span className="absolute top-0 right-0 h-px w-2.5 -translate-y-px bg-current opacity-70" />
+    </span>
+  );
+}
+
+/** A small centred glyph between two rules — a place card, not a label. */
+function OrnamentDivider({ theme }: { theme: TagTheme }) {
+  return (
+    <span aria-hidden="true" className="my-1.5 flex items-center gap-1.5">
+      <i className={cn('block h-[1.5px] w-5 rounded-full', theme.ruleClass)} />
+      <i className="block text-[8px] opacity-55">{theme.ornament ?? '·'}</i>
+      <i className={cn('block h-[1.5px] w-5 rounded-full', theme.ruleClass)} />
+    </span>
   );
 }
 

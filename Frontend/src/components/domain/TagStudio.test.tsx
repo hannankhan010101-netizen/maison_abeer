@@ -120,12 +120,12 @@ describe('TagStudio', () => {
     expect(screen.getByText('Ayesha K.')).toBeInTheDocument();
   });
 
-  it('gives every card a fold-back flap so it stands on the table', async () => {
+  it('gives every card a crease so it folds into a standing tent', async () => {
     respond({ sessions: [session()], bookings: [booking('Sana R.'), booking('Ayesha K.')] });
     renderStudio();
 
     await screen.findByText('Sana R.');
-    expect(screen.getAllByText('fold back to stand')).toHaveLength(2);
+    expect(screen.getAllByText('fold here')).toHaveLength(2);
   });
 
   it('drops the crease for adhesive layouts, which cannot fold', async () => {
@@ -133,11 +133,11 @@ describe('TagStudio', () => {
     renderStudio();
 
     await screen.findByText('Sana R.');
-    expect(screen.getByText('fold back to stand')).toBeInTheDocument();
+    expect(screen.getByText('fold here')).toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText('Layout'), 'sticker');
 
-    expect(screen.queryByText('fold back to stand')).not.toBeInTheDocument();
+    expect(screen.queryByText('fold here')).not.toBeInTheDocument();
   });
 
   it('does not print a tag for a cancelled booking', async () => {
