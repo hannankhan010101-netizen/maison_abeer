@@ -63,10 +63,23 @@ export function WeekWrapped({ stats }: { stats: WeekStats }) {
           '-rotate-[1.3deg]',
         )}
       >
-        <div className="relative rounded-[18px] border-2 border-dashed border-white/75 p-5 text-[#4A2A33]">
+        {/* Same ink token as the story card in StudioWrapped: this card is a
+            screenshot artifact too, its gradient is built from pink/butter/sage
+            (shared across themes, so it never flips), and one card wants one
+            ink rather than a literal hex per component. */}
+        <div className="relative rounded-[18px] border-2 border-dashed border-white/75 p-5 text-[var(--color-wrapped-ink)]">
           <span
             aria-hidden="true"
-            className="font-hand absolute -top-3.5 right-3.5 rotate-3 text-lg text-white drop-shadow"
+            // Inherits the panel's ink rather than setting `text-white`: ADR 0002
+            // struck white-on-pastel from the whole palette (white on --pink was
+            // 1.86:1), and the 140deg axis puts this corner at ~52% of the ramp,
+            // i.e. on --butter, where white is 1.34:1. `-top-3.5` also overhangs
+            // the 5px gradient border onto the page background, where white is
+            // 1.05:1. The inherited ink measures 8.77:1 on pink, 12.16:1 on
+            // butter, 8.22:1 on sage. Caveat at 18px is not bold, so the bar is
+            // 4.5:1, not 3:1. `drop-shadow` stays for the sticker feel; a blurred
+            // halo contributes nothing measurable either way.
+            className="font-hand absolute -top-3.5 right-3.5 rotate-3 text-lg drop-shadow"
           >
             Screenshot me! →
           </span>

@@ -41,6 +41,8 @@
 
   --color-on-rose: var(--color-on-rose);
   --color-on-pink: var(--color-on-pink);
+  --color-on-sage: var(--color-on-sage);
+  --color-on-butter: var(--color-on-butter);
 
   --radius-lg: var(--radius-lg);
   --radius-md: var(--radius-md);
@@ -179,21 +181,13 @@
     font-family: var(--font-hand);
   }
 
-  /* Minimum 44px touch target (PRD §3.4), applied without changing layout. */
-  .tap-target {
-    position: relative;
-  }
-
-  .tap-target::after {
-    content: '';
-    position: absolute;
-    inset: 50% auto auto 50%;
-    translate: -50% -50%;
-    min-width: var(--tap-min);
-    min-height: var(--tap-min);
-    width: 100%;
-    height: 100%;
-  }
+  /*
+   * `.tap-target` lived here and was never used by a single component — the
+   * 44px floor is carried by `min-h-[44px]` at each call site, asserted by
+   * `e2e/mobile.spec.ts` against the rendered layout. A documented utility
+   * that nothing invokes is a trap: it reads as the mechanism enforcing the
+   * rule, so the next person reaches for it instead of the one that works.
+   */
 
   .animate-drift {
     animation: drift 16s ease-in-out infinite;

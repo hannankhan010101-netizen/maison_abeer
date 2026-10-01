@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
+import { useDismissable } from '@/lib/useDismissable';
 
 /**
  * The portal frame.
@@ -129,7 +130,20 @@ export function AppShell({ children, topBar }: AppShellProps) {
           {topBar}
         </header>
 
-        <main id="main" className="px-4 pb-28 sm:px-6 lg:px-10 lg:pb-16">
+        {/* Bottom padding clears the tab bar *and* the floating create button
+            above it (see `ui/Fab`), so the last row of a list is never
+            underneath either of them.
+
+            The home-indicator inset is *not* named here: `body` carries it
+            (`globals.css`) and `main` sits inside that padding box, so adding
+            it again counted it twice — 34px of dead scroll on a notched phone,
+            on top of the 160px this already reserves, on an app whose whole
+            problem is vertical room. Only surfaces outside the flow (the bars,
+            the Fab, the toast, the sheet) have to name it themselves. */}
+        <main
+          id="main"
+          className="px-4 pb-[calc(var(--tab-bar-host)+6rem)] sm:px-6 lg:px-10 lg:pb-16"
+        >
           {children}
         </main>
 
@@ -154,6 +168,11 @@ export function AppShell({ children, topBar }: AppShellProps) {
 function MobileTabs({ pathname }: { pathname: string }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
+  // Escape closes it, focus moves in and comes back to "More" on the way out,
+  // and Tab cannot walk out of the sheet into the tab bar underneath it —
+  // none of which it did before. Same hook the modal uses.
+  const sheetRef = useDismissable<HTMLDivElement>(moreOpen, () => setMoreOpen(false));
+
   const primary = PRIMARY_NAV.map((href) => NAV_ITEMS.find((item) => item.href === href)!).filter(
     Boolean,
   );
@@ -165,18 +184,35 @@ function MobileTabs({ pathname }: { pathname: string }) {
     <>
       {moreOpen ? (
         <>
-          {/* Tapping away closes it — the gesture people try first. */}
-          <button
-            type="button"
-            aria-label="Close menu"
+          {/* Tapping away closes it — the gesture people try first. A div, not
+              a button: Escape is the keyboard route out, and a focusable
+              full-screen "Close menu" control would be both an extra tab stop
+              and a second name for what the ✕ on "More" already does. */}
+          <div
+            aria-hidden="true"
             onClick={() => setMoreOpen(false)}
             className="bg-cocoa/30 fixed inset-0 z-30 lg:hidden"
           />
 
           <div
-            className="border-line bg-paper fixed inset-x-0 bottom-[68px] z-40 border-t-[1.5px] px-3 py-3 lg:hidden"
-            role="menu"
-            aria-label="More"
+            ref={sheetRef}
+            /* Pinned to the top of the tab bar by naming what it has to clear
+               rather than a number that has to be kept in step with it. The old
+               hardcoded 68px cleared a 64px bar in a browser with no inset and
+               covered the tabs on every phone that has one.
+
+               All three terms are needed. `--tab-bar-host` is only the bar's
+               *content* height; its box is that plus `border-t`, so naming the
+               height alone left this sheet's bottom edge resting on that border
+               — overlapY exactly 1.0 in Chromium at 375×812, one tick under an
+               occlusion guard that rejects above 1, which is why the guard that
+               exists for this defect passed. And the bar adds the
+               home-indicator inset below its content, so the sheet adds it too. */
+            className="border-line bg-paper fixed inset-x-0 bottom-[calc(var(--tab-bar-host)+var(--tab-bar-border)+env(safe-area-inset-bottom))] z-40 border-t-[length:var(--tab-bar-border)] px-3 py-3 lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="More sections"
+            tabIndex={-1}
           >
             <ul className="grid grid-cols-2 gap-2">
               {rest.map((item) => (
@@ -204,7 +240,9 @@ function MobileTabs({ pathname }: { pathname: string }) {
 
       <nav
         aria-label="Main"
-        className="border-line bg-paper fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] pb-[env(safe-area-inset-bottom)] lg:hidden"
+        /* The border is a token because the "More" sheet is positioned against
+           it; a literal here could drift from the calc that clears it. */
+        className="border-line bg-paper fixed inset-x-0 bottom-0 z-40 border-t-[length:var(--tab-bar-border)] pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <ul className="mx-auto flex max-w-[560px]">
           {primary.map((item) => {
@@ -216,7 +254,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex min-h-[64px] flex-col items-center justify-center gap-0.5 px-1 text-[12px] font-extrabold',
+                    'flex min-h-[var(--tab-bar-host)] flex-col items-center justify-center gap-0.5 px-1 text-[12px] font-extrabold',
                     active ? 'text-rose-ink' : 'text-latte',
                   )}
                 >
@@ -236,7 +274,7 @@ function MobileTabs({ pathname }: { pathname: string }) {
               aria-expanded={moreOpen}
               aria-label="More sections"
               className={cn(
-                'flex min-h-[64px] w-full flex-col items-center justify-center gap-0.5 px-1 text-[12px] font-extrabold',
+                'flex min-h-[var(--tab-bar-host)] w-full flex-col items-center justify-center gap-0.5 px-1 text-[12px] font-extrabold',
                 moreOpen || restIsActive ? 'text-rose-ink' : 'text-latte',
               )}
             >

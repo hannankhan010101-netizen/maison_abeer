@@ -174,11 +174,23 @@ export function BookingHero({
           </div>
           {/* A scrim, not a filter on the photo itself — the image stays
               crisp, the text above it gets guaranteed contrast regardless
-              of what's in the shot. Darker toward the bottom, where the
-              body copy and Instagram line sit. */}
+              of what's in the shot.
+
+              The lightest stop is the floor, not the darkest: the body copy
+              and Instagram line sit around the middle of the ramp, so the
+              old `via-black/35` there measured 2.07:1 and 1.86:1 over a
+              bright shot even though the bottom stop was fine. Two stops
+              now, both dark enough on their own — black/60 over a white
+              photo composites to #666666, 5.22:1 for photo-ink and exactly
+              3.00:1 for the CTA's `photo-ink/60` border — so the guarantee
+              holds at every pixel rather than at the bottom edge. black/55
+              is not enough (4.31:1 and 2.62:1), and a `via-black/60` would
+              be redundant. If this ever reads too heavy on the photograph,
+              add a local scrim behind the text block; do not lighten the
+              ramp back toward black/35. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/35 to-black/70"
+            className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/70"
           />
           {/* The dissolve: the last stretch of the hero fades all the way
               to the page's own background colour, so the seam into the
@@ -285,7 +297,11 @@ export function BookingHero({
         <p
           className={cn(
             'animate-rise-in mx-auto mt-4 max-w-[34ch] text-[15px] sm:text-base',
-            hasPhoto ? 'text-photo-ink/90' : 'text-cocoa',
+            // No `/90`. This block is vertically centred, i.e. mid-ramp, and
+            // the suffix is what put it out of reach even over a mid-grey
+            // photo; the photo/no-photo branch already carries the whole
+            // hierarchy this was buying.
+            hasPhoto ? 'text-photo-ink' : 'text-cocoa',
           )}
           style={{ animationDelay: `${80 + words.length * 110 + 100}ms` }}
         >
@@ -323,7 +339,10 @@ export function BookingHero({
           <p
             className={cn(
               'animate-rise-in mt-5 text-sm',
-              hasPhoto ? 'text-photo-ink/75' : 'text-latte',
+              // No `/75` either — at 14px the bar is 4.5:1 and the suffix
+              // measured 1.86:1 mid-ramp over a bright shot. `text-sm`
+              // against the clamped display headline is the de-emphasis.
+              hasPhoto ? 'text-photo-ink' : 'text-latte',
             )}
             style={{ animationDelay: `${80 + words.length * 110 + 260}ms` }}
           >

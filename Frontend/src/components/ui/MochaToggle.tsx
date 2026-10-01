@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { THEME_COLOR } from '@/styles/themeColor';
+
 /**
  * Late-night mocha mode.
  *
@@ -12,6 +14,13 @@ import { useEffect, useState } from 'react';
 
 export const MOCHA_STORAGE_KEY = 'maison-abeer-mocha';
 
+/*
+ * The pair lives in `styles/themeColor.ts`, not here: the manifest and the
+ * tests that hold it against tokens.css need it without pulling in a client
+ * component. Re-exported so this file stays the obvious place to find it.
+ */
+export { THEME_COLOR };
+
 export function isMochaEnabled(): boolean {
   if (typeof document === 'undefined') return false;
   return document.documentElement.classList.contains('mocha');
@@ -19,6 +28,7 @@ export function isMochaEnabled(): boolean {
 
 export function setMocha(enabled: boolean): void {
   document.documentElement.classList.toggle('mocha', enabled);
+  setThemeColorMeta(enabled);
 
   try {
     localStorage.setItem(MOCHA_STORAGE_KEY, enabled ? 'on' : 'off');
@@ -26,6 +36,27 @@ export function setMocha(enabled: boolean): void {
     // Private browsing can refuse storage; the toggle should still work for
     // this session rather than throwing.
   }
+}
+
+/**
+ * Retint the browser's own chrome to match the chosen theme.
+ *
+ * `app/layout.tsx` declares `themeColor` against `prefers-color-scheme`, which
+ * is the wrong signal here: dark mode in this app is the `.mocha` class a host
+ * picks, not an OS setting. A host on mocha with a light phone got a cream
+ * status bar above a dark brown app — most visible of all once installed to
+ * the home screen, where the chrome is the only thing framing it.
+ */
+function setThemeColorMeta(enabled: boolean): void {
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
+
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+
+  meta.content = enabled ? THEME_COLOR.mocha : THEME_COLOR.light;
 }
 
 /**
@@ -37,6 +68,10 @@ try {
   var v = localStorage.getItem('${MOCHA_STORAGE_KEY}');
   var dark = v === 'on' || (v === null && matchMedia('(prefers-color-scheme: dark)').matches);
   if (dark) document.documentElement.classList.add('mocha');
+  var m = document.createElement('meta');
+  m.name = 'theme-color';
+  m.content = dark ? '${THEME_COLOR.mocha}' : '${THEME_COLOR.light}';
+  document.head.appendChild(m);
 } catch (e) {}
 `.trim();
 

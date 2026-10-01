@@ -440,7 +440,18 @@ function PendingRow({ body }: { body: string }) {
         <div
           className={cn(
             'text-on-rose inline-block rounded-[var(--radius-lg)] rounded-br-[6px] px-3.5 py-2 text-left text-[15px]',
-            'bg-[image:var(--chat-bubble-you)] opacity-60',
+            // No element opacity on the pending bubble: `opacity` composites the
+            // whole group, so 0.6 moves the ink AND the fill toward the page at
+            // once and --color-on-rose's 4.80:1 (rose end) collapses to 2.13:1 on
+            // paper, 2.15:1 on buttercream, 3.00:1 in mocha — under PRD §3.4's
+            // 4.5:1 for this 15px body. The "Sending…" caption below is the state
+            // signal; it does not need a fade to say the same thing less legibly.
+            // `animate-pulse` is not an alternative — it animates `opacity` and
+            // reintroduces the identical bug at its trough. If this ever needs a
+            // stronger "in flight" cue, vary something that is neither ink nor
+            // fill: the bubble already sits flat here while settled ones carry
+            // `--chat-bubble-shadow`.
+            'bg-[image:var(--chat-bubble-you)]',
           )}
         >
           {body}
@@ -544,7 +555,15 @@ function MessageRow({
             <span
               className={cn(
                 'ml-2 align-baseline text-[10.5px] font-bold whitespace-nowrap',
-                mine ? 'text-on-rose/70' : 'text-latte',
+                // No `/70` on the timestamp. The guarantee tokens.css documents
+                // beside --chat-bubble-you — "bounded by two colours already
+                // proven against the same ink" — is a proof for the ink at full
+                // strength, and an alpha suffix spends it: 2.91:1 on the rose end
+                // and 3.53:1 on the pink end in light, 3.34:1/3.35:1 in mocha,
+                // against 4.80:1/6.73:1 and 5.75:1/5.77:1 at full opacity. At
+                // 10.5px the bar is 4.5:1, not 3:1. Being 10.5px against 15px
+                // body text is already the de-emphasis this needed.
+                mine ? 'text-on-rose' : 'text-latte',
               )}
               suppressHydrationWarning
             >

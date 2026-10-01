@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { AddGuestModal } from '@/components/domain/AddGuestModal';
 import { GuestRow } from '@/components/domain/GuestRow';
@@ -9,6 +9,7 @@ import { SessionRoster } from '@/components/domain/SessionRoster';
 import { Button } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { Fab } from '@/components/ui/Fab';
 import { Icing } from '@/components/ui/Icing';
 import { useGuests, useSessions } from '@/lib/api/hooks';
 import { ApiError } from '@/lib/api/errors';
@@ -40,6 +41,21 @@ export function GuestList({ now: nowProp }: GuestListProps) {
 
 function GuestListInner({ now }: { now: Date }) {
   const [search, setSearch] = useState('');
+
+  /*
+   * The field stays instant; the query waits a beat.
+   *
+   * `useGuests` was keyed on every keystroke. React Query passes an abort
+   * signal, so the requests did not pile up — but the list re-rendered its
+   * loading state on each letter, which on a phone reads as a list flickering
+   * under your thumb while you type.
+   */
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [filter, setFilter] = useState<Filter>('all');
   const [adding, setAdding] = useState(false);
 
@@ -57,7 +73,7 @@ function GuestListInner({ now }: { now: Date }) {
   );
 
   const query = useGuests({
-    search: search.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
     regularsOnly: filter === 'regulars',
   });
 
@@ -74,7 +90,9 @@ function GuestListInner({ now }: { now: Date }) {
           </p>
         </div>
 
-        <Button className="w-full sm:w-auto" onClick={() => setAdding(true)}>
+        {/* Below `lg` this moves into the thumb zone as a `Fab` — the same
+            action with the same name, not a second one. */}
+        <Button className="hidden lg:inline-flex" onClick={() => setAdding(true)}>
           + Add a guest
         </Button>
       </div>
@@ -129,10 +147,14 @@ function GuestListInner({ now }: { now: Date }) {
       <Card>
         <GuestListBody
           query={query}
-          searching={Boolean(search.trim())}
+          // The debounced value, so "No one by that name" cannot appear for a
+          // search the list has not actually run yet.
+          searching={Boolean(debouncedSearch.trim())}
           regularsOnly={filter === 'regulars'}
         />
       </Card>
+
+      <Fab label="Add a guest" onClick={() => setAdding(true)} />
 
       <AddGuestModal open={adding} onClose={() => setAdding(false)} />
     </section>
@@ -218,7 +240,9 @@ function GuestListBody({
       <ul aria-label="Guests">
         {guests.map((guest) => (
           <li key={guest.id}>
-            <GuestRow guest={guest} />
+            {/* A navigation list, so the row is the target. The roster's rows
+                deliberately do not pass this — see `GuestRow`. */}
+            <GuestRow guest={guest} linkWholeRow />
           </li>
         ))}
       </ul>

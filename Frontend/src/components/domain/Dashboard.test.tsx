@@ -354,6 +354,38 @@ describe('Dashboard', () => {
     expect(await screen.findByText("1 message didn't send")).toBeInTheDocument();
   });
 
+  it('puts a critical alert ahead of the next-up card', async () => {
+    respond({ sessions: [session()], failed: [failedMessage()] });
+
+    renderDashboard();
+
+    const alert = await screen.findByText("1 message didn't send");
+    const nextUp = screen.getByText(/next up/i);
+
+    /*
+     * DOM order is reading order on a phone, where this grid is a single
+     * column — so this is the whole of the guarantee being made.
+     *
+     * It used to fail: `buildAlerts` sorted critical-first, and then the
+     * layout rendered the alerts column after the next-up card, which put
+     * "N messages didn't send" below the fold on a 812px screen underneath a
+     * card the host had already read.
+     */
+    const order = alert.compareDocumentPosition(nextUp);
+    expect(order & Node.DOCUMENT_POSITION_FOLLOWING, 'the alert is below the card').toBeTruthy();
+  });
+
+  it('says nothing *else* needs the host when something urgent is already up', async () => {
+    respond({ sessions: [session()], failed: [failedMessage()] });
+
+    renderDashboard();
+    await screen.findByText("1 message didn't send");
+
+    // "All quiet — nothing needs you right now" directly under a red card
+    // would contradict itself.
+    expect(screen.getByText(/Nothing else needs you right now/)).toBeInTheDocument();
+  });
+
   it('retries a failed send without leaving the page', async () => {
     respond({ sessions: [session()], failed: [failedMessage({ id: 'msg-42' })] });
 

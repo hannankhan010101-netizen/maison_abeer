@@ -1,101 +1,80 @@
 'use client';
 
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
+import { useDismissable } from '@/lib/useDismissable';
 
 /**
  * A modal dialog.
  *
  * Hand-rolled rather than pulled from a library because the behaviour is
- * small and the accessibility requirements are specific: focus must move in
- * and be trapped, Escape must close, the page behind must not scroll, and
- * focus must return to whatever opened it.
+ * small and the accessibility requirements are specific — all of which now
+ * live in `useDismissable`, shared with the phone navigation's sheet.
+ *
+ * On a phone it is a bottom sheet, not a centred card. A centred dialog puts
+ * its primary action in the middle of the screen, which on a 812px phone is
+ * roughly 400px from where a one-handed thumb rests; rising from the bottom
+ * edge instead puts the action where the hand already is, and is what every
+ * phone OS does with its own sheets. From `sm` up it is the centred card it
+ * has always been.
  */
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
-  /** Buttons, rendered bottom-right. */
+  /** Buttons, rendered bottom-right on desktop and stacked on a phone. */
   footer?: ReactNode;
+  /**
+   * The last footer child is destructive, so the *safe* action goes lowest.
+   *
+   * ADR 0003 decision 4 stacks the footer in DOM order because every footer is
+   * written secondary-first, which puts the primary action nearest the thumb.
+   * `CancelBookingModal` is the one exception in the app: its last child is the
+   * `danger` button, so the default would make "Cancel the seat" the lowest,
+   * full-width control in a sheet resting on the screen edge, with the escape
+   * hatch further from the thumb. Opt in and the column reverses below `sm`.
+   *
+   * Below `sm` only. Reversing the desktop row as well would put the visual
+   * order out of step with Tab and the reading order for keyboard users, who
+   * are overwhelmingly at desktop width; the hazard being fixed is a thumb.
+   */
+  destructiveFooterAction?: boolean;
   className?: string;
 }
 
-export function Modal({ open, onClose, title, children, footer, className }: ModalProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const returnFocusTo = useRef<HTMLElement | null>(null);
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  destructiveFooterAction = false,
+  className,
+}: ModalProps) {
+  const dialogRef = useDismissable<HTMLDivElement>(open, onClose);
 
-  const focusables = useCallback(
-    () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []),
-    [],
-  );
-
-  // Remember what had focus, move into the dialog, and restore on close —
-  // otherwise a keyboard user is dumped back at the top of the document.
-  useEffect(() => {
-    if (!open) return;
-
-    returnFocusTo.current = document.activeElement as HTMLElement | null;
-    const first = focusables()[0] ?? dialogRef.current;
-    first?.focus();
-
-    return () => returnFocusTo.current?.focus();
-  }, [open, focusables]);
-
-  // The page behind a modal must not scroll under it.
-  useEffect(() => {
-    if (!open) return;
-
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key !== 'Tab') return;
-
-      // Trap: wrap focus at both ends rather than escaping to the page.
-      const items = focusables();
-      if (items.length === 0) return;
-
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose, focusables]);
+  // `useId`, not a hardcoded "modal-title". `Modal` cannot see its call sites,
+  // and not every one keeps its dialogs on a single discriminant the way
+  // `SessionDetail` does: `SessionRoster` drives `BookSomeoneInModal` and
+  // `CancelBookingModal` off two independent flags, where only the focus trap
+  // and the backdrop stop both being open at once. A generated id costs
+  // nothing and does not depend on that staying true.
+  const titleId = useId();
 
   if (!open) return null;
 
   return (
     <div
-      className="bg-cocoa/40 fixed inset-0 z-50 grid place-items-center p-4 backdrop-blur-[3px]"
+      className={cn(
+        'bg-cocoa/40 fixed inset-0 z-50 grid backdrop-blur-[3px]',
+        // Phone: pinned to the bottom edge, full width, no outer padding.
+        'items-end justify-items-center',
+        // Desktop: the centred card.
+        'sm:place-items-center sm:p-4',
+      )}
       // Clicking the backdrop closes; clicking inside must not.
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -105,21 +84,59 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          'max-h-[90vh] w-[min(460px,100%)] overflow-y-auto rounded-[var(--radius-lg)]',
+          /*
+           * `dvh`, not `vh`.
+           *
+           * `vh` is measured against the viewport with the browser toolbar
+           * and the keyboard ignored, so `90vh` on a focused form is taller
+           * than the space actually available — and the submit button ends up
+           * behind the keyboard with no scroll offset able to reveal it.
+           * `ChatThread` already documents this trap; the modal was still
+           * falling into it.
+           */
+          'max-h-[90dvh] overflow-y-auto',
           'bg-paper p-6 shadow-[var(--shadow-soft)]',
+          // Phone: a sheet. Only the top corners are round — the bottom two
+          // sit off the edge of the screen.
+          'w-full rounded-t-[var(--radius-lg)]',
+          'pb-[max(1.5rem,env(safe-area-inset-bottom))]',
+          // Desktop: unchanged.
+          'sm:w-[min(460px,100%)] sm:rounded-[var(--radius-lg)] sm:pb-6',
           className,
         )}
       >
-        <h2 id="modal-title" className="font-display mb-4 text-xl">
+        <h2 id={titleId} className="font-display mb-4 text-xl">
           {title}
         </h2>
 
         {children}
 
-        {footer ? <div className="mt-4 flex flex-wrap justify-end gap-2.5">{footer}</div> : null}
+        {footer ? (
+          /*
+           * A full-width column on a phone.
+           *
+           * Every footer in the app is written secondary-first and primary
+           * last, because on desktop they read left to right into a
+           * `justify-end` row. Stacking in that same order puts the primary
+           * action lowest — nearest the thumb, and the last thing above the
+           * keyboard — so no call site has to reorder itself for mobile.
+           *
+           * That reasoning inverts for the one footer whose last child is
+           * destructive; `destructiveFooterAction` above is how that call site
+           * says so, rather than reordering its own children.
+           */
+          <div
+            className={cn(
+              'mt-4 flex gap-2.5 sm:flex-wrap sm:justify-end [&>*]:w-full sm:[&>*]:w-auto',
+              destructiveFooterAction ? 'flex-col-reverse sm:flex-row' : 'flex-col sm:flex-row',
+            )}
+          >
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );

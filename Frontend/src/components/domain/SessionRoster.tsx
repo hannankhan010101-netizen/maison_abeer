@@ -251,6 +251,12 @@ function CancelBookingModal({
       open
       onClose={onClose}
       title={`cancel ${booking.guest.full_name}'s seat`}
+      /* The only `variant="danger"` footer in the app: below `sm` this dialog
+         is a sheet on the screen edge, and the default stacking would put
+         "Cancel the seat" lowest — the easiest control in it to hit by mistake,
+         with "Keep the booking" further from the thumb. Children stay in DOM
+         order, so desktop is unchanged. */
+      destructiveFooterAction
       footer={
         <>
           <Button variant="secondary" type="button" onClick={onClose}>

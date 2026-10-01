@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -251,9 +251,107 @@ describe('CalendarView', () => {
     renderCalendar();
     await screen.findAllByText(/Nothing scheduled/);
 
+    /*
+     * A control clears the floor either by declaring a min-height or by being
+     * a fixed square at least that big. Asserting the literal `min-h-[44px]`
+     * would reject a 56px square for not saying 44 — the square arm is
+     * forward-looking, though: every control this tree renders today clears the
+     * floor through `min-h-[44px]`, and the `size-14` one (`ui/Fab`) is a
+     * sibling of the calendar, not part of it.
+     *
+     * `min-h-[var(--tap-min)]` is the more correct spelling of the same floor —
+     * `--tap-min: 44px` in `styles/tokens.css`, asserted at >= 44 by
+     * `styles/tokens.test.ts` — so it counts even though nothing emits it yet.
+     */
     for (const button of screen.getAllByRole('button')) {
-      expect(button).toHaveClass('min-h-[44px]');
+      const classes = button.className;
+      /*
+       * Deliberately variant-blind: `\b` used to match after the `:` in a
+       * variant, so `sm:size-11` satisfied a check that exists only to speak
+       * about phone width. Only an unprefixed `size-*` says anything about
+       * 375px.
+       */
+      const square = classes.match(/(?:^|\s)size-(\d+)(?=\s|$)/);
+
+      const clears =
+        classes.includes('min-h-[44px]') ||
+        classes.includes('min-h-[var(--tap-min)]') ||
+        (square ? Number(square[1]) * 4 >= 44 : false);
+
+      expect(clears, `undersized control: ${classes.slice(0, 80)}`).toBe(true);
     }
+  });
+
+  /*
+   * The week swipe, which nothing dispatched a pointer event at before.
+   *
+   * jsdom implements no `PointerEvent`, so these are `MouseEvent`s typed as
+   * pointer events with the two fields the handler reads bolted on. React
+   * dispatches by event *name*, and its synthetic event copies `pointerId` and
+   * `pointerType` straight off the native one, so the handler sees exactly what
+   * a browser would hand it.
+   */
+  describe('the week swipe', () => {
+    function pointer(
+      type: 'pointerdown' | 'pointerup' | 'pointercancel',
+      { id, x, y = 100 }: { id: number; x: number; y?: number },
+    ) {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+      });
+      Object.assign(event, { pointerId: id, pointerType: 'touch' });
+      return event;
+    }
+
+    async function agenda() {
+      respondWith([]);
+      const { container } = renderCalendar();
+      await screen.findAllByText(/Nothing scheduled/);
+
+      // The phone layout's list — the only element the gesture is wired to.
+      return container.querySelector('ol')!;
+    }
+
+    it('ignores a second finger resting on the list', async () => {
+      const list = await agenda();
+
+      /*
+       * One-handed: the base of the thumb lands on the left edge of the list
+       * while the index finger taps a chip on the right. With one shared start
+       * point the finger that lifted first was diffed against the other's
+       * origin — dx 310, dy 0, both guards passed — so tapping a single class
+       * rewound the week while `onSelect` navigated.
+       */
+      fireEvent(list, pointer('pointerdown', { id: 2, x: 330 }));
+      fireEvent(list, pointer('pointerdown', { id: 1, x: 20 }));
+      fireEvent(list, pointer('pointerup', { id: 2, x: 330 }));
+
+      expect(screen.getByText(/Tue 4 · today/)).toBeInTheDocument();
+    });
+
+    it('still swipes after the browser cancels a scroll', async () => {
+      const list = await agenda();
+
+      // A vertical scroll: Chrome claims the touch and ends it with
+      // `pointercancel`, never `pointerup`. The start point has to go with it,
+      // or the "already tracking" guard latches and no swipe starts again.
+      fireEvent(list, pointer('pointerdown', { id: 1, x: 300 }));
+      fireEvent(list, pointer('pointercancel', { id: 1, x: 300, y: 300 }));
+      expect(screen.getByText(/Tue 4 · today/)).toBeInTheDocument();
+
+      // And a decisive drag with the ~30px of drift a thumb arc produces still
+      // changes the week.
+      fireEvent(list, pointer('pointerdown', { id: 1, x: 300, y: 100 }));
+      fireEvent(list, pointer('pointerup', { id: 1, x: 200, y: 130 }));
+
+      // Both layouts render from the one dataset, so the new week's days appear
+      // twice — in the agenda and in the grid's column headers.
+      expect(await screen.findAllByText(/Tue 11/)).not.toHaveLength(0);
+      expect(screen.queryByText(/Tue 4 · today/)).not.toBeInTheDocument();
+    });
   });
 
   it('opens the class rather than jumping into a seat editor', async () => {

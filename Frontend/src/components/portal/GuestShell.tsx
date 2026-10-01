@@ -44,6 +44,8 @@ export function GuestShell({ children }: { children: ReactNode }) {
   if (isOpenThread(pathname)) {
     return (
       <ApiProvider unauthorizedRedirectTo="/enter">
+        {/* No `offsetClassName`: an open thread renders no tab bar, so the
+            toast keeps its plain 1rem inset above the composer. */}
         <ToastProvider>
           <ClaimOnFirstVisit />
           {/* The thread owns the viewport and does its own scrolling. */}
@@ -55,10 +57,15 @@ export function GuestShell({ children }: { children: ReactNode }) {
 
   return (
     <ApiProvider unauthorizedRedirectTo="/enter">
-      <ToastProvider>
+      <ToastProvider offsetClassName="[--tab-bar-h:var(--tab-bar-guest)]">
         <ClaimOnFirstVisit />
 
-        <div className="mx-auto w-full max-w-[720px] px-4 pb-24 sm:px-6">
+        {/* Derived from the guest bar's own height, not remembered as `pb-24`:
+            24px of clearance above a 56px bar plus its border, with the
+            home-indicator inset left to `body` (`globals.css`), which is the
+            one owner of it for in-flow content. The remembered number cleared
+            the bar by 6px on a notched phone. */}
+        <div className="mx-auto w-full max-w-[720px] px-4 pb-[calc(var(--tab-bar-guest)+1.5rem)] sm:px-6">
           <header className="flex items-center justify-between py-4">
             {/* inline-flex + min-height: a 28px link is a real target on a
                 phone, not a decorative wordmark. */}
@@ -130,7 +137,7 @@ function GuestNav() {
   return (
     <nav
       aria-label="Main"
-      className="border-line bg-paper fixed inset-x-0 bottom-0 border-t-[1.5px] pb-[env(safe-area-inset-bottom)]"
+      className="border-line bg-paper fixed inset-x-0 bottom-0 border-t-[length:var(--tab-bar-border)] pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto flex max-w-[720px]">
         {NAV.map((item) => {
@@ -145,7 +152,7 @@ function GuestNav() {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-extrabold',
+                  'flex min-h-[var(--tab-bar-guest)] flex-col items-center justify-center gap-0.5 text-xs font-extrabold',
                   active ? 'text-rose-ink' : 'text-latte',
                 )}
               >

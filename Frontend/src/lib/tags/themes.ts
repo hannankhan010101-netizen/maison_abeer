@@ -41,6 +41,28 @@ export interface TagTheme {
   pillBorderClass: string;
   /** The tent's rear panel, a shade deeper so the crease reads as a crease. */
   backPanelClass: string;
+  /**
+   * Ink for the rear panel's type.
+   *
+   * The back panel used to inherit `tagClass`'s face ink and dim it with
+   * Tailwind opacity, which put "fold here" at 1.58-1.72:1 on its own panel --
+   * and coquette's face ink tops out at 4.47:1 there even undimmed, so no
+   * opacity value could have rescued it. Per ADR 0002 the fix is a deeper ink,
+   * never a changed fill: the pastel panels identify the class type.
+   *
+   * The four land in a deliberately tight 5.37-5.43:1 band so no theme's back
+   * reads louder than another's on the same sheet. The quietness this panel
+   * wants comes from the 7.5-8.5px type and 0.2-0.3em tracking it already has,
+   * not from alpha; ~5.4 rather than a bare 4.6 because these are printed, and
+   * inkjet dot gain on 8px glyphs eats a margin no screen measurement sees.
+   *
+   * Do not re-dim these to "soften" the panel: 0.85 drops all four to
+   * 3.95-3.99:1 and fails §3.4 again.
+   *
+   * Literal hex for the same reason as `tagClass` — `.mocha` re-points the
+   * tokens and a printed card has no colour scheme.
+   */
+  backInkClass: string;
   ornament?: string;
 }
 
@@ -55,6 +77,7 @@ export const THEMES: readonly TagTheme[] = [
     ruleClass: 'bg-[#E2849E]/55',
     pillBorderClass: 'border-[#E6A3B6]',
     backPanelClass: 'bg-[#F6D6DF]',
+    backInkClass: 'text-[#7A4856]', // 5.40:1 on #F6D6DF
     ornament: '🎀',
   },
   {
@@ -67,6 +90,7 @@ export const THEMES: readonly TagTheme[] = [
     ruleClass: 'bg-[#C96F4A]/50',
     pillBorderClass: 'border-[#CE9A77]',
     backPanelClass: 'bg-[#E1CAB2]',
+    backInkClass: 'text-[#5F483A]', // 5.37:1 on #E1CAB2
   },
   {
     id: 'pastel',
@@ -78,6 +102,7 @@ export const THEMES: readonly TagTheme[] = [
     ruleClass: 'bg-[#ADBE93]/60',
     pillBorderClass: 'border-[#BDCBA6]',
     backPanelClass: 'bg-[#E2EAD3]',
+    backInkClass: 'text-[#565F49]', // 5.42:1 on #E2EAD3
     ornament: '❀',
   },
   {
@@ -91,6 +116,7 @@ export const THEMES: readonly TagTheme[] = [
     ruleClass: 'bg-[#C96F4A]/45',
     pillBorderClass: 'border-[#E0B573]',
     backPanelClass: 'bg-[#F4E3B7]',
+    backInkClass: 'text-[#64593F]', // 5.43:1 on #F4E3B7
     ornament: '🍂',
   },
 ] as const;

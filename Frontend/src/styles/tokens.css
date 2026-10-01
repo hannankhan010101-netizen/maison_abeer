@@ -49,7 +49,18 @@
      chosen, because the thing guaranteeing its contrast is the scrim, not
      the site theme. Using `--color-buttercream` for that text was the bug:
      in mocha it resolves to near-black, on near-black photo shadows. */
-  --color-photo-ink: #fbf3e7; /* @a11y 14.1:1 against the hero scrim's black/70 */
+  --color-photo-ink: #fbf3e7; /* @a11y 5.22:1 against the hero scrim's lightest stop (black/60) over a white photo — the old note measured the black/70 bottom stop, which is not where the body copy sits */
+
+  /* Same opt-out as `--color-photo-ink` above, for the two Wrapped cards: the
+     thing guaranteeing their contrast is the card's own pastel gradient, not
+     the site theme, so this ink must not flip in mocha. Promoted out of the
+     `text-[#4A2A33]` literals it replaces so that contrast.test.ts can see it
+     at all — a hex in a component is invisible to the guard, which is how
+     1.03:1 shipped on the mocha story card.
+     @a11y 4.56:1 on terra, the darkest stop any slide draws · 6.25:1 rose ·
+     8.22:1 sage · 8.77:1 pink · 12.16:1 butter · 12.38:1 terra-soft ·
+     13.79:1 blush · 13.90:1 sage-soft (was #4A2A33, 3.51:1 on terra) */
+  --color-wrapped-ink: #2e1a20;
   --color-danger: #bb463d; /* allergy chip ink · @a11y 4.53:1 on danger-soft (was #C4534B, 3.92:1) */
   --color-danger-soft: #fdecea;
   --color-danger-line: #f2c4c0;
@@ -59,6 +70,15 @@
      pink. Cocoa on the same untouched fills gives 4.80:1 and 6.73:1. */
   --color-on-rose: var(--color-cocoa); /* @a11y 4.80:1 */
   --color-on-pink: var(--color-cocoa); /* @a11y 6.73:1 */
+
+  /* `--color-sage` and `--color-butter` are shared across themes for the same
+     reason rose and pink are — they identify a craft — so ink placed on them
+     needs the same treatment, and reaching for raw `--color-cocoa` instead is
+     a dark-mode bug waiting: cocoa flips to #F4E9DF and CraftStrip's craft
+     name measured 1.66:1 on sage and 1.12:1 on butter in mocha while light
+     mode sat at a comfortable 6.31:1 and 9.33:1. */
+  --color-on-sage: var(--color-cocoa); /* @a11y 6.31:1 */
+  --color-on-butter: var(--color-cocoa); /* @a11y 9.33:1 */
 
   /* ---- shape ------------------------------------------------------------- */
   --radius-lg: 22px;
@@ -94,6 +114,23 @@
 
   /* ---- touch ------------------------------------------------------------- */
   --tap-min: 44px; /* PRD §3.4 — in-studio use with clay-dusted fingers */
+
+  /* The two fixed bottom bars, named here because three things have to agree
+     on each number: the bar's own height, anything pinned above it (the "More"
+     sheet, the floating create button), and the toast, which is rendered as a
+     sibling of the shell and so cannot measure it. They disagreed once — the
+     sheet was pinned at 68px above a 64px bar that also adds
+     `env(safe-area-inset-bottom)`, so on a phone with a home indicator the
+     sheet sat on top of the tabs it was supposed to clear.
+
+     Read the three carefully: the host/guest tokens are the bar's CONTENT
+     height — each tab's `min-height` — and the border is the rest of its box.
+     Anything pinned flush above a bar has to add both. Naming the height alone
+     left the "More" sheet sitting on the bar's top border, 1.0px of overlap
+     under a guard that only rejects above 1. */
+  --tab-bar-host: 64px; /* five tabs + "More" */
+  --tab-bar-guest: 56px; /* two tabs */
+  --tab-bar-border: 1.5px; /* both bars' `border-t` */
 }
 
 /* ==========================================================================
@@ -127,6 +164,8 @@
   /* Filled buttons keep dark ink in mocha — the fills stay light. */
   --color-on-rose: #3a1e28; /* @a11y 5.75:1 */
   --color-on-pink: #3a1e28; /* @a11y 5.77:1 */
+  --color-on-sage: #3a1e28; /* @a11y 7.57:1 */
+  --color-on-butter: #3a1e28; /* @a11y 11.19:1 */
 
   --shadow-soft: 0 10px 24px -14px rgb(0 0 0 / 60%);
 
@@ -135,6 +174,32 @@
      rather than letting it inherit keeps that guarantee in dark mode too. */
   --chat-bubble-you: linear-gradient(135deg, var(--color-rose) 0%, var(--color-pink) 100%);
   --chat-bubble-shadow: 0 4px 14px -6px rgb(0 0 0 / 55%);
+}
+
+/* ==========================================================================
+   The Wrapped story card opts out of mocha — both sides of the pair.
+
+   The 9:16 card exists to be screenshotted, so what guarantees its contrast
+   is its own gradient, not the site theme. `--color-photo-ink` above is this
+   same bug from the other direction: there the ink followed the theme onto a
+   fixed scrim; here the *surface* flipped under a fixed ink. Five of the nine
+   slides name a stop `.mocha` redefines dark (`blush` #3A2A2C, `terra-soft`
+   #3E2E24, `sage-soft` #2E3326), which put the card's dark ink at 1.03:1 —
+   invisible, and unreachable by contrast.test.ts, which walks token names and
+   cannot see a hex in a component.
+
+   Pinned to the light values rather than re-stopped: ADR 0002 leaves the
+   pastel fills untouched, and all nine gradients keep their designed colours
+   in both themes this way. `@theme inline` means the `from-*`/`via-*`/`to-*`
+   utilities read these vars at the element, so pinning them here is enough —
+   src/lib/wrapped/stats.ts is not touched. rose/terra/sage/butter are already
+   shared across themes and need no pin.
+   ========================================================================== */
+.wrapped-slide {
+  --color-blush: #fbe7ea;
+  --color-pink: #f2aabe;
+  --color-terra-soft: #f3dccb;
+  --color-sage-soft: #e9efdd;
 }
 
 /* ==========================================================================

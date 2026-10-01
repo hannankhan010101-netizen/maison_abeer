@@ -425,7 +425,16 @@ function TagCard({
           />
 
           <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-3 text-center">
-            <span className="text-[9px] font-extrabold tracking-[0.26em] uppercase opacity-65">
+            {/* No opacity here. At 0.65 this measured 2.58-3.15:1 on the
+                gradient's darker stop — 9px is normal text under 1.4.3, so
+                there is no large-text relief, and this line is the card's only
+                cue that the big word is a name and not a table label. Full ink
+                gives 4.81-6.86:1, and the eyebrow stays subordinate on size,
+                weight and tracking alone (9px against the name's 12.5-21px),
+                which is what an eyebrow treatment is for. Holding 0.65 would
+                have needed coquette's ink at roughly #3C1521 — the near-black
+                ADR 0002 rejected when it turned down darkening `--pink`. */}
+            <span className="text-[9px] font-extrabold tracking-[0.26em] uppercase">
               Hello, I&rsquo;m
             </span>
 
@@ -440,7 +449,14 @@ function TagCard({
             <OrnamentDivider theme={theme} />
 
             {tag.subtext ? (
-              <div className="font-hand text-[15px] leading-tight opacity-90">{tag.subtext}</div>
+              // The 10% dim this used to carry cost 0.74 of ratio and put
+              // coquette at 4.07, autumn 4.06 and pastel 4.38:1 on the darker
+              // stop — a rounding-error-looking change that failed three of
+              // four themes. `font-hand` already separates this line from the
+              // display name, so nothing in the hierarchy needed the alpha,
+              // and a 15px handwriting face has the least stroke weight on the
+              // card to spare.
+              <div className="font-hand text-[15px] leading-tight">{tag.subtext}</div>
             ) : null}
           </div>
 
@@ -481,18 +497,29 @@ function TentBackPanel({ theme }: { theme: TagTheme }) {
       className={cn(
         'relative flex flex-1 rotate-180 items-center justify-center',
         theme.backPanelClass,
+        // `backInkClass`, not the inherited face ink. This panel paints its own
+        // fill over the card gradient, so whatever `tagClass` set for the face
+        // was being measured against the wrong background here — and then
+        // dimmed on top of that, which is ADR 0002's forbidden move run in
+        // reverse: the transparency *was* the ink. See `backInkClass` in
+        // themes.ts for the ratios and why no opacity value could have fixed
+        // coquette.
+        theme.backInkClass,
       )}
     >
       <span className="text-center">
-        <span className="block text-[8.5px] font-extrabold tracking-[0.3em] uppercase opacity-45">
+        <span className="block text-[8.5px] font-extrabold tracking-[0.3em] uppercase">
           Maison Abeer
         </span>
-        {theme.ornament ? (
-          <span className="mt-0.5 block text-[11px] opacity-50">{theme.ornament}</span>
-        ) : null}
+        {theme.ornament ? <span className="mt-0.5 block text-[11px]">{theme.ornament}</span> : null}
       </span>
 
-      <span className="absolute inset-x-0 bottom-1 text-center text-[7.5px] font-bold tracking-[0.2em] uppercase opacity-35">
+      {/* The one instruction on the sheet, and it is printed on the half that
+          gets creased: a host who cannot read it folds the card backwards and
+          the studio mark comes out upside down. It used to render at 0.35,
+          which is 1.58-1.72:1 on its own panel and effectively invisible on
+          paper. Nothing here is dimmed. */}
+      <span className="absolute inset-x-0 bottom-1 text-center text-[7.5px] font-bold tracking-[0.2em] uppercase">
         fold here
       </span>
     </div>
@@ -503,9 +530,22 @@ function TentBackPanel({ theme }: { theme: TagTheme }) {
 function Crease() {
   return (
     <span aria-hidden="true" className="relative block h-0 shrink-0">
-      <span className="absolute inset-x-0 top-0 border-t-[1.5px] border-dashed border-current opacity-40" />
-      <span className="absolute top-0 left-0 h-px w-2.5 -translate-y-px bg-current opacity-70" />
-      <span className="absolute top-0 right-0 h-px w-2.5 -translate-y-px bg-current opacity-70" />
+      {/* 0.80, not the 0.40 this started at. A fold line is functional
+          graphics under WCAG 1.4.11, not decoration like the ornament rules:
+          at 0.40 the dashed stroke measured 1.73-1.92:1 against the card's
+          darker gradient stop and the notches 2.82-3.50:1, so the only mark
+          telling a host where to fold vanished on pale stock under workshop
+          light — the rework ADR 0003 was meant to end. 0.80 is the one round
+          value that clears 3:1 on all four themes across every surface this
+          mark crosses (3.21-5.06:1); the per-theme minimums on the darker stop
+          are 0.73/0.63/0.71/0.74 and leave nothing for a thirsty inkjet.
+          Notches match the rule: same graphic, and 0.70 left them the faintest
+          part of the mark they terminate. `border-dashed` stays — the dash
+          pattern is what reads as "fold" against the solid "cut" crosses, so
+          the stroke darkens and the distinction is untouched. */}
+      <span className="absolute inset-x-0 top-0 border-t-[1.5px] border-dashed border-current opacity-80" />
+      <span className="absolute top-0 left-0 h-px w-2.5 -translate-y-px bg-current opacity-80" />
+      <span className="absolute top-0 right-0 h-px w-2.5 -translate-y-px bg-current opacity-80" />
     </span>
   );
 }
@@ -524,7 +564,12 @@ function OrnamentDivider({ theme }: { theme: TagTheme }) {
 /** Faint corner crosses to cut to — the "trim marks included" the UI promises. */
 function TrimMarks() {
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-30">
+    // 0.80 for the same reason as the crease: at 0.30 these were 1.49-1.61:1
+    // against the darker gradient stop, under half of 1.4.11's 3:1 for a
+    // graphic the scissors have to follow, and a cut line nobody can see on a
+    // pale sheet is the paper-waste failure mode ADR 0003 set out to end. 0.80
+    // gives 3.36-4.35:1.
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-80">
       {(['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'] as const).map(
         (corner) => (
           <span key={corner} className={cn('absolute size-2', corner)}>

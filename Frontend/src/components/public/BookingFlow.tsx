@@ -383,6 +383,10 @@ function ClassPicker({
                   'group border-line bg-paper relative w-full overflow-hidden rounded-[var(--radius-md)] border-[1.5px]',
                   'min-h-[44px] py-4 pr-4 pl-5 text-left transition-[transform,box-shadow] duration-200',
                   'hover:[transform:perspective(600px)_rotateX(1.5deg)_translateY(-4px)] hover:border-transparent',
+                  // A phone has no hover, so the tilt above never fires there
+                  // and the card confirmed nothing when tapped. This is the
+                  // whole of the feedback on the app's conversion surface.
+                  'active:scale-[0.98] motion-reduce:active:scale-100',
                   accent.hoverGlow,
                   'motion-reduce:transform-none',
                   'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
@@ -424,7 +428,13 @@ function ClassPicker({
 
                 <span
                   aria-hidden="true"
-                  className="text-rose-ink absolute top-1/2 right-4 -translate-y-1/2 text-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:hidden"
+                  /*
+                   * Visible by default, revealed on hover only where hover
+                   * exists. It was `opacity-0 group-hover:opacity-100`, so on
+                   * every phone the one mark telling a guest the card moves
+                   * them forward never appeared at all.
+                   */
+                  className="text-rose-ink absolute top-1/2 right-4 -translate-y-1/2 text-xl opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 motion-reduce:transition-none"
                 >
                   →
                 </span>

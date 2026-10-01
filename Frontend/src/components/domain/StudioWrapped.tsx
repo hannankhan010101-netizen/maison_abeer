@@ -82,8 +82,14 @@ export function StudioWrapped({
 
       <div
         // 9:16, so a screenshot needs no cropping to become a story.
+        //
+        // `wrapped-slide` pins the four gradient stops `.mocha` redefines dark
+        // (see tokens.css): five of the nine slides name one, and with a fixed
+        // dark ink on top the card measured 1.03:1 in mocha — a dark-on-dark
+        // screenshot. The card is a screenshot artifact, so BOTH sides of the
+        // pair stop following the theme, not just the ink.
         className={cn(
-          'relative aspect-[9/16] w-full overflow-hidden rounded-[var(--radius-lg)]',
+          'wrapped-slide relative aspect-[9/16] w-full overflow-hidden rounded-[var(--radius-lg)]',
           'bg-gradient-to-br p-6 shadow-[var(--shadow-soft)]',
           slide.gradient,
         )}
@@ -105,14 +111,28 @@ export function StudioWrapped({
         />
 
         <div
-          className="flex h-full flex-col justify-between text-[#4A2A33]"
+          // One ink for the whole card, and a token rather than a literal so
+          // contrast.test.ts asserts it against every stop stats.ts draws.
+          // #4A2A33 was only ever measured against the light theme's stops.
+          className="flex h-full flex-col justify-between text-[var(--color-wrapped-ink)]"
           // Announce each slide as it lands, so the story works read aloud.
           role="group"
           aria-live="polite"
           aria-label={`Slide ${index + 1} of ${slides.length}`}
         >
           <div>
-            <p className="text-[11.5px] font-extrabold tracking-[0.14em] uppercase opacity-70">
+            {/* No opacity on any run in this card. The ink is composited
+                against the gradient, which contrast.test.ts cannot see, so
+                an alpha utility here spends contrast nothing is watching: at
+                0.7 this eyebrow measured 2.38:1 over the `via-terra` stop and
+                the detail below 2.72:1 at 0.8 — both under PRD §3.4's 4.5:1,
+                and neither run is anywhere near the large-text threshold.
+                There is also no room for a lighter *second* ink: terra's
+                relative luminance is 0.2428, which caps a 4.5:1 ink at
+                luminance 0.0151, and --color-wrapped-ink already sits there.
+                So the hierarchy is size, weight, case and font only — which
+                is all it ever really was. */}
+            <p className="text-[11.5px] font-extrabold tracking-[0.14em] uppercase">
               {slide.eyebrow}
             </p>
           </div>
@@ -128,10 +148,10 @@ export function StudioWrapped({
               {slide.headline}
             </h2>
 
-            <p className="mt-3 text-[15px] font-bold opacity-80">{slide.detail}</p>
+            <p className="mt-3 text-[15px] font-bold">{slide.detail}</p>
           </div>
 
-          <p className="font-hand text-lg opacity-70">Maison Abeer</p>
+          <p className="font-hand text-lg">Maison Abeer</p>
         </div>
       </div>
 

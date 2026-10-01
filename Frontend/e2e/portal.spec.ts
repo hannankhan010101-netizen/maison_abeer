@@ -46,7 +46,12 @@ test.describe('the daily path', () => {
 
       if (!(await link.count())) {
         await page.getByRole('button', { name: /more sections/i }).click();
-        await page.getByRole('menu').locator(`a[href="${href}"]`).click();
+        // A dialog, not a menu: `role="menu"` promises `menuitem` children,
+        // and these are ordinary navigation links.
+        await page
+          .getByRole('dialog', { name: 'More sections' })
+          .locator(`a[href="${href}"]`)
+          .click();
       } else {
         await link.click();
       }

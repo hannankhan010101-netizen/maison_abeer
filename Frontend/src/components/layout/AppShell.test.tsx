@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppShell, NAV_ITEMS, PRIMARY_NAV, isActive } from './AppShell';
@@ -106,12 +107,20 @@ describe('AppShell', () => {
     mockPathname.mockReturnValue('/today');
     render(<AppShell>content</AppShell>);
 
-    // The tab bar goes further than the 44px floor — 64px, because a tab is
-    // aimed at with a thumb while holding a phone one-handed.
+    /*
+     * The tab bar goes further than the 44px floor, because a tab is aimed at
+     * with a thumb while holding a phone one-handed.
+     *
+     * The bar's own height is `--tab-bar-host` rather than a literal, because
+     * the toast and the "More" sheet have to clear it and cannot measure it —
+     * so the number lives in tokens.css, where `tokens.test.ts` asserts it
+     * against `--tap-min`, and `e2e/mobile.spec.ts` measures the rendered
+     * result. This checks only that every link declares a floor at all.
+     */
     for (const link of screen.getAllByRole('link')) {
-      const size = link.className.match(/min-h-\[(\d+)px\]/);
+      const size = link.className.match(/min-h-\[(?:(\d+)px|var\(--tab-bar-host\))\]/);
       expect(size, `no min-height on ${link.getAttribute('href')}`).not.toBeNull();
-      expect(Number(size![1])).toBeGreaterThanOrEqual(44);
+      if (size![1]) expect(Number(size![1])).toBeGreaterThanOrEqual(44);
     }
   });
 
@@ -140,12 +149,47 @@ describe('AppShell', () => {
     expect(icon).not.toBeNull();
   });
 
-  it('bottom-pads content so the last row clears the fixed tab bar', () => {
+  it('bottom-pads content from the tab bar\u2019s own height', () => {
     render(<AppShell>content</AppShell>);
 
-    const padding = screen.getByRole('main').className.match(/pb-(\d+)/);
-    expect(padding).not.toBeNull();
-    // The bar is 64px plus the safe-area inset; the padding has to clear it.
-    expect(Number(padding![1]) * 4).toBeGreaterThanOrEqual(96);
+    /*
+     * The padding has to clear the tab bar, the home-indicator inset and the
+     * floating create button sitting above it — a sum no fixed number stays
+     * correct for, which is why it is now derived from `--tab-bar-host`
+     * instead of from a literal that had to be remembered.
+     *
+     * What that resolves to in pixels is measured for real in
+     * `e2e/mobile-occlusion.spec.ts`; a class name cannot evaluate `calc`.
+     */
+    const main = screen.getByRole('main').className;
+
+    expect(main).toMatch(/pb-\[calc\(/);
+    expect(main).toContain('--tab-bar-host');
+
+    // The inset is owned by `body` (globals.css) and `main` is inside that
+    // padding box, so naming it here would count it twice. The guarantee is
+    // that exactly one layer owns it.
+    expect(main).not.toContain('env(safe-area-inset-bottom)');
+  });
+
+  it('pins the More sheet above the bar’s border, not on it', async () => {
+    /*
+     * `--tab-bar-host` is the bar's content height; its box is that plus
+     * `border-t`. Pinned at the height alone, the sheet's bottom edge landed
+     * inside the bar — measured at 1.0px of overlap in Chromium at 375×812,
+     * one tick under the `mobile-occlusion` guard that rejects above 1, so the
+     * suite written for this defect passed with nothing to spare. Raising the
+     * border to 2px would have started failing it in a file nobody had touched.
+     */
+    mockPathname.mockReturnValue('/today');
+    render(<AppShell>content</AppShell>);
+
+    await userEvent.click(screen.getByRole('button', { name: /More sections/ }));
+
+    const sheet = screen.getByRole('dialog', { name: 'More sections' }).className;
+
+    expect(sheet).toContain('--tab-bar-host');
+    expect(sheet).toContain('--tab-bar-border');
+    expect(sheet).toContain('env(safe-area-inset-bottom)');
   });
 });

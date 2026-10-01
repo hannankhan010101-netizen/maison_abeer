@@ -141,4 +141,46 @@ describe('GuestRow', () => {
     const { container } = render(<GuestRow guest={guest()} />);
     expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('S');
   });
+
+  /*
+   * The stretched link is opt-in, and the default matters more than the option.
+   *
+   * `SessionRoster` renders this same row as an editing surface: a reach for
+   * the table `<select>` that lands 20px short must stay inert rather than
+   * navigating to `/guests/<id>` and abandoning the seating pass. The e2e
+   * coverage only drives `/guests`, so the roster's half of this is only ever
+   * asserted here.
+   */
+  describe('the stretched link', () => {
+    function row(container: HTMLElement): HTMLElement {
+      return container.firstElementChild as HTMLElement;
+    }
+
+    it('covers the whole row only when the call site asks for it', () => {
+      const { container } = render(<GuestRow guest={guest()} linkWholeRow />);
+
+      expect(screen.getByRole('link', { name: 'Sana R.' }).className).toContain('after:inset-0');
+      // The pressed state is what advertises the row as a navigation target.
+      expect(row(container).className).toContain('active:bg-blush/60');
+    });
+
+    it('leaves an editing row inert outside the name', () => {
+      const { container } = render(
+        <GuestRow guest={guest()} action={<button type="button">x</button>} />,
+      );
+
+      expect(screen.getByRole('link', { name: 'Sana R.' }).className).not.toContain(
+        'after:inset-0',
+      );
+      expect(row(container).className).not.toContain('active:bg-blush');
+    });
+
+    it('lifts the memory note out from under the overlay', () => {
+      // A host copies this note into a WhatsApp reply; under the overlay a
+      // long-press offered Open-in-New-Tab instead of the selection handles.
+      render(<GuestRow guest={guest({ memory_note: 'window seat' })} linkWholeRow />);
+
+      expect(screen.getByText('window seat').className).toMatch(/relative z-10 w-fit/);
+    });
+  });
 });

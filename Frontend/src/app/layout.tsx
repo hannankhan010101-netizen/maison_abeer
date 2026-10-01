@@ -42,13 +42,34 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  /*
+   * Let the virtual keyboard shrink the layout viewport.
+   *
+   * Android Chrome's default is `resizes-visual`: the keyboard is painted
+   * over the page and `dvh` does not change, so a `h-dvh` layout keeps
+   * reporting the full screen height while a third of it is covered. The
+   * chat is built as three fixed rows inside exactly that (see
+   * `portal/ChatThread.tsx`) — without this line its composer ends up
+   * underneath the keyboard on Android, which is the one place in the app
+   * where typing is the entire point.
+   */
+  interactiveWidget: 'resizes-content',
   // Never block zoom: capping scale fails WCAG 1.4.4 and hurts exactly the
   // in-studio, one-handed use this product is designed for.
   maximumScale: 5,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FFF8F0' },
-    { media: '(prefers-color-scheme: dark)', color: '#221A15' },
-  ],
+  /*
+   * No `themeColor` here.
+   *
+   * It used to be declared against `prefers-color-scheme`, which is the wrong
+   * signal: dark mode in this app is the `.mocha` class a host chooses, not an
+   * OS setting, so a host on mocha with a light phone got a cream browser bar
+   * above a dark brown app. Leaving a media-keyed tag in place alongside the
+   * class-driven one would be worse than either — the browser picks whichever
+   * media query matches, and that is exactly the tag that is wrong.
+   *
+   * `MOCHA_INIT_SCRIPT` writes the tag before paint and `setMocha` keeps it in
+   * step, so it is always the chosen theme rather than the guessed one.
+   */
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

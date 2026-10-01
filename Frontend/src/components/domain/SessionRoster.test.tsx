@@ -268,6 +268,26 @@ describe('SessionRoster', () => {
       });
     });
 
+    it('keeps the safe action nearest the thumb on a phone', async () => {
+      respondRoster([booking('Sana R.')]);
+      renderRoster();
+
+      await userEvent.click(await screen.findByRole('button', { name: /Cancel Sana R./ }));
+
+      /*
+       * The one `variant="danger"` footer in the app, so the one place ADR
+       * 0003's "primary action lowest" inverts: below `sm` this dialog is a
+       * sheet flush with the screen edge, and the default stacking made
+       * "Cancel the seat" the lowest, full-width, easiest control in it to hit
+       * while holding the phone one-handed — with the escape hatch above it.
+       */
+      const footer = screen.getByRole('button', { name: 'Cancel the seat' }).parentElement!;
+      expect(footer.className).toContain('flex-col-reverse');
+
+      // Children stay secondary-first, so the desktop row is unchanged.
+      expect(footer.firstElementChild).toHaveTextContent('Keep the booking');
+    });
+
     it('can be backed out of', async () => {
       respondRoster([booking('Sana R.')]);
       renderRoster();

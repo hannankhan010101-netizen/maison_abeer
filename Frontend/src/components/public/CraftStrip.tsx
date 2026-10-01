@@ -43,11 +43,24 @@ function craftsFrom(classes: PublicClass[]): Craft[] {
   return [...seen.values()];
 }
 
+/**
+ * Fill/ink pairs for the no-photo card.
+ *
+ * Every ink here is an `on-*` token, never raw `--color-cocoa`. These five
+ * fills are all in contrast.test.ts's `sharedByDesign` set — they identify a
+ * craft, so they deliberately do not flip in mocha — while cocoa does flip, to
+ * #F4E9DF. Pairing the two put the craft name at 1.66:1 on sage and 1.12:1 on
+ * butter in dark mode (light mode was a comfortable 6.31:1 and 9.33:1, which
+ * is why it survived a dev pass), missing even the 3:1 large-text bar the
+ * 24px name would be allowed by a factor of two to three. This table is an
+ * in-component colour map, parallel to src/lib/tags/themes.ts, and like it is
+ * outside contrast.test.ts's PAIRS list — hence the tokens.
+ */
 const BLOCK: Record<string, { bg: string; ink: string }> = {
   pink: { bg: 'bg-pink', ink: 'text-on-pink' },
   terra: { bg: 'bg-terra', ink: 'text-photo-ink' },
-  sage: { bg: 'bg-sage', ink: 'text-cocoa' },
-  butter: { bg: 'bg-butter', ink: 'text-cocoa' },
+  sage: { bg: 'bg-sage', ink: 'text-on-sage' },
+  butter: { bg: 'bg-butter', ink: 'text-on-butter' },
   rose: { bg: 'bg-rose', ink: 'text-on-rose' },
 };
 
@@ -102,15 +115,46 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
                       loading="lazy"
                       className="absolute inset-0 size-full scale-100 object-cover transition-transform duration-500 group-hover:scale-110 group-active:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                     />
+                    {/* Scrim stops are in px, not %, because what has to be
+                        covered is the text band — two 30px lines of
+                        text-2xl/leading-tight plus p-4, i.e. the bottom 76px
+                        of the tile — not a fraction of the tile. The old
+                        `from-black/65 via-black/10 to-transparent` put its
+                        dense end at the tile's bottom EDGE and was already
+                        spent by the time it reached a glyph: measured over a
+                        white photo (the worst case a lit-workshop shot
+                        approaches), photo-ink ran 4.25:1 at a one-line
+                        name's baseline band and 2.21:1 at its cap height,
+                        and a two-line name's first line sat at 1.33:1 —
+                        `craft.name` is a host-authored class name in a 72vw
+                        tile, so two lines is ordinary, not an edge case. The
+                        6.34:1 the old gradient could be quoted for was the
+                        pixel row below the text, which nothing is drawn on.
+                        black/58 at 78px composites to #6B6B6B, 4.84:1, and
+                        that is the worst point anywhere in the clamped glyph
+                        band (6.99:1 at the first baseline, 7.68:1 at the
+                        tile floor) — AA body text, not merely the 3:1 bar a
+                        24px name would be allowed, so the guarantee survives
+                        the name being made smaller later. Above the band it
+                        fades to nothing over the remaining 90px rather than
+                        holding black/55 to three-quarters height: the photo
+                        is this card's whole background (see the docstring),
+                        so the scrim covers the ink and no more. */}
                     <div
                       aria-hidden="true"
-                      className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"
+                      className="absolute inset-0 bg-[linear-gradient(to_top,rgb(0_0_0/0.70)_0px,rgb(0_0_0/0.58)_78px,transparent_168px)]"
                     />
                   </>
                 ) : (
                   <CraftMotif token={craft.token} />
                 )}
-                <span className="font-display relative z-10 mt-auto text-2xl leading-tight">
+                {/* line-clamp-2 is what makes the scrim's 78px stop a
+                    guarantee rather than an average: a three- or four-line
+                    class name would push its first line above the covered
+                    band (and a four-line name overflows the fixed h-[168px]
+                    tile anyway, getting clipped mid-glyph by
+                    overflow-hidden). */}
+                <span className="font-display relative z-10 mt-auto line-clamp-2 text-2xl leading-tight">
                   {craft.name}
                 </span>
               </div>

@@ -340,7 +340,11 @@ function RoomTranscript({ roomId, roomName }: { roomId: string; roomName: string
               <span
                 className={cn(
                   'text-on-rose max-w-[85%] rounded-[var(--radius-lg)] rounded-br-[6px] px-3 py-2 text-sm',
-                  'bg-[image:var(--chat-bubble-you)] opacity-60',
+                  // See PendingRow in portal/ChatThread.tsx: element opacity fades
+                  // ink and fill together, so 0.6 dropped cocoa-on-rose from
+                  // 4.80:1 to 2.13:1 on paper. `text-sm` is 14px, so the bar here
+                  // is 4.5:1 too. The "Sending…" caption carries the state.
+                  'bg-[image:var(--chat-bubble-you)]',
                 )}
               >
                 {body}
@@ -410,7 +414,16 @@ function TranscriptRow({
   const mine = message.is_host;
 
   return (
-    <li className={cn('flex', mine && 'justify-end', message.is_deleted && 'opacity-60')}>
+    // No `opacity` on a deleted row. Fading the `li` fades the metadata line
+    // with it, and `--color-latte` is tuned to land at exactly 4.52:1 (ADR
+    // 0002) — at 0.6 the timestamp measured 2.30:1 on paper, 2.26:1 on
+    // buttercream and 3.24:1 in mocha, and the own-side bubble body 2.13:1,
+    // below even AA-large. There is no safe multiplier either: latte has
+    // 0.02 of margin, and the own-side bubble needs about 0.94 before
+    // cocoa-on-rose recovers 4.5:1. The "Removed" chip below and the body's
+    // `line-through` already say it twice at full contrast, and the timestamp
+    // is the one thing you need off a message you just removed.
+    <li className={cn('flex', mine && 'justify-end')}>
       <div className={cn('max-w-[85%] min-w-0', mine && 'text-right')}>
         <p className="text-latte mb-0.5 flex flex-wrap items-center gap-1.5 text-xs font-bold">
           {mine ? null : message.author_name}

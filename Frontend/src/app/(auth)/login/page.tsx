@@ -139,7 +139,12 @@ const FIELD_CLASSES = cn(
   'border-line bg-buttercream text-cocoa min-h-[46px] w-full rounded-[var(--radius-md)]',
   'border-[1.5px] py-2.5 pr-3.5 pl-10',
   'transition-[border-color,box-shadow] duration-150',
-  'placeholder:text-latte/70',
+  // No alpha on the placeholder. ADR 0002 moved --color-latte to #866E60
+  // specifically to land it at 4.52:1 on buttercream — 0.02 over AA — so a
+  // /70 suffix had nothing to spend and composited to 2.66:1 here (4.17:1 in
+  // mocha). Placeholder text is visible text under 1.4.3, and on these fields
+  // it is the only in-field hint, so it is read rather than decoration.
+  'placeholder:text-latte',
   'hover:border-pink',
   'focus:border-rose focus:shadow-[0_0_0_4px_var(--color-blush)] focus:outline-none',
 );

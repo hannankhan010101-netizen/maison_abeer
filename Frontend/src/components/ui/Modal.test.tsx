@@ -124,6 +124,57 @@ describe('Modal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  /*
+   * The footer's stacking order below `sm`, which nothing asserted.
+   *
+   * It is a className and so cannot be measured here — `e2e/mobile-occlusion`
+   * does that at 375px — but the *order* is the guarantee, and a className is
+   * exactly what the next refactor silently drops.
+   */
+  describe('the stacked footer', () => {
+    function footerOf(buttonName: string): string {
+      return screen.getByRole('button', { name: buttonName }).parentElement!.className;
+    }
+
+    function renderFooter(destructive = false) {
+      render(
+        <Modal
+          open
+          onClose={() => {}}
+          title="cancel a seat"
+          destructiveFooterAction={destructive}
+          footer={
+            <>
+              <button type="button">Keep it</button>
+              <button type="button">Do it</button>
+            </>
+          }
+        >
+          <p>body</p>
+        </Modal>,
+      );
+    }
+
+    it('stacks in DOM order, putting the primary action nearest the thumb', () => {
+      renderFooter();
+
+      // Every footer in the app is written secondary-first, so DOM order is
+      // already thumb order.
+      expect(footerOf('Do it')).toMatch(/(?:^|\s)flex-col(?=\s|$)/);
+    });
+
+    it('reverses below sm when the last child is destructive', () => {
+      renderFooter(true);
+
+      // `CancelBookingModal`: the safe action has to be the lowest control in a
+      // sheet resting on the screen edge, not the one that cancels a booking.
+      expect(footerOf('Do it')).toContain('flex-col-reverse');
+
+      // Desktop keeps reading order, so Tab and the eye stay in step.
+      expect(footerOf('Do it')).toContain('sm:flex-row');
+    });
+  });
+
   it('locks page scroll while open and restores it after', async () => {
     render(<Harness />);
 

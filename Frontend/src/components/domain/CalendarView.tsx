@@ -1,14 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { NewSessionModal } from '@/components/domain/NewSessionModal';
-import { RescheduleModal, SeatModal } from '@/components/domain/SessionEditModals';
 import { SessionChip } from '@/components/domain/SessionChip';
 import { Button } from '@/components/ui/Button';
 import { Card, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { Fab } from '@/components/ui/Fab';
 import { ApiError } from '@/lib/api/errors';
 import { useSessions } from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
@@ -55,9 +55,68 @@ function CalendarViewInner({ now }: { now: Date }) {
   const days = useMemo(() => weekDays(anchor), [anchor]);
   const byDay = useMemo(() => groupByDay(query.data ?? []), [query.data]);
 
-  // One modal at a time: adding a class, or editing the one just tapped.
+  /*
+   * Swipe the agenda sideways to change week.
+   *
+   * An addition, never the only route: the prev/next buttons stay visible on
+   * every width, because a gesture as the sole way to reach a view fails WCAG
+   * 2.5.1 and strands anyone using a screen reader or a keyboard on a phone.
+   *
+   * Keyed to one pointer id, not to "the last pointerdown". A second contact
+   * point is normal when a phone is held one-handed — the base of the thumb
+   * rests on the left edge of the list while the index finger taps a chip on
+   * the right — and a single start point would be overwritten by that second
+   * contact, so the finger that lifts first gets diffed against the *other*
+   * finger's origin: a 310px "swipe" out of a stationary tap, rewinding the
+   * week while `onSelect` navigates. Pinch-zoom of the agenda, which this app
+   * deliberately permits (`maximumScale: 5`), did the same.
+   */
+  const swipeFrom = useRef<{ id: number; x: number; y: number } | null>(null);
+
+  function onSwipeStart(event: React.PointerEvent) {
+    // A mouse has the buttons right there; this is for thumbs.
+    if (event.pointerType === 'mouse') return;
+    // Already following a finger: later contacts are the hand holding the phone.
+    if (swipeFrom.current) return;
+
+    swipeFrom.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  }
+
+  /*
+   * Wired to `onPointerCancel` and `onLostPointerCapture` as well as
+   * `onPointerUp`, because a cancelled pointer never reports an up.
+   *
+   * Chrome hands the touch to a scroller the moment one engages and ends the
+   * gesture with `pointercancel` — which is also the first half of the defect
+   * `touch-pan-y` on the list fixes: the week silently did not change on any
+   * swipe with the ~30px of vertical drift a thumb arc produces. The other
+   * half is here: without this the start point outlives the gesture, so the
+   * "already tracking" guard above would latch on the first scroll and no
+   * further swipe would ever start.
+   *
+   * Do not change the week from here. The browser cancelled us because it took
+   * the touch for a scroll, and a scroll is not a week change.
+   */
+  function onSwipeCancel(event: React.PointerEvent) {
+    if (swipeFrom.current?.id === event.pointerId) swipeFrom.current = null;
+  }
+
+  function onSwipeEnd(event: React.PointerEvent) {
+    const from = swipeFrom.current;
+    if (!from || from.id !== event.pointerId) return;
+    swipeFrom.current = null;
+
+    const dx = event.clientX - from.x;
+    const dy = event.clientY - from.y;
+
+    // Decisive and horizontal — not a vertical scroll that drifted off course.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 2) return;
+
+    setAnchor(addWeeks(anchor, dx < 0 ? 1 : -1));
+  }
+
+  // One modal at a time: adding a class.
   const [addingOn, setAddingOn] = useState<Date | null>(null);
-  const [editing, setEditing] = useState<{ session: Session; mode: 'seats' | 'move' } | null>(null);
 
   return (
     <section>
@@ -80,10 +139,24 @@ function CalendarViewInner({ now }: { now: Date }) {
         </nav>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <Chip tone="pink">● bento cake</Chip>
-          <Chip tone="terra">● pottery</Chip>
-          <Chip tone="sage">● ceramic painting</Chip>
-          <Button size="sm" className="ml-1.5" onClick={() => setAddingOn(anchor)}>
+          {/* Reference material, not a control. Seven wrapping items put 265px
+              of chrome above the week on a phone, and `SessionChip` already
+              carries the same colour in place, on the thing it identifies. */}
+          <Chip tone="pink" className="hidden sm:inline-flex">
+            ● bento cake
+          </Chip>
+          <Chip tone="terra" className="hidden sm:inline-flex">
+            ● pottery
+          </Chip>
+          <Chip tone="sage" className="hidden sm:inline-flex">
+            ● ceramic painting
+          </Chip>
+          {/* The `Fab` below carries this on a phone. */}
+          <Button
+            size="sm"
+            className="ml-1.5 hidden lg:inline-flex"
+            onClick={() => setAddingOn(anchor)}
+          >
             + new session
           </Button>
         </div>
@@ -109,7 +182,19 @@ function CalendarViewInner({ now }: { now: Date }) {
       {query.isSuccess ? (
         <>
           {/* Phone: one readable column per day. */}
-          <ol className="lg:hidden">
+          {/* `touch-pan-y` leaves vertical scrolling to the browser but takes the
+              x axis out of its scroll candidates, so an x-dominant drag is never
+              reinterpreted as a scroll mid-gesture. Without it Chrome claims the
+              thumb arc, fires `pointercancel` instead of `pointerup`, and the
+              week silently does not change — the swipe worked only when it was
+              almost perfectly horizontal. */}
+          <ol
+            className="touch-pan-y lg:hidden"
+            onPointerDown={onSwipeStart}
+            onPointerUp={onSwipeEnd}
+            onPointerCancel={onSwipeCancel}
+            onLostPointerCapture={onSwipeCancel}
+          >
             {days.map((day) => (
               <AgendaDay
                 key={dayKey(day)}
@@ -149,27 +234,13 @@ function CalendarViewInner({ now }: { now: Date }) {
         </>
       ) : null}
 
+      <Fab label="New session" onClick={() => setAddingOn(anchor)} />
+
       <NewSessionModal
         open={addingOn !== null}
         onClose={() => setAddingOn(null)}
         defaultDate={addingOn ?? undefined}
       />
-
-      {editing ? (
-        <>
-          <SeatModal
-            session={editing.session}
-            open={editing.mode === 'seats'}
-            onClose={() => setEditing(null)}
-            onRequestMove={() => setEditing({ session: editing.session, mode: 'move' })}
-          />
-          <RescheduleModal
-            session={editing.session}
-            open={editing.mode === 'move'}
-            onClose={() => setEditing(null)}
-          />
-        </>
-      ) : null}
     </section>
   );
 }

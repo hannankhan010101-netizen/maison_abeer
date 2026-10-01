@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Maison Abeer">
+  <!--
+    The pottery wheel, seen from above.
+
+    Drawn as shapes rather than set as type on purpose: this app ships no image
+    assets and no logo file, and a wordmark rasterised through a font the build
+    machine may not have is a blank square waiting to happen. Concentric rings
+    in the studio's own tokens read at 48px, which "Maison Abeer." never would.
+
+    Colours are the values from styles/tokens.css — buttercream, rose, blush,
+    rose-deep. Kept literal here because an SVG cannot resolve a CSS variable
+    from another file, and these are checked against that file by
+    public/icon.test.ts.
+  -->
+  <rect width="512" height="512" fill="#FFF8F0"/>
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#E2849E" stroke-width="26"/>
+  <circle cx="256" cy="256" r="116" fill="#FBE7EA"/>
+  <circle cx="256" cy="256" r="116" fill="none" stroke="#F2AABE" stroke-width="14"/>
+  <circle cx="256" cy="256" r="46" fill="#C25B78"/>
+</svg>

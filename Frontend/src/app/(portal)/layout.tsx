@@ -19,7 +19,9 @@ import { ApiProvider } from '@/lib/api/provider';
 export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
     <ApiProvider>
-      <ToastProvider>
+      {/* The tab bar exists below `lg` only, so the toast's clearance has to
+          disappear with it. */}
+      <ToastProvider offsetClassName="[--tab-bar-h:var(--tab-bar-host)] lg:[--tab-bar-h:0px]">
         <DemoBanner />
         <HostOnly>
           <AppShell

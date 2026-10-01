@@ -58,6 +58,25 @@ function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
     return list[0];
   }, [sessions.data]);
 
+  /*
+   * Built here rather than inside `AlertFeed`, because on a phone the critical
+   * ones have to be rendered somewhere else entirely.
+   *
+   * The layout is one column below `lg`, so DOM order is reading order: the
+   * greeting, then the Next Up card and its three buttons, and only then
+   * "Alerts & nudges" — which put "2 messages didn't send" below the fold,
+   * underneath a card the host has already read. `buildAlerts` had sorted
+   * critical-first since the beginning; the mobile layout then undid it.
+   */
+  const alerts = useMemo(
+    () =>
+      buildAlerts(sessions.data ?? [], birthdays.data ?? [], failedMessages.data ?? []),
+    [sessions.data, birthdays.data, failedMessages.data],
+  );
+
+  const critical = useMemo(() => alerts.filter((alert) => alert.tone === 'critical'), [alerts]);
+  const gentler = useMemo(() => alerts.filter((alert) => alert.tone !== 'critical'), [alerts]);
+
   return (
     <section>
       <Greeting hostName={hostName} now={now} next={upcoming} />
@@ -90,15 +109,36 @@ function DashboardInner({ hostName, now }: { hostName?: string; now: Date }) {
       {sessions.isSuccess ? (
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="grid content-start gap-4">
+            {/*
+              Ahead of the card, in the column that leads.
+
+              On a phone this grid is one column, so this is simply the first
+              thing after the greeting — which is the whole point: a failed send
+              used to sit below the fold, under a card the host had already
+              read. On desktop it leads the main column instead of sitting in
+              the side rail, which is the right weight for it there too.
+
+              Rendered once, not once per breakpoint. A second copy hidden by a
+              media query is still in the DOM, and `role="alert"` appearing
+              twice is ambiguous to anything reading the page — including the
+              tests.
+            */}
+            {critical.length > 0 ? (
+              <section aria-label="Needs you now" className="grid content-start gap-2.5">
+                <Eyebrow>Needs you now</Eyebrow>
+                <AlertFeed alerts={critical} />
+              </section>
+            ) : null}
+
             {upcoming ? <NextUpCard session={upcoming} now={now} /> : <NothingScheduled />}
           </div>
 
           <div className="grid content-start gap-3">
             <Eyebrow>Alerts &amp; nudges</Eyebrow>
+
             <AlertFeed
-              sessions={sessions.data}
-              birthdays={birthdays.data ?? []}
-              failedMessages={failedMessages.data ?? []}
+              alerts={gentler}
+              emptyNote={critical.length > 0 ? 'Nothing else needs you right now ♡' : undefined}
             />
 
             {/* Celebratory, and deliberately screenshot-shaped (PRD §2.1). */}
@@ -302,22 +342,20 @@ export function buildAlerts(
 }
 
 function AlertFeed({
-  sessions,
-  birthdays,
-  failedMessages,
+  alerts,
+  emptyNote,
 }: {
-  sessions: Session[];
-  birthdays: UpcomingBirthday[];
-  failedMessages: ScheduledMessage[];
+  alerts: ReturnType<typeof buildAlerts>;
+  /** Overrides the all-quiet line when something urgent sits above this. */
+  emptyNote?: string;
 }) {
   const retry = useRetryMessage();
-  const alerts = buildAlerts(sessions, birthdays, failedMessages);
 
   if (alerts.length === 0) {
     return (
       <Card>
         <p className="text-sm">
-          <HandNote>All quiet — nothing needs you right now ♡</HandNote>
+          <HandNote>{emptyNote ?? 'All quiet — nothing needs you right now ♡'}</HandNote>
         </p>
       </Card>
     );
