@@ -92,10 +92,18 @@ def vercel() -> dict[str, Any]:
     return parsed
 
 
-def test_every_path_routes_to_the_asgi_entrypoint(vercel: dict[str, Any]) -> None:
-    """Without this rewrite only `/api/index` resolves and every route 404s."""
-    rewrites = vercel["rewrites"]
-    assert any(r["source"] == "/(.*)" and r["destination"] == "/api/index" for r in rewrites)
+def test_no_rewrite_hijacks_the_request_path(vercel: dict[str, Any]) -> None:
+    """The FastAPI preset already routes every path to `api/index.py` intact.
+
+    A `/(.*)` → `/api/index` rewrite used to live here. It picked the right
+    function and rewrote the *path* with it, so the app received `/api/index`
+    for every request and answered 404 to all of them, `/health` included.
+    Deleting it fixed every route at once (79296be); this keeps it deleted.
+    """
+    rewrites = vercel.get("rewrites", [])
+    assert not any(r["destination"] == "/api/index" for r in rewrites), (
+        "a rewrite to /api/index replaces the request path and 404s every route"
+    )
 
 
 def test_the_entrypoint_exists_and_exposes_app() -> None:
