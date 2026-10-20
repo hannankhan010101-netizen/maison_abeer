@@ -1,7 +1,8 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 
+import { DragToss } from '@/components/public/hero/DragToss';
 import { StudioImage } from '@/components/public/StudioImage';
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
@@ -84,17 +85,25 @@ export function PhotoFan({ classes }: { classes: PublicClass[] }) {
       className="relative mx-auto mt-10 h-[270px] w-full max-w-[600px] sm:mt-12 sm:h-[345px]"
     >
       {SLOTS.map((slot, index) => (
-        <Polaroid key={index} slot={slot} photo={photos[index]!} />
+        <Polaroid key={index} slot={slot} photo={photos[index]!} boundsRef={parallaxRef} />
       ))}
     </div>
   );
 }
 
-function Polaroid({ slot, photo }: { slot: Slot; photo: StudioPhoto }) {
+function Polaroid({
+  slot,
+  photo,
+  boundsRef,
+}: {
+  slot: Slot;
+  photo: StudioPhoto;
+  boundsRef: RefObject<HTMLElement | null>;
+}) {
   return (
-    // Outer: where it sits. Middle: how far the pointer pushes it. Inner: its
-    // tilt, its entrance and its hover.
-    <div className={cn('absolute', slot.place, slot.z)}>
+    // Outer: where it sits, and what a guest's flick moves (`DragToss`). Middle: how far the
+    // pointer pushes it. Inner: its tilt, its entrance and its hover.
+    <DragToss boundsRef={boundsRef} className={cn('absolute', slot.place, slot.z)}>
       <div
         style={{
           transform: `translate3d(calc(var(--parallax-x, 0px) * ${slot.depth}), calc(var(--parallax-y, 0px) * ${slot.depth}), 0)`,
@@ -130,6 +139,6 @@ function Polaroid({ slot, photo }: { slot: Slot; photo: StudioPhoto }) {
           </figcaption>
         </figure>
       </div>
-    </div>
+    </DragToss>
   );
 }

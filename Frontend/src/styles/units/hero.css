@@ -1,0 +1,32 @@
+/* The hero headline: Fraunces, whose letters soften in.
+
+   Only the `SOFT` axis moves. `wght`, `opsz` and `WONK` change glyph widths, so
+   animating any of them would reflow the line on every frame; `SOFT` changes
+   how round the terminals are and leaves every advance width alone.
+   `src/styles/hero-css.test.ts` fails if one of the others appears in a
+   keyframe.
+
+   Each letter already has `rise-in` and an inline `animation-delay` from
+   `SplitHeading`. A single delay value applies to every animation in the list,
+   so the softening is staggered by exactly the same amount. The global
+   reduced-motion rule collapses both to their end frame, which is SOFT 100,
+   the same as the resting state below. */
+
+@keyframes soften {
+  from {
+    font-variation-settings: 'SOFT' 0;
+  }
+  to {
+    font-variation-settings: 'SOFT' 100;
+  }
+}
+
+.hero-title {
+  font-variation-settings: 'SOFT' 100;
+}
+
+.hero-title [data-letter] {
+  animation:
+    rise-in 0.5s var(--ease-spring) both,
+    soften 0.9s var(--ease-out-expo) both;
+}
