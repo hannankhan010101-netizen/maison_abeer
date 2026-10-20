@@ -59,7 +59,9 @@ describe('BookingFlow', () => {
 
     render(<BookingFlow slug="maison-abeer" />);
 
-    expect(await screen.findByText('Maison Abeer')).toBeInTheDocument();
+    // The heading, not the text: the footer signs off with the studio's name
+    // too, so a bare text match is two elements by design.
+    expect(await screen.findByRole('heading', { name: 'Maison Abeer' })).toBeInTheDocument();
     expect(
       await screen.findByRole('button', { name: /Bento cake decorating/ }),
     ).toBeInTheDocument();
@@ -192,7 +194,9 @@ describe('BookingFlow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Join the waitlist' }));
 
     expect(await screen.findByRole('heading', { name: /You’re on the list/ })).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    // The position is the bold number in the sentence — not the date leaf's
+    // day, which on the 3rd of a month would also read "3".
+    expect(screen.getByText('3', { selector: 'b' })).toBeInTheDocument();
   });
 
   it('sends the honeypot field so the server can trap bots', async () => {
@@ -294,7 +298,9 @@ describe('BookingFlow', () => {
 
     render(<BookingFlow slug="maison-abeer" />);
 
-    expect(await screen.findByText('7')).toBeInTheDocument();
+    // `selector`: the class cards' date leaves also show bare numbers (the
+    // day of the month), and on the right day one of them is a 7 too.
+    expect(await screen.findByText('7', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText(/seats open across 2 classes right now/)).toBeInTheDocument();
   });
 
@@ -420,5 +426,68 @@ describe('BookingFlow', () => {
     // The pottery craft has no photo, so it still shows via the SVG motif
     // fallback rather than an empty card — the strip itself still renders it.
     expect(screen.getAllByText('Pottery & wheel throwing').length).toBeGreaterThan(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // The storefront around the form
+  // -------------------------------------------------------------------------
+
+  it('explains the three steps before asking for any of them', async () => {
+    fetchMock.mockImplementation(json(classList()));
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    expect(await screen.findByRole('heading', { name: 'How it works' })).toBeInTheDocument();
+    expect(screen.getByText('Save your seat')).toBeInTheDocument();
+
+    // Like the brand strip, it steps aside once the guest has committed.
+    await userEvent.click(screen.getByRole('button', { name: /Bento cake/ }));
+    expect(screen.queryByRole('heading', { name: 'How it works' })).not.toBeInTheDocument();
+  });
+
+  it('says when the next class is, with its real seat count', async () => {
+    fetchMock.mockImplementation(json(classList({ seats_left: 2 })));
+
+    render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    expect(await screen.findByText(/Next class/, { selector: 'span' })).toHaveTextContent(
+      /2 seats left/,
+    );
+  });
+
+  it('states how long a class runs, from its own start and end', async () => {
+    const start = new Date(Date.now() + 3 * 86_400_000);
+    const end = new Date(start.getTime() + 150 * 60_000);
+    fetchMock.mockImplementation(
+      json(classList({ starts_at: start.toISOString(), ends_at: end.toISOString() })),
+    );
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    expect((await screen.findAllByText(/2 hrs 30 min/)).length).toBeGreaterThan(0);
+  });
+
+  it("links the studio's Instagram from the footer", async () => {
+    fetchMock.mockImplementation(json(classList()));
+
+    render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    expect(screen.getByRole('link', { name: '@maisonabeer' })).toHaveAttribute(
+      'href',
+      'https://instagram.com/maisonabeer',
+    );
+  });
+
+  it('keeps the storefront on the light palette whatever the visitor prefers', async () => {
+    fetchMock.mockImplementation(json(classList()));
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Bento cake/ });
+
+    // The pin itself lives in tokens.css and is held complete by
+    // styles/storefront.test.ts; this is the one place it has to be applied.
+    expect(container.querySelector('main')).toHaveClass('storefront');
   });
 });

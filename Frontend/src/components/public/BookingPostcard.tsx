@@ -35,10 +35,14 @@ export function BookingPostcard({ classes }: { classes: PublicClass[] }) {
         className={cn(
           'mx-auto max-w-[340px] rounded-[var(--radius-lg)] p-[5px] shadow-[var(--shadow-soft)]',
           'bg-[linear-gradient(140deg,var(--color-pink)_0%,var(--color-butter)_55%,var(--color-sage)_110%)]',
-          'rotate-[1.1deg] transition-[opacity,transform] duration-500',
+          'relative rotate-[1.1deg] transition-[opacity,transform] duration-500',
           visible ? 'opacity-100' : 'translate-y-3 opacity-0',
         )}
       >
+        <span
+          aria-hidden="true"
+          className="bg-butter absolute -top-3 left-1/2 h-[22px] w-[72px] -translate-x-1/2 -rotate-2 rounded-[3px] opacity-80"
+        />
         <div className="relative rounded-[18px] border-2 border-dashed border-white/75 p-5 text-center text-[#4A2A33]">
           <p className="font-display text-3xl leading-none tabular-nums">{shown}</p>
           <p className="font-hand mt-1 text-lg">

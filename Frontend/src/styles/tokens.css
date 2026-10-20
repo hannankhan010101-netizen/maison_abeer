@@ -81,12 +81,20 @@
   --color-on-butter: var(--color-cocoa); /* @a11y 9.33:1 */
 
   /* ---- shape ------------------------------------------------------------- */
+  --radius-xl: 28px; /* storefront panels — the one size up from a card */
   --radius-lg: 22px;
   --radius-md: 16px;
   --radius-sm: 12px;
   --radius-pill: 999px;
 
   --shadow-soft: 0 10px 24px -14px rgb(64 48 42 / 28%);
+
+  /* Two-layer shadows: a hairline contact shadow that keeps a surface from
+     floating, plus a soft ambient one that gives it weight. `card` is the
+     resting state, `lift` the hovered or featured one — a shadow that grows
+     on hover is what makes a card read as picked up rather than recoloured. */
+  --shadow-card: 0 1px 2px rgb(64 48 42 / 5%), 0 14px 34px -18px rgb(64 48 42 / 24%);
+  --shadow-lift: 0 2px 4px rgb(64 48 42 / 6%), 0 28px 56px -22px rgb(64 48 42 / 32%);
 
   /* ---- chat ---------------------------------------------------------------
      Your own messages get a gradient; everyone else stays on flat paper. Two
@@ -168,12 +176,77 @@
   --color-on-butter: #3a1e28; /* @a11y 11.19:1 */
 
   --shadow-soft: 0 10px 24px -14px rgb(0 0 0 / 60%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 35%), 0 14px 34px -18px rgb(0 0 0 / 60%);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 40%), 0 28px 56px -22px rgb(0 0 0 / 70%);
 
   /* Mocha's rose and pink are already the lighter, desaturated pair, and
      `--color-on-rose` is measured against both. Redefining the gradient here
      rather than letting it inherit keeps that guarantee in dark mode too. */
   --chat-bubble-you: linear-gradient(135deg, var(--color-rose) 0%, var(--color-pink) 100%);
   --chat-bubble-shadow: 0 4px 14px -6px rgb(0 0 0 / 55%);
+}
+
+/* ==========================================================================
+   The storefront opts out of mocha — the whole page, both sides of the pair.
+
+   Mocha is the *host's* late-night setting, and `MOCHA_INIT_SCRIPT` also
+   applies it to any visitor whose phone prefers dark. The public booking page
+   is the brand's shop window, reached from an Instagram ad that is cream and
+   pink: a guest who tapped that ad and landed on warm brown had, as far as
+   they could tell, arrived somewhere else. ADR 0002 calls the pastel palette
+   central to the positioning, and this is the one page where positioning is
+   the entire job — so it is pinned to the light values rather than following
+   the host's preference.
+
+   Every colour token `:root` declares is restated here, not only the ones
+   `.mocha` flips: `storefront.test.ts` holds this block to the full list, so
+   a token added to `:root` later cannot be left to flip on the storefront
+   unnoticed. Values are the light ones verbatim — the same pairs contrast.test
+   already proves, nothing new to measure. The `on-*` tokens keep their
+   `var(--color-cocoa)` indirection, which resolves to the cocoa pinned here.
+   ========================================================================== */
+.storefront {
+  --color-buttercream: #fff8f0;
+  --color-paper: #fffdfa;
+  --color-line: #f0e2d4;
+
+  --color-blush: #fbe7ea;
+  --color-pink: #f2aabe;
+  --color-rose: #e2849e;
+  --color-rose-deep: #c25b78;
+  --color-rose-ink: #b44363;
+
+  --color-terra: #c96f4a;
+  --color-terra-soft: #f3dccb;
+  --color-terra-deep: #9b4d2d;
+
+  --color-sage: #adbe93;
+  --color-sage-soft: #e9efdd;
+  --color-sage-ink: #5f714d;
+
+  --color-butter: #f7dc94;
+  --color-butter-soft: #fbf0d2;
+  --color-butter-ink: #88681f;
+
+  --color-cocoa: #40302a;
+  --color-latte: #866e60;
+  --color-photo-ink: #fbf3e7;
+  --color-wrapped-ink: #2e1a20;
+  --color-danger: #bb463d;
+  --color-danger-soft: #fdecea;
+  --color-danger-line: #f2c4c0;
+
+  --color-on-rose: var(--color-cocoa);
+  --color-on-pink: var(--color-cocoa);
+  --color-on-sage: var(--color-cocoa);
+  --color-on-butter: var(--color-cocoa);
+
+  --shadow-soft: 0 10px 24px -14px rgb(64 48 42 / 28%);
+  --shadow-card: 0 1px 2px rgb(64 48 42 / 5%), 0 14px 34px -18px rgb(64 48 42 / 24%);
+  --shadow-lift: 0 2px 4px rgb(64 48 42 / 6%), 0 28px 56px -22px rgb(64 48 42 / 32%);
+
+  color: var(--color-cocoa);
+  background-color: var(--color-buttercream);
 }
 
 /* ==========================================================================

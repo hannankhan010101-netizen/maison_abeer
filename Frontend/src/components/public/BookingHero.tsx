@@ -1,33 +1,47 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 
+import {
+  StickerCake,
+  StickerHeart,
+  StickerPalette,
+  StickerPot,
+  StickerSpark,
+} from '@/components/public/CraftStickers';
 import { ParticleField } from '@/components/public/ParticleField';
 import { cn } from '@/lib/cn';
+import type { PublicClass } from '@/lib/public/api';
+import { nextClass, whenCopy } from '@/lib/public/format';
 import { scrollToId } from '@/lib/public/lenisBridge';
 import { useHeroParallax } from '@/lib/public/useHeroParallax';
 import { useMagnetic } from '@/lib/public/useMagnetic';
+import { useMountedNow } from '@/lib/public/useMountedNow';
 
 /**
- * The booking page's hero — the studio's name as the actual hero, a floating
- * 3D craft scene behind it, and the studio's own brand colours carried
- * through when it has set any (Settings → Brand Kit).
+ * The booking page's hero — the studio's name as the actual hero, a handful
+ * of hand-drawn craft stickers around it, and the studio's own brand colours
+ * carried through when it has set any (Settings → Brand Kit).
  *
  * There is no photograph anywhere in this app — no logo file, no class
  * photos, nothing — and there never has been. Rather than fake that with
  * stock imagery, the hero leans on what the app already has and does well:
  * oversized display type, the three-typeface voice (serif / body /
- * handwritten), and colour. That is not a compromise; it is 2026's own
- * answer to "no photography budget" — see the plan doc for the research.
+ * handwritten), colour, and now the stickers (`CraftStickers`), which are
+ * drawn in those same tokens.
  *
- * The CSS gradient + blobs below are not a "loading state" for the 3D layer;
- * they are the actual background, painted immediately and always visible.
- * The canvas draws on top of them once (and if) it's ready. That ordering is
- * deliberate: this page's Largest Contentful Paint must never wait on
- * `three` downloading, parsing or finding a WebGL context — a guest from an
- * ad on mid-tier mobile data should see a finished-looking hero within the
- * same budget as if the 3D layer didn't exist at all.
+ * The stickers replaced a WebGL scene of floating polyhedra. Two reasons.
+ * Abstract shapes read as "a tech landing page"; a frosted cake and a thrown
+ * pot read as "this is where you make one", which is the whole pitch. And
+ * `three` was the heaviest thing on the page by a wide margin, loaded for a
+ * decoration — inline SVG weighs a few kilobytes and is on screen in the
+ * first paint, which for a guest on mobile data from an ad is the better
+ * kind of premium.
+ *
+ * The one piece of real information here is the ticket chip: the soonest
+ * class and its seats, from the same payload the picker renders. No
+ * "12 people are looking at this" — a number the guest can scroll down and
+ * check is worth more than one they cannot.
  *
  * When a studio *has* added a real photo, the hero becomes a full-bleed
  * cinematic still rather than a UI panel laid over one: a slow ambient zoom
@@ -36,28 +50,6 @@ import { useMagnetic } from '@/lib/public/useMagnetic';
  * the bottom edge — so the hero doesn't end at a hard seam, it fades into
  * the section beneath it the way a page in a printed book turns.
  */
-
-const Hero3D = dynamic(() => import('./Hero3D'), { ssr: false });
-
-class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  override componentDidCatch(error: unknown) {
-    // A WebGL context can legitimately fail to create (old device, too many
-    // contexts already open, a browser flag). The gradient behind this is a
-    // complete scene on its own, so losing the 3D layer here is a downgrade,
-    // not a broken page — logged for visibility, not surfaced to the guest.
-    console.warn('[booking hero] 3D scene unavailable, showing the gradient only:', error);
-  }
-
-  override render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
 
 /**
  * Whether it's reasonable to spend a guest's battery and, on some
@@ -74,8 +66,7 @@ function useMayAnimate(): boolean {
   useEffect(() => {
     // matchMedia is missing in some test environments and a handful of
     // embedded/legacy WebViews. Either way, the safe default for a guest we
-    // can't ask is "don't animate" — the CSS gradient behind this is a
-    // complete scene without it.
+    // can't ask is "don't animate" — the hero is a complete scene without it.
     if (typeof window.matchMedia !== 'function') return;
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -107,7 +98,11 @@ export interface BookingHeroProps {
   /** A real photo of the studio, when one's been added. Null keeps the
    * type-and-colour hero exactly as before — never a placeholder box. */
   heroPhotoUrl?: string | null;
+  /** The classes on offer, for the "next class" ticket chip. */
+  classes?: PublicClass[];
 }
+
+const FOCUS = 'focus-visible:outline-[3px] focus-visible:outline-offset-2';
 
 export function BookingHero({
   studioName,
@@ -115,6 +110,7 @@ export function BookingHero({
   primaryColor,
   accentColor,
   heroPhotoUrl,
+  classes = [],
 }: BookingHeroProps) {
   const mayAnimate = useMayAnimate();
   const hasPhoto = Boolean(heroPhotoUrl);
@@ -126,7 +122,7 @@ export function BookingHero({
   // way) — so a studio's own brand colours are applied the identical way: an
   // inline override on the two properties every rose/pink utility already
   // reads from, scoped to this header. Every `bg-rose`, `text-rose-ink`,
-  // `border-rose` etc. beneath it — including inside Hero3D — picks the
+  // `border-rose` etc. beneath it — the stickers' fills included — picks the
   // brand colour up automatically, with no per-class overrides to maintain.
   // Unset (no override) when a studio hasn't chosen one, which is the common
   // case today: the app's own rose/pink remain exactly as before.
@@ -136,14 +132,15 @@ export function BookingHero({
   } as CSSProperties;
 
   const words = studioName.split(' ');
+  // Everything under the name enters after its last word has landed.
+  const afterName = 80 + words.length * 110;
 
   return (
     <header
       style={brandVars}
       className={cn(
-        'relative isolate overflow-hidden',
-        'border-line rounded-b-[2.5rem] border-b-[1.5px]',
-        'px-4 pt-12 pb-24 text-center sm:px-6 sm:pt-16 sm:pb-28',
+        'relative isolate overflow-hidden px-4 pt-14 pb-16 text-center sm:px-6 sm:pt-20 sm:pb-24',
+        hasPhoto && 'border-line rounded-b-[2.5rem] border-b-[1.5px]',
       )}
     >
       {hasPhoto ? (
@@ -182,12 +179,12 @@ export function BookingHero({
               bright shot even though the bottom stop was fine. Two stops
               now, both dark enough on their own — black/60 over a white
               photo composites to #666666, 5.22:1 for photo-ink and exactly
-              3.00:1 for the CTA's `photo-ink/60` border — so the guarantee
-              holds at every pixel rather than at the bottom edge. black/55
-              is not enough (4.31:1 and 2.62:1), and a `via-black/60` would
-              be redundant. If this ever reads too heavy on the photograph,
-              add a local scrim behind the text block; do not lighten the
-              ramp back toward black/35. */}
+              3.00:1 for the secondary link's `photo-ink/60` border — so the
+              guarantee holds at every pixel rather than at the bottom edge.
+              black/55 is not enough (4.31:1 and 2.62:1), and a `via-black/60`
+              would be redundant. If this ever reads too heavy on the
+              photograph, add a local scrim behind the text block; do not
+              lighten the ramp back toward black/35. */}
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/70"
@@ -208,22 +205,23 @@ export function BookingHero({
         </>
       ) : (
         <>
-          {/* The always-on scene: gradient wash plus two drifting blobs.
-              This is the whole hero on a reduced-motion visit, on data
-              saver, or before the 3D layer has mounted — never an empty or
+          {/* The always-on scene: cream paper with three soft washes of the
+              palette — blush top-left, butter top-right, sage along the
+              foot — plus the grain and two drifting blobs. This is the whole
+              hero on a reduced-motion visit or data saver: never an empty or
               half-finished frame. */}
           <div
             aria-hidden="true"
-            className="from-blush via-buttercream to-pink/50 absolute inset-0 bg-gradient-to-br"
+            className="absolute inset-0 bg-[radial-gradient(60%_55%_at_18%_12%,var(--color-blush)_0%,transparent_65%),radial-gradient(45%_45%_at_84%_18%,var(--color-butter-soft)_0%,transparent_62%),radial-gradient(55%_50%_at_60%_100%,var(--color-sage-soft)_0%,transparent_62%)]"
           />
           <div aria-hidden="true" className="grain-overlay absolute inset-0" />
           <div
             aria-hidden="true"
-            className="bg-terra-soft/70 animate-drift absolute -top-20 -left-16 size-72 rounded-full blur-3xl"
+            className="bg-pink/30 animate-drift absolute -top-24 -left-16 size-80 rounded-full blur-3xl"
           />
           <div
             aria-hidden="true"
-            className="bg-sage-soft/70 animate-drift absolute -right-16 -bottom-24 size-80 rounded-full blur-3xl"
+            className="bg-terra-soft/70 animate-drift absolute -right-20 -bottom-28 size-96 rounded-full blur-3xl"
             style={{ animationDelay: '4s' }}
           />
           <div
@@ -234,126 +232,229 @@ export function BookingHero({
         </>
       )}
 
-      {mayAnimate && !hasPhoto ? (
-        // A hole punched straight through the middle, where the headline and
-        // body copy always sit — not a suggestion the shapes are tuned to
-        // respect, a guarantee that holds on any viewport shape. A short,
-        // wide window (a laptop, not the phone this page is designed for)
-        // is exactly where "tuned to look right on mobile" positions stop
-        // being true, and text must never depend on that.
-        <div
-          aria-hidden="true"
-          className="absolute inset-0"
-          style={{
-            maskImage:
-              'radial-gradient(ellipse 52% 62% at 50% 45%, transparent 0%, transparent 60%, white 100%)',
-            WebkitMaskImage:
-              'radial-gradient(ellipse 52% 62% at 50% 45%, transparent 0%, transparent 60%, white 100%)',
-          }}
-        >
-          <CanvasBoundary>
-            <Hero3D
-              primaryColor={primaryColor ?? undefined}
-              accentColor={accentColor ?? undefined}
-            />
-          </CanvasBoundary>
-        </div>
-      ) : null}
+      <div className="relative z-10 mx-auto max-w-[920px]">
+        {/* Stickers frame the text from the corners of the same box the text
+            lives in, so they keep their distance from it at every width
+            instead of being tuned to one viewport. They come before the text
+            in the DOM and are painted beneath it. */}
+        {hasPhoto ? null : <Stickers />}
 
-      <div className="relative z-10">
-        <p
-          className={cn(
-            'font-hand animate-rise-in text-lg',
-            hasPhoto ? 'text-pink' : 'text-rose-ink',
-          )}
-        >
-          your studio bestie ✨
-        </p>
-
-        {/* Photo mode drops the name to cream-on-photo instead of
-            cocoa-on-gradient — the scrim above guarantees the contrast,
-            not the photo's own content, which this app has no control
-            over once a host pastes a link to one. */}
-        <h1
-          className={cn(
-            'font-display mt-2 text-[clamp(44px,15vw,108px)] leading-[0.98]',
-            hasPhoto && 'text-photo-ink',
-          )}
-        >
-          <span className="sr-only">{studioName}</span>
-          <span aria-hidden="true" className="flex flex-wrap items-baseline justify-center gap-x-4">
-            {words.map((word, index) => (
-              <span
-                key={`${word}-${index}`}
-                className="animate-rise-in inline-block"
-                style={{ animationDelay: `${80 + index * 110}ms` }}
-              >
-                {word}
-              </span>
-            ))}
-          </span>
-        </h1>
-
-        <p
-          className={cn(
-            'animate-rise-in mx-auto mt-4 max-w-[34ch] text-[15px] sm:text-base',
-            // No `/90`. This block is vertically centred, i.e. mid-ramp, and
-            // the suffix is what put it out of reach even over a mid-grey
-            // photo; the photo/no-photo branch already carries the whole
-            // hierarchy this was buying.
-            hasPhoto ? 'text-photo-ink' : 'text-cocoa',
-          )}
-          style={{ animationDelay: `${80 + words.length * 110 + 100}ms` }}
-        >
-          Come make something with us — pick a class and save your seat below ♡
-        </p>
-
-        <a
-          ref={ctaRef}
-          href="#booking-widget"
-          onClick={(event) => {
-            event.preventDefault();
-            scrollToId('booking-widget');
-          }}
-          className={cn(
-            'animate-rise-in group mt-7 inline-flex min-h-[48px] items-center gap-2 rounded-[var(--radius-pill)]',
-            'border-[1.5px] px-6 text-sm font-extrabold tracking-wide uppercase',
-            'transition-colors duration-300',
-            hasPhoto
-              ? 'border-photo-ink/60 text-photo-ink hover:bg-photo-ink/10'
-              : 'border-cocoa/40 text-cocoa hover:bg-cocoa/5',
-            'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
-          )}
-          style={{ animationDelay: `${80 + words.length * 110 + 180}ms` }}
-        >
-          Explore classes
-          <span
-            aria-hidden="true"
-            className="transition-transform duration-300 group-hover:translate-x-1"
-          >
-            →
-          </span>
-        </a>
-
-        {handle ? (
+        <div className="relative">
           <p
             className={cn(
-              'animate-rise-in mt-5 text-sm',
-              // No `/75` either — at 14px the bar is 4.5:1 and the suffix
-              // measured 1.86:1 mid-ramp over a bright shot. `text-sm`
-              // against the clamped display headline is the de-emphasis.
-              hasPhoto ? 'text-photo-ink' : 'text-latte',
+              'font-hand animate-rise-in text-xl',
+              hasPhoto ? 'text-pink' : 'text-rose-ink',
             )}
-            style={{ animationDelay: `${80 + words.length * 110 + 260}ms` }}
           >
-            Find us on Instagram{' '}
-            <b className={hasPhoto ? 'text-photo-ink' : 'text-cocoa'}>@{handle}</b>
+            your studio bestie ✨
           </p>
-        ) : null}
 
-        <ScrollCue delay={`${80 + words.length * 110 + 340}ms`} light={hasPhoto} />
+          {/* Photo mode drops the name to cream-on-photo instead of
+              cocoa-on-paper — the scrim above guarantees the contrast,
+              not the photo's own content, which this app has no control
+              over once a host pastes a link to one. */}
+          <h1
+            className={cn(
+              'font-display mt-2 text-[clamp(46px,14vw,112px)] leading-[0.96] text-balance',
+              hasPhoto && 'text-photo-ink',
+            )}
+          >
+            <span className="sr-only">{studioName}</span>
+            <span
+              aria-hidden="true"
+              className="flex flex-wrap items-baseline justify-center gap-x-4"
+            >
+              {words.map((word, index) => (
+                <span
+                  key={`${word}-${index}`}
+                  className="animate-rise-in inline-block"
+                  style={{ animationDelay: `${80 + index * 110}ms` }}
+                >
+                  {word}
+                </span>
+              ))}
+            </span>
+          </h1>
+
+          <p
+            className={cn(
+              'animate-rise-in mx-auto mt-5 max-w-[36ch] text-[15px] text-balance sm:text-[17px]',
+              // No `/90`. This block is vertically centred, i.e. mid-ramp, and
+              // the suffix is what put it out of reach even over a mid-grey
+              // photo; the photo/no-photo branch already carries the whole
+              // hierarchy this was buying.
+              hasPhoto ? 'text-photo-ink' : 'text-cocoa',
+            )}
+            style={{ animationDelay: `${afterName + 100}ms` }}
+          >
+            Come make something with your own hands — pick a class below and we&rsquo;ll keep you a
+            seat ♡
+          </p>
+
+          <NextClassChip classes={classes} light={hasPhoto} delay={`${afterName + 160}ms`} />
+
+          <div
+            className="animate-rise-in mt-7 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3"
+            style={{ animationDelay: `${afterName + 220}ms` }}
+          >
+            <a
+              ref={ctaRef}
+              href="#booking-widget"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToId('booking-widget');
+              }}
+              className={cn(
+                'sheen-on-hover group relative inline-flex min-h-[52px] items-center gap-2 overflow-hidden',
+                'rounded-[var(--radius-pill)] px-7 text-[15px] font-extrabold',
+                hasPhoto
+                  ? 'bg-photo-ink text-cocoa'
+                  : 'bg-rose text-on-rose shadow-[0_16px_32px_-14px_var(--color-rose)]',
+                'transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0',
+                'motion-reduce:transform-none',
+                'focus-visible:outline-cocoa',
+                FOCUS,
+              )}
+            >
+              Explore classes
+              <span
+                aria-hidden="true"
+                className="transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transition-none"
+              >
+                →
+              </span>
+            </a>
+
+            <a
+              href="#how-it-works"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToId('how-it-works');
+              }}
+              className={cn(
+                'inline-flex min-h-[48px] items-center gap-1.5 rounded-[var(--radius-pill)] px-5 text-sm font-extrabold',
+                'transition-colors duration-200',
+                hasPhoto ? 'text-photo-ink hover:bg-photo-ink/10' : 'text-rose-ink hover:bg-blush',
+                'focus-visible:outline-rose',
+                FOCUS,
+              )}
+            >
+              How it works
+              <span aria-hidden="true">✿</span>
+            </a>
+          </div>
+
+          {handle ? (
+            <p
+              className={cn(
+                'animate-rise-in mt-6 text-sm',
+                // No `/75` either — at 14px the bar is 4.5:1 and the suffix
+                // measured 1.86:1 mid-ramp over a bright shot. `text-sm`
+                // against the clamped display headline is the de-emphasis.
+                hasPhoto ? 'text-photo-ink' : 'text-latte',
+              )}
+              style={{ animationDelay: `${afterName + 300}ms` }}
+            >
+              <a
+                href={`https://instagram.com/${handle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  'inline-flex min-h-[44px] items-center gap-1 rounded-[var(--radius-pill)] px-2',
+                  'focus-visible:outline-rose',
+                  FOCUS,
+                )}
+              >
+                Find us on Instagram{' '}
+                <b className={hasPhoto ? 'text-photo-ink' : 'text-cocoa'}>@{handle}</b>
+              </a>
+            </p>
+          ) : null}
+
+          <ScrollCue delay={`${afterName + 380}ms`} light={hasPhoto} />
+        </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * The sticker arrangement. Phones get the cake and the pot at the top
+ * corners, where the headline never reaches (it is centred and the stickers
+ * hug the edges); the palette joins from `sm`, when there is room beside
+ * the copy for it. Each bobs on its own phase so no two move together.
+ */
+function Stickers() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <StickerCake
+        className="animate-float absolute top-0 -left-1 w-16 sm:top-1 sm:left-[3%] sm:w-24 lg:-left-2 lg:w-28"
+        style={{ '--float-rot': '-9deg' } as CSSProperties}
+      />
+      <StickerPot
+        className="animate-float absolute top-14 -right-1 w-16 sm:top-8 sm:right-[3%] sm:w-24 lg:-right-2 lg:w-28"
+        style={{ '--float-rot': '7deg', animationDelay: '0.9s' } as CSSProperties}
+      />
+      <StickerPalette
+        className="animate-float absolute bottom-2 hidden w-20 sm:left-[10%] sm:block lg:left-[6%] lg:w-24"
+        style={{ '--float-rot': '-6deg', animationDelay: '1.7s' } as CSSProperties}
+      />
+      <StickerSpark className="animate-twinkle absolute top-2 right-[18%] w-7 sm:right-[22%] sm:w-9" />
+      <StickerSpark
+        className="animate-twinkle absolute bottom-16 left-[8%] w-5 sm:left-[24%] sm:w-6"
+        style={{ animationDelay: '1.2s' }}
+      />
+      <StickerHeart
+        className="animate-float absolute right-[10%] bottom-4 w-8 sm:right-[14%] sm:w-10"
+        style={{ '--float-rot': '12deg', animationDelay: '2.4s' } as CSSProperties}
+      />
+    </div>
+  );
+}
+
+/**
+ * "Next class this Friday · 8 seats left" — the soonest class and its real
+ * seat count, as a little ticket. Blank (but the same height) until the
+ * browser clock is known, so the buttons under it never move.
+ */
+function NextClassChip({
+  classes,
+  light,
+  delay,
+}: {
+  classes: PublicClass[];
+  light: boolean;
+  delay: string;
+}) {
+  const now = useMountedNow();
+  const soonest = nextClass(classes);
+
+  if (!soonest) return null;
+
+  const seats = soonest.is_full
+    ? soonest.waitlist_is_open
+      ? 'fully booked, waitlist open'
+      : 'fully booked'
+    : soonest.seats_left === 1
+      ? 'last seat'
+      : `${soonest.seats_left} seats left`;
+
+  return (
+    <p
+      className={cn(
+        'animate-rise-in mx-auto mt-5 inline-flex min-h-[40px] max-w-full items-center gap-2',
+        'rounded-[var(--radius-pill)] border-[1.5px] border-dashed px-4 py-1.5 text-sm font-extrabold',
+        light
+          ? 'border-photo-ink/60 text-photo-ink'
+          : 'border-rose-deep/40 bg-paper/80 text-cocoa backdrop-blur',
+      )}
+      style={{ animationDelay: delay }}
+    >
+      <span aria-hidden="true">🎟️</span>
+      <span suppressHydrationWarning>
+        {now ? `Next class ${whenCopy(soonest.starts_at, now)} · ${seats}` : ' '}
+      </span>
+    </p>
   );
 }
 

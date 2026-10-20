@@ -84,7 +84,7 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
           before they ever see it. */}
       <ul
         ref={ref}
-        className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:px-6 [&::-webkit-scrollbar]:hidden"
+        className="mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pt-2 pb-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
       >
         {crafts.map((craft, index) => {
           const block = blockFor(craft.token);
@@ -102,6 +102,9 @@ export function CraftStrip({ classes }: { classes: PublicClass[] }) {
                 data-cursor-label="EXPLORE"
                 className={cn(
                   'group relative flex h-[168px] flex-col justify-between overflow-hidden rounded-[var(--radius-lg)] p-4',
+                  'shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-200',
+                  'hover:-translate-y-1 hover:shadow-[var(--shadow-lift)] active:scale-[0.98]',
+                  'motion-reduce:transform-none motion-reduce:transition-none',
                   craft.photoUrl ? 'text-photo-ink' : cn(block.bg, block.ink),
                 )}
               >

@@ -96,7 +96,7 @@ export function CeramicShowcase() {
     <section
       ref={ref}
       aria-label="Shaped by hand"
-      className="border-line bg-blush/30 mx-4 grid overflow-hidden rounded-[var(--radius-lg)] border-[1.5px] sm:mx-6 md:grid-cols-2"
+      className="border-line bg-blush/30 mx-4 grid overflow-hidden rounded-[var(--radius-xl)] border-[1.5px] shadow-[var(--shadow-card)] sm:mx-6 md:mx-auto md:max-w-[1040px] md:grid-cols-2"
     >
       <div className="relative h-72 sm:h-80 md:h-auto">
         <div className="from-blush via-buttercream to-sage-soft/60 absolute inset-0 bg-gradient-to-br" />

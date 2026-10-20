@@ -44,6 +44,7 @@
   --color-on-sage: var(--color-on-sage);
   --color-on-butter: var(--color-on-butter);
 
+  --radius-xl: var(--radius-xl);
   --radius-lg: var(--radius-lg);
   --radius-md: var(--radius-md);
   --radius-sm: var(--radius-sm);
@@ -54,6 +55,8 @@
   --font-hand: var(--font-hand);
 
   --shadow-soft: var(--shadow-soft);
+  --shadow-card: var(--shadow-card);
+  --shadow-lift: var(--shadow-lift);
 }
 
 /* ==========================================================================
@@ -175,6 +178,54 @@
   }
 }
 
+/* The storefront's stickers bobbing in place — a sticker stuck to a window
+   that breathes with the room, not a bouncing icon. Each one keeps its own
+   resting tilt through `--float-rot`, so the bob never straightens it. The
+   global reduced-motion rule above collapses this to its end frame: a
+   static sticker, still tilted, still complete. */
+@keyframes float {
+  from {
+    transform: translateY(0) rotate(var(--float-rot, 0deg));
+  }
+  to {
+    transform: translateY(-9px) rotate(calc(var(--float-rot, 0deg) + 1.5deg));
+  }
+}
+
+/* The ribbon's endless walk. The track holds two copies of its text, so
+   moving one copy's width leaves the second exactly where the first began —
+   a seamless loop with no jump, and a sensible static frame when motion is
+   reduced (the second copy is still a full copy). */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* A small star catching the light: scale and opacity only, no travel. */
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* A sheen that crosses the primary button once per hover — the one place a
+   gradient moves on this page, and it is a highlight on paper, not a glow. */
+@keyframes sheen {
+  from {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(230%) skewX(-18deg);
+  }
+}
+
 @layer utilities {
   /* Handwritten asides — the app writing a little note to the host. */
   .font-hand {
@@ -199,6 +250,36 @@
 
   .animate-hero-zoom {
     animation: hero-zoom 24s ease-in-out infinite alternate;
+  }
+
+  .animate-float {
+    animation: float 4.5s ease-in-out infinite alternate;
+  }
+
+  .animate-marquee {
+    animation: marquee 38s linear infinite;
+  }
+
+  .animate-twinkle {
+    animation: twinkle 2.6s ease-in-out infinite;
+  }
+
+  /* `.sheen-on-hover` draws the highlight as a pseudo-element so the button's
+     own label and background are untouched; the element only needs
+     `relative overflow-hidden`. */
+  .sheen-on-hover::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 55%), transparent);
+    transform: translateX(-130%) skewX(-18deg);
+    pointer-events: none;
+  }
+
+  .sheen-on-hover:hover::after,
+  .sheen-on-hover:focus-visible::after {
+    animation: sheen 900ms ease-out 1;
   }
 
   /* A "made by hand" tactility with no photograph behind it: a static,

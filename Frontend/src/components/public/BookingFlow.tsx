@@ -7,8 +7,12 @@ import { BookingPostcard } from '@/components/public/BookingPostcard';
 import { CeramicShowcase } from '@/components/public/CeramicShowcase';
 import { CraftStrip } from '@/components/public/CraftStrip';
 import { CustomCursor } from '@/components/public/CustomCursor';
+import { DateLeaf } from '@/components/public/DateLeaf';
+import { HowItWorks } from '@/components/public/HowItWorks';
 import { MagicalPattern } from '@/components/public/MagicalPattern';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
+import { StudioFooter } from '@/components/public/StudioFooter';
+import { StudioRibbon } from '@/components/public/StudioRibbon';
 import {
   BookingError,
   fetchClasses,
@@ -17,6 +21,8 @@ import {
   type PublicClass,
   type PublicClassList,
 } from '@/lib/public/api';
+import { durationCopy } from '@/lib/public/format';
+import { useMountedNow } from '@/lib/public/useMountedNow';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 import { cn } from '@/lib/cn';
 
@@ -40,14 +46,6 @@ import { cn } from '@/lib/cn';
  *   is even requested, and every animated pixel in it is optional weight —
  *   see `BookingHero` for exactly how that's enforced.
  */
-
-function useMountedNow(): Date | null {
-  // Rendering a date on the server and again on the client produces a
-  // hydration mismatch the moment the two clocks disagree.
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => setNow(new Date()), []);
-  return now;
-}
 
 function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -157,7 +155,7 @@ export function BookingFlow({ slug }: BookingFlowProps) {
       classes={data.classes}
     >
       {result ? (
-        <Confirmation result={result} />
+        <Confirmation result={result} token={chosen?.color_token ?? 'pink'} />
       ) : chosen ? (
         <DetailsStep slug={slug} item={chosen} onBack={() => setChosen(null)} onDone={setResult} />
       ) : (
@@ -195,9 +193,13 @@ function Shell({
   classes?: PublicClass[];
 }) {
   const brandSections = Boolean(showBrandSections && classes && classes.length > 0);
+  const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
 
   return (
-    <main id="main" className="bg-buttercream min-h-screen">
+    // `storefront` pins this page to the light palette whatever the visitor's
+    // phone prefers (tokens.css). Mocha is the host's late-night setting; this
+    // is the brand's shop window, reached from an ad that is cream and pink.
+    <main id="main" className="storefront bg-buttercream min-h-screen">
       <SmoothScroll />
       <CustomCursor />
 
@@ -208,55 +210,92 @@ function Shell({
           primaryColor={primaryColor}
           accentColor={accentColor}
           heroPhotoUrl={heroPhotoUrl}
+          classes={classes}
         />
       ) : null}
 
-      {/* The hero now dissolves into this same background colour at its own
+      {/* The hero dissolves into this same background colour at its own
           bottom edge (see BookingHero's scrim), so what follows just starts
-          here on solid ground — no overlap trick needed to hide a seam that
-          no longer exists. */}
+          here on solid ground. The ribbon, the steps and the brand sections
+          are the arrival experience — once a guest has committed to a class
+          or finished booking, the page's job narrows to "get this done," so
+          they step aside rather than compete with the form for attention. */}
       {brandSections ? (
-        <div className="space-y-12 pt-2 pb-4 sm:space-y-16">
-          {story ? <StorySection story={story} /> : null}
-          <CraftStrip classes={classes!} />
-          <CeramicShowcase />
-          <BookingPostcard classes={classes!} />
-        </div>
+        <>
+          <StudioRibbon crafts={crafts} />
+          <div className="space-y-14 pt-10 pb-4 sm:space-y-20 sm:pt-14">
+            <HowItWorks />
+            {story ? <StorySection story={story} /> : null}
+            <CraftStrip classes={classes!} />
+            <CeramicShowcase />
+            <BookingPostcard classes={classes!} />
+          </div>
+        </>
       ) : null}
 
       <div
         className={cn(
-          'mx-auto w-full max-w-[560px] px-4 sm:px-6',
+          'mx-auto w-full max-w-[600px] px-4 sm:px-6',
           !studioName && 'py-8 sm:py-12',
           studioName && !brandSections && 'pt-6 pb-14 sm:pt-8',
-          studioName && brandSections && 'pt-6 pb-14 sm:pt-10',
+          studioName && brandSections && 'pt-8 pb-14 sm:pt-12',
         )}
       >
+        {/* The widget is a ticket: a stub across the top with the step
+            dots, a perforation, and the form beneath. */}
         <div
           id="booking-widget"
           className={cn(
-            'border-line bg-paper relative scroll-mt-6 rounded-[var(--radius-lg)] border-[1.5px] p-5 sm:p-7',
-            studioName && 'shadow-[0_24px_48px_-24px_rgb(64_48_42_/25%)]',
+            'border-line bg-paper relative scroll-mt-6 rounded-[var(--radius-xl)] border-[1.5px]',
+            studioName && 'shadow-[var(--shadow-lift)]',
           )}
         >
-          {step ? <StepDots current={step} /> : null}
-          {/* Re-keyed per step: picking a class, filling the form, and
-              landing on the confirmation are three different screens
-              wearing one card. Without this the swap between them is
-              instant and flat; the key forces React to remount the whole
-              subtree so the same rise-in used everywhere else on this page
-              plays here too, making the step change read as a deliberate
-              transition rather than a layout jump. */}
-          <div key={step} className="animate-rise-in">
-            {children}
+          {step ? <TicketStub current={step} /> : null}
+          <div className="p-5 sm:p-7">
+            {/* Re-keyed per step: picking a class, filling the form, and
+                landing on the confirmation are three different screens
+                wearing one card. Without this the swap between them is
+                instant and flat; the key forces React to remount the whole
+                subtree so the same rise-in used everywhere else on this page
+                plays here too, making the step change read as a deliberate
+                transition rather than a layout jump. */}
+            <div key={step} className="animate-rise-in">
+              {children}
+            </div>
           </div>
         </div>
       </div>
+
+      {studioName ? <StudioFooter studioName={studioName} handle={handle} /> : null}
     </main>
   );
 }
 
-function StepDots({ current }: { current: 1 | 2 | 3 }) {
+/**
+ * The top of the ticket: a handwritten line, the step dots, and the
+ * perforation they are torn along. The two notches are half-circles of the
+ * page colour sitting on the card's edge — each one clipped to the half
+ * inside the card (`clip-path`), so the card's own border reads as a punched
+ * edge rather than a circle stuck on it.
+ */
+function TicketStub({ current }: { current: 1 | 2 | 3 }) {
+  return (
+    <div className="border-line relative border-b-[1.5px] border-dashed px-5 pt-5 pb-4 text-center sm:px-7">
+      <p className="font-hand text-rose-ink text-xl leading-none">save your seat</p>
+      <StepDots current={current} className="mt-3" />
+      <span
+        aria-hidden="true"
+        className="border-line bg-buttercream absolute -bottom-3 -left-3 size-6 rounded-full border-[1.5px] [clip-path:inset(0_0_0_50%)]"
+      />
+      <span
+        aria-hidden="true"
+        className="border-line bg-buttercream absolute -right-3 -bottom-3 size-6 rounded-full border-[1.5px] [clip-path:inset(0_50%_0_0)]"
+      />
+    </div>
+  );
+}
+
+function StepDots({ current, className }: { current: 1 | 2 | 3; className?: string }) {
   const labels = ['Pick a class', 'Your details', 'Confirmed'];
 
   return (
@@ -266,7 +305,7 @@ function StepDots({ current }: { current: 1 | 2 | 3 }) {
       aria-valuemin={1}
       aria-valuemax={3}
       aria-label={`Step ${current} of 3: ${labels[current - 1]}`}
-      className="mb-5 flex items-center justify-center gap-2"
+      className={cn('flex items-center justify-center gap-2', className)}
     >
       {[1, 2, 3].map((n) => (
         <span
@@ -360,14 +399,18 @@ function ClassPicker({
 
   return (
     <section aria-labelledby="pick-heading">
-      <h2 id="pick-heading" className="font-display mb-3 text-xl">
+      <h2 id="pick-heading" className="font-display text-xl">
         Pick your class
       </h2>
+      <p className="text-latte mt-0.5 mb-4 text-sm">
+        Tap one to save your seat — it takes about a minute.
+      </p>
 
       <ul ref={listRef} className="grid gap-3">
         {classes.map((item, index) => {
           const seats = seatCopy(item);
           const accent = accentFor(item.color_token);
+          const duration = durationCopy(item.starts_at, item.ends_at);
 
           return (
             <li
@@ -380,10 +423,13 @@ function ClassPicker({
                 onClick={() => onPick(item)}
                 data-cursor-label="BOOK"
                 className={cn(
-                  'group border-line bg-paper relative w-full overflow-hidden rounded-[var(--radius-md)] border-[1.5px]',
-                  'min-h-[44px] py-4 pr-4 pl-5 text-left transition-[transform,box-shadow] duration-200',
-                  'hover:[transform:perspective(600px)_rotateX(1.5deg)_translateY(-4px)] hover:border-transparent',
-                  // A phone has no hover, so the tilt above never fires there
+                  'group border-line bg-paper relative grid w-full grid-cols-[auto_1fr_auto] items-center gap-3.5',
+                  'rounded-[var(--radius-md)] border-[1.5px] p-3.5 text-left sm:p-4',
+                  'min-h-[44px] shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-200',
+                  // Lifted a little and ringed in the craft's own colour on
+                  // hover (`hoverGlow`) — picked up, not recoloured.
+                  'hover:-translate-y-1 hover:border-transparent',
+                  // A phone has no hover, so the lift above never fires there
                   // and the card confirmed nothing when tapped. This is the
                   // whole of the feedback on the app's conversion surface.
                   'active:scale-[0.98] motion-reduce:active:scale-100',
@@ -392,49 +438,50 @@ function ClassPicker({
                   'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
                 )}
               >
-                {/* The class-type accent bar — same colour language as the
-                    admin calendar, so a returning guest's eye already knows
-                    what pink versus terracotta means here. */}
-                <span
-                  aria-hidden="true"
-                  className={cn('absolute inset-y-0 left-0 w-1.5', accent.bar)}
-                />
+                {/* The date as a calendar leaf, banded in the class-type
+                    colour — same colour language as the admin calendar, so
+                    a returning guest's eye already knows what pink versus
+                    terracotta means here. */}
+                <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
 
-                <span className="font-display block text-lg">{item.name}</span>
+                <span className="min-w-0">
+                  <span className="font-display block text-lg leading-tight">{item.name}</span>
 
-                {/* suppressHydrationWarning: the date is formatted in the
-                    visitor's locale, which the server cannot know. */}
-                <span className="text-cocoa mt-0.5 block text-sm" suppressHydrationWarning>
-                  {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
+                  {/* suppressHydrationWarning: the date is formatted in the
+                      visitor's locale, which the server cannot know. */}
+                  <span className="text-cocoa mt-1 block text-sm" suppressHydrationWarning>
+                    {now
+                      ? [`${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}`, duration]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : ' '}
+                  </span>
+
+                  {item.location ? (
+                    <span className="text-latte block text-sm">{item.location}</span>
+                  ) : null}
+
+                  <span
+                    className={cn(
+                      'mt-2 inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
+                      item.is_full
+                        ? 'bg-butter-soft text-butter-ink'
+                        : seats.urgent
+                          ? 'bg-blush text-rose-ink animate-pulse motion-reduce:animate-none'
+                          : 'bg-sage-soft text-sage-ink',
+                    )}
+                  >
+                    {seats.urgent && !item.is_full ? <span aria-hidden="true">🔥</span> : null}
+                    {seats.text}
+                  </span>
                 </span>
 
-                {item.location ? (
-                  <span className="text-latte block text-sm">{item.location}</span>
-                ) : null}
-
-                <span
-                  className={cn(
-                    'mt-2 inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
-                    item.is_full
-                      ? 'bg-butter-soft text-butter-ink'
-                      : seats.urgent
-                        ? 'bg-blush text-rose-ink animate-pulse motion-reduce:animate-none'
-                        : 'bg-sage-soft text-sage-ink',
-                  )}
-                >
-                  {seats.urgent && !item.is_full ? <span aria-hidden="true">🔥</span> : null}
-                  {seats.text}
-                </span>
-
+                {/* Always visible: it was once revealed on hover only, so on
+                    every phone the one mark telling a guest the card moves
+                    them forward never appeared at all. Hover nudges it. */}
                 <span
                   aria-hidden="true"
-                  /*
-                   * Visible by default, revealed on hover only where hover
-                   * exists. It was `opacity-0 group-hover:opacity-100`, so on
-                   * every phone the one mark telling a guest the card moves
-                   * them forward never appeared at all.
-                   */
-                  className="text-rose-ink absolute top-1/2 right-4 -translate-y-1/2 text-xl opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 motion-reduce:transition-none"
+                  className="text-rose-ink text-xl opacity-100 transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none"
                 >
                   →
                 </span>
@@ -530,20 +577,24 @@ function DetailsStep({
         ← Pick a different class
       </button>
 
-      <div className="border-line bg-buttercream relative mb-4 overflow-hidden rounded-[var(--radius-md)] border-[1.5px] p-3.5">
+      {/* What they picked, as the stub of the ticket they are filling in. */}
+      <div className="border-line bg-buttercream relative mb-4 flex items-center gap-3.5 overflow-hidden rounded-[var(--radius-md)] border-[1.5px] p-3.5 pl-5">
         <span
           aria-hidden="true"
           className={cn('absolute inset-y-0 left-0 w-1.5', accentFor(item.color_token).bar)}
         />
-        <b className="font-display block pl-2 text-lg">{item.name}</b>
-        <span className="text-latte block pl-2 text-sm" suppressHydrationWarning>
-          {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
-        </span>
-        {item.is_full ? (
-          <span className="bg-butter-soft text-butter-ink mt-2 ml-2 inline-block rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold">
-            Fully booked — you&rsquo;ll join the waitlist
+        <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
+        <div className="min-w-0">
+          <b className="font-display block text-lg leading-tight">{item.name}</b>
+          <span className="text-latte block text-sm" suppressHydrationWarning>
+            {now ? `${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}` : ' '}
           </span>
-        ) : null}
+          {item.is_full ? (
+            <span className="bg-butter-soft text-butter-ink mt-2 inline-block rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold">
+              Fully booked — you&rsquo;ll join the waitlist
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <h2
@@ -632,8 +683,8 @@ function DetailsStep({
           type="submit"
           disabled={submitting}
           className={cn(
-            'bg-rose text-on-rose min-h-[48px] rounded-[var(--radius-pill)]',
-            'px-5 text-base font-extrabold shadow-[0_10px_24px_-10px_var(--color-rose)]',
+            'sheen-on-hover bg-rose text-on-rose relative min-h-[52px] overflow-hidden rounded-[var(--radius-pill)]',
+            'px-5 text-base font-extrabold shadow-[0_14px_28px_-12px_var(--color-rose)]',
             'transition-transform hover:-translate-y-0.5 active:translate-y-0',
             'motion-reduce:transform-none',
             'focus-visible:outline-cocoa focus-visible:outline-[3px] focus-visible:outline-offset-2',
@@ -790,14 +841,14 @@ function Field({
 // Step 3 — done
 // ---------------------------------------------------------------------------
 
-function Confirmation({ result }: { result: BookingResult }) {
+function Confirmation({ result, token }: { result: BookingResult; token: string }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const now = useMountedNow();
 
   useEffect(() => headingRef.current?.focus(), []);
 
   const waitlisted = result.outcome === 'waitlisted';
-  const token = result.portal_token;
+  const portalToken = result.portal_token;
   const tokenType = result.portal_token_type;
 
   return (
@@ -811,7 +862,7 @@ function Confirmation({ result }: { result: BookingResult }) {
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="font-display animate-rise-in mt-2 text-[clamp(24px,6vw,30px)] outline-none"
+        className="font-display animate-rise-in mt-2 text-[clamp(26px,6vw,34px)] outline-none"
         style={{ animationDelay: '140ms' }}
       >
         {/* A real apostrophe, not an entity: this is a JS string, so `&rsquo;`
@@ -819,19 +870,22 @@ function Confirmation({ result }: { result: BookingResult }) {
         {waitlisted ? 'You’re on the list' : 'You’re in!'}
       </h2>
 
-      <p className="text-cocoa animate-rise-in mt-2" style={{ animationDelay: '200ms' }}>
-        <b>{result.class_name}</b>
-        <br />
-        <span suppressHydrationWarning>
-          {now ? `${formatDay(result.starts_at)} · ${formatTime(result.starts_at)}` : ' '}
-        </span>
-        {result.location ? (
-          <>
-            <br />
-            {result.location}
-          </>
-        ) : null}
-      </p>
+      {/* The stub — the half of the ticket a guest keeps. */}
+      <div
+        className="border-line bg-buttercream animate-rise-in mx-auto mt-4 flex max-w-[380px] items-center gap-3.5 rounded-[var(--radius-md)] border-[1.5px] border-dashed p-3.5 text-left"
+        style={{ animationDelay: '200ms' }}
+      >
+        <DateLeaf iso={result.starts_at} token={token} ready={now !== null} />
+        <p className="text-cocoa min-w-0">
+          <b className="font-display block text-lg leading-tight">{result.class_name}</b>
+          <span className="text-latte block text-sm" suppressHydrationWarning>
+            {now ? `${formatDay(result.starts_at)} · ${formatTime(result.starts_at)}` : ' '}
+          </span>
+          {result.location ? (
+            <span className="text-latte block text-sm">{result.location}</span>
+          ) : null}
+        </p>
+      </div>
 
       {waitlisted ? (
         <p
@@ -851,8 +905,8 @@ function Confirmation({ result }: { result: BookingResult }) {
         </p>
       )}
 
-      {token && tokenType ? (
-        <PortalHandoff token={token} tokenType={tokenType} waitlisted={waitlisted} />
+      {portalToken && tokenType ? (
+        <PortalHandoff token={portalToken} tokenType={tokenType} waitlisted={waitlisted} />
       ) : (
         <p className="font-hand text-latte mt-5 text-lg">Can&rsquo;t wait to see you ♡</p>
       )}
