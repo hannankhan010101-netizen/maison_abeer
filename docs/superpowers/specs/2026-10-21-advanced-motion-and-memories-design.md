@@ -1,6 +1,6 @@
 # Advanced motion, real memories, and a whole-app design pass
 
-- **Status:** Proposed — nothing is built until this is approved.
+- **Status:** Decisions recorded 2026-10-21. The build plan comes next; nothing is built until it is shown and approved.
 - **Date:** 2026-10-21
 - **Scope:** the public booking page first, then the guest portal and login, then the host portal.
 
@@ -193,12 +193,15 @@ the migrations.**
 | Scope: this is weeks of work for a person                               | Phased; Phases 0–1 deliver the visible change, 2–4 are separate go/no-go decisions.                  |
 | GSAP licence terms                                                      | The package is installed and its plugins have been free since 2025; confirm the terms before launch. |
 
-## Decisions needed
+## Decisions (made 2026-10-21)
 
-1. **Where memories come from** (the biggest one).
-2. **Display typeface** — swap Young Serif for Fraunces?
-3. **The WebGL vase** — replace with the SVG "making of" story, which removes `three` from the page?
-4. **Scope and order** — all phases, or Phases 0–1 first?
+1. **Memories:** stock craft photography now, framed as "what you'll make here"; the studio's own
+   photos and guests' approved words replace and join it as they arrive.
+2. **Display typeface:** Fraunces on the **storefront only**. The host portal keeps Young Serif until
+   Phase 3, when it is decided again.
+3. **The WebGL vase:** replaced by the SVG "making of" story. The page stops loading `three`;
+   removing `three` and `@react-three/fiber` from `package.json` is a separate ask.
+4. **Scope:** all four phases, one at a time, with a review after each.
 
 ## My calls (mark these if you disagree)
 
