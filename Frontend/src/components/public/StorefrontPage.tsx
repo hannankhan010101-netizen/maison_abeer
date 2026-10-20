@@ -1,0 +1,133 @@
+'use client';
+
+import { BookingHero } from '@/components/public/BookingHero';
+import { BookingPostcard } from '@/components/public/BookingPostcard';
+import { CeramicShowcase } from '@/components/public/CeramicShowcase';
+import { CraftChapters } from '@/components/public/CraftChapters';
+import { CustomCursor } from '@/components/public/CustomCursor';
+import { HowItWorks } from '@/components/public/HowItWorks';
+import { PhotoMarquee } from '@/components/public/PhotoMarquee';
+import { SmoothScroll } from '@/components/public/SmoothScroll';
+import { StorefrontBackdrop } from '@/components/public/StorefrontBackdrop';
+import { StudioFooter } from '@/components/public/StudioFooter';
+import { StudioRibbon } from '@/components/public/StudioRibbon';
+import { StorySection } from '@/components/public/booking/StorySection';
+import { TicketStub } from '@/components/public/booking/TicketStub';
+import { cn } from '@/lib/cn';
+import { type PublicClass } from '@/lib/public/api';
+
+export interface StorefrontPageProps {
+  children: React.ReactNode;
+  studioName?: string;
+  handle?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  heroPhotoUrl?: string | null;
+  story?: string | null;
+  step?: 1 | 2 | 3;
+  showBrandSections?: boolean;
+  classes?: PublicClass[];
+}
+
+/**
+ * The storefront's composition root: it lays the page's sections out in order
+ * and puts the booking card in the middle of them.
+ *
+ * Each section is one line of JSX below, so a unit that adds a section adds a
+ * line here and nothing else — which is what lets several be built at once
+ * without editing the same file. (This was `Shell`, inside `BookingFlow`.)
+ */
+export function StorefrontPage({
+  children,
+  studioName,
+  handle,
+  primaryColor,
+  accentColor,
+  heroPhotoUrl,
+  story,
+  step,
+  showBrandSections,
+  classes,
+}: StorefrontPageProps) {
+  const brandSections = Boolean(showBrandSections && classes && classes.length > 0);
+  const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
+
+  return (
+    // `storefront` pins this page to the light palette whatever the visitor's
+    // phone prefers (tokens.css). Mocha is the host's late-night setting; this
+    // is the brand's shop window, reached from an ad that is cream and pink.
+    // `isolate`: the backdrop sits at z-index -1, and without a stacking
+    // context here it would be painted underneath main's own background.
+    <main id="main" className="storefront bg-buttercream isolate min-h-screen">
+      <StorefrontBackdrop />
+      <SmoothScroll />
+      <CustomCursor />
+
+      {studioName ? (
+        <BookingHero
+          studioName={studioName}
+          handle={handle}
+          primaryColor={primaryColor}
+          accentColor={accentColor}
+          heroPhotoUrl={heroPhotoUrl}
+          classes={classes}
+        />
+      ) : null}
+
+      {/* The hero dissolves into this same background colour at its own
+          bottom edge (see BookingHero's scrim), so what follows just starts
+          here on solid ground. The ribbon, the steps and the brand sections
+          are the arrival experience — once a guest has committed to a class
+          or finished booking, the page's job narrows to "get this done," so
+          they step aside rather than compete with the form for attention. */}
+      {brandSections ? (
+        <>
+          <StudioRibbon crafts={crafts} />
+          <div className="space-y-14 pt-10 pb-4 sm:space-y-20 sm:pt-14">
+            <HowItWorks />
+            {story ? <StorySection story={story} /> : null}
+            <CraftChapters classes={classes!} />
+            <CeramicShowcase />
+            <PhotoMarquee classes={classes!} />
+            <BookingPostcard classes={classes!} />
+          </div>
+        </>
+      ) : null}
+
+      <div
+        className={cn(
+          'mx-auto w-full max-w-[600px] px-4 sm:px-6',
+          !studioName && 'py-8 sm:py-12',
+          studioName && !brandSections && 'pt-6 pb-14 sm:pt-8',
+          studioName && brandSections && 'pt-8 pb-14 sm:pt-12',
+        )}
+      >
+        {/* The widget is a ticket: a stub across the top with the step
+            dots, a perforation, and the form beneath. */}
+        <div
+          id="booking-widget"
+          className={cn(
+            'border-line bg-paper relative scroll-mt-6 rounded-[var(--radius-xl)] border-[1.5px]',
+            studioName && 'shadow-[var(--shadow-lift)]',
+          )}
+        >
+          {step ? <TicketStub current={step} /> : null}
+          <div className="p-5 sm:p-7">
+            {/* Re-keyed per step: picking a class, filling the form, and
+                landing on the confirmation are three different screens
+                wearing one card. Without this the swap between them is
+                instant and flat; the key forces React to remount the whole
+                subtree so the same rise-in used everywhere else on this page
+                plays here too, making the step change read as a deliberate
+                transition rather than a layout jump. */}
+            <div key={step} className="animate-rise-in">
+              {children}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {studioName ? <StudioFooter studioName={studioName} handle={handle} /> : null}
+    </main>
+  );
+}
