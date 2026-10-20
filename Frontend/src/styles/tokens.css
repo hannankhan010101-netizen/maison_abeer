@@ -115,6 +115,95 @@
      that keeps the state change and drops the movement. */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* ---- the motion vocabulary ----------------------------------------------
+     Effects read their timing from here instead of inventing a curve in place.
+
+     The two springs are CSS `linear()` curves sampled from a damped spring
+     (soft: damping ratio 0.8, one overshoot of about 1.5%; bouncy: 0.45, about
+     20%) — real overshoot-and-settle with no animation library. Use them for
+     things that land (a card, a sticker, a toggle); use `--ease-out-expo` for
+     things that arrive. */
+  --dur-fast: 150ms; /* feedback: a press, a toggle */
+  --dur-base: 280ms; /* state changes */
+  --dur-slow: 600ms; /* entrances and reveals */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring-soft: linear(
+    0,
+    0.038,
+    0.13,
+    0.249,
+    0.376,
+    0.498,
+    0.61,
+    0.706,
+    0.787,
+    0.852,
+    0.903,
+    0.941,
+    0.969,
+    0.988,
+    1.001,
+    1.009,
+    1.013,
+    1.015,
+    1.015,
+    1.014,
+    1.012,
+    1.01,
+    1.008,
+    1.007,
+    1.005,
+    1.004,
+    1.003,
+    1.002,
+    1.001,
+    1.001,
+    1
+  );
+  --ease-spring-bouncy: linear(
+    0,
+    0.082,
+    0.277,
+    0.521,
+    0.759,
+    0.957,
+    1.097,
+    1.178,
+    1.205,
+    1.192,
+    1.154,
+    1.104,
+    1.055,
+    1.013,
+    0.983,
+    0.965,
+    0.958,
+    0.96,
+    0.967,
+    0.977,
+    0.988,
+    0.996,
+    1.003,
+    1.007,
+    1.009,
+    1.008,
+    1.007,
+    1.005,
+    1.003,
+    1.001,
+    1
+  );
+
+  /* ---- frosted glass --------------------------------------------------------
+     The page paper, made translucent. Text on it is measured over every wash it
+     can sit on by `glass.test.ts` — a token-to-token check cannot see through
+     a translucent surface. 88% because muted text over the terracotta wash needs at
+     least 84% to stay AA, and 72% (the first try) measured 4.37:1. Light only:
+     it belongs to the storefront. */
+  --glass-bg: rgb(255 253 250 / 88%);
+  --glass-border: rgb(255 255 255 / 60%);
+  --glass-blur: 14px;
+
   /* ---- type -------------------------------------------------------------- */
   /* The loaded family leads. Each `--font-*-loaded` variable is defined on <html>
      by next/font (app/layout.tsx) and carries a size-adjusted fallback with it. */

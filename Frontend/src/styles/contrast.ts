@@ -41,6 +41,27 @@ export function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/**
+ * A colour at `alpha` laid over an opaque background, as the `#rrggbb` the eye
+ * would see.
+ *
+ * Contrast is only defined between two opaque colours, so a translucent surface
+ * — frosted glass over a pastel wash — has to be resolved to the colour it
+ * actually paints before it can be measured.
+ */
+export function composite(foreground: string, alpha: number, background: string): string {
+  const fg = parseHex(foreground);
+  const bg = parseHex(background);
+
+  const channels = fg.map((channel, index) =>
+    Math.round(channel * alpha + bg[index]! * (1 - alpha))
+      .toString(16)
+      .padStart(2, '0'),
+  );
+
+  return `#${channels.join('')}`;
+}
+
 /** Contrast ratio between two colours, always >= 1. Order-independent. */
 export function contrastRatio(a: string, b: string): number {
   const first = luminance(a);

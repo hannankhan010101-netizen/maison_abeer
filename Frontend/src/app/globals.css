@@ -268,6 +268,33 @@
    * rule, so the next person reaches for it instead of the one that works.
    */
 
+  /*
+   * Clay: a surface that looks pressed from soft material, not drawn flat.
+   *
+   * A top highlight and a bottom shade inside the shape give it volume; the
+   * drop shadow beneath is tinted by `--clay-glow` (default: warm brown), so a
+   * rose button can glow rose. Pressing it sinks it a pixel and tightens the
+   * shadow, which is what makes it read as soft rather than rigid. For buttons
+   * and chips, not for large surfaces — a card that puffy is a pillow.
+   */
+  .clay {
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 55%),
+      inset 0 -6px 10px -4px rgb(64 48 42 / 22%),
+      0 14px 24px -12px var(--clay-glow, rgb(64 48 42 / 35%));
+    transition:
+      transform var(--dur-fast) var(--ease-spring-soft),
+      box-shadow var(--dur-fast) var(--ease-out-expo);
+  }
+
+  .clay:active {
+    transform: translateY(1px) scale(0.985);
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 40%),
+      inset 0 -3px 6px -3px rgb(64 48 42 / 26%),
+      0 6px 12px -8px var(--clay-glow, rgb(64 48 42 / 35%));
+  }
+
   .animate-drift {
     animation: drift 16s ease-in-out infinite;
   }
