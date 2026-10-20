@@ -93,3 +93,30 @@ describe('.clay', () => {
     expect(block).toContain('var(--clay-glow');
   });
 });
+
+describe('the global reduced-motion rule', () => {
+  const start = css.indexOf('@media (prefers-reduced-motion: reduce)');
+  const open = css.indexOf('{', start);
+  const rule =
+    start === -1 ? '' : extractBlock(css.slice(start), '@media (prefers-reduced-motion: reduce)');
+
+  it('exists, and applies to every element and pseudo-element', () => {
+    expect(open).toBeGreaterThan(-1);
+    expect(rule).toMatch(/\*,\s*\*::before,\s*\*::after/);
+  });
+
+  it.each([
+    ['animation-duration', '0.01ms'],
+    ['animation-iteration-count', '1'],
+    ['transition-duration', '0.01ms'],
+    // A delay is still motion's schedule. Left alone, a staggered entrance keeps
+    // its elements hidden until the delay runs out, and the browser reports an
+    // animation "running" for as long as it waits — a 9-second delay on a
+    // backdrop wash did exactly that.
+    ['animation-delay', '0s'],
+    ['transition-delay', '0s'],
+    ['scroll-behavior', 'auto'],
+  ])('sets %s to %s, and does not let an inline style win', (property, value) => {
+    expect(rule).toMatch(new RegExp(`${property}:\\s*${value.replace('.', '\\.')}\\s*!important`));
+  });
+});

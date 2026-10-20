@@ -375,7 +375,13 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
+
+  /* Delays are zeroed along with durations. A delay is motion's schedule: left
+     alone it keeps a staggered entrance hidden until the wait is over, and the
+     browser counts the animation as running for as long as it waits. */
 }

@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+
+import { stubBookingApi } from './helpers/booking';
 
 /**
  * Accessibility.
@@ -57,32 +59,6 @@ for (const path of PAGES) {
 
     expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
   });
-}
-
-/** One pink class — enough for the page to draw every section it has. */
-async function stubBookingApi(page: Page) {
-  await page.route('**/api/v1/public/**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
-        classes: [
-          {
-            id: 'class-1',
-            name: 'Bento cake decorating',
-            starts_at: new Date(Date.now() + 86_400_000).toISOString(),
-            ends_at: new Date(Date.now() + 90_000_000).toISOString(),
-            location: 'Studio A',
-            color_token: 'pink',
-            seats_left: 4,
-            is_full: false,
-            waitlist_is_open: false,
-          },
-        ],
-      }),
-    }),
-  );
 }
 
 /*
