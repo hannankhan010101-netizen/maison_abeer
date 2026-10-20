@@ -13,6 +13,7 @@ import { MagicalPattern } from '@/components/public/MagicalPattern';
 import { PhotoMarquee } from '@/components/public/PhotoMarquee';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
 import { StudioFooter } from '@/components/public/StudioFooter';
+import { StorefrontBackdrop } from '@/components/public/StorefrontBackdrop';
 import { StudioRibbon } from '@/components/public/StudioRibbon';
 import {
   BookingError,
@@ -200,7 +201,10 @@ function Shell({
     // `storefront` pins this page to the light palette whatever the visitor's
     // phone prefers (tokens.css). Mocha is the host's late-night setting; this
     // is the brand's shop window, reached from an ad that is cream and pink.
-    <main id="main" className="storefront bg-buttercream min-h-screen">
+    // `isolate`: the backdrop sits at z-index -1, and without a stacking
+    // context here it would be painted underneath main's own background.
+    <main id="main" className="storefront bg-buttercream isolate min-h-screen">
+      <StorefrontBackdrop />
       <SmoothScroll />
       <CustomCursor />
 

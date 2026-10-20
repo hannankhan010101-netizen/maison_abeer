@@ -169,28 +169,15 @@ export function BookingHero({
         </>
       ) : (
         <>
-          {/* The always-on scene: cream paper with three soft washes of the
-              palette — blush top-left, butter top-right, sage along the
-              foot — plus the grain and two drifting blobs. This is the whole
-              hero on a reduced-motion visit or data saver: never an empty or
-              half-finished frame. */}
+          {/* The always-on scene: three soft washes of the palette — blush
+              top-left, butter top-right, sage along the foot — over the
+              page-wide backdrop (`StorefrontBackdrop`), which carries the
+              grain and the drifting colour for the whole page. This is the
+              whole hero on a reduced-motion visit or data saver: never an
+              empty or half-finished frame. */}
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-[radial-gradient(60%_55%_at_18%_12%,var(--color-blush)_0%,transparent_65%),radial-gradient(45%_45%_at_84%_18%,var(--color-butter-soft)_0%,transparent_62%),radial-gradient(55%_50%_at_60%_100%,var(--color-sage-soft)_0%,transparent_62%)]"
-          />
-          <div aria-hidden="true" className="grain-overlay absolute inset-0" />
-          <div
-            aria-hidden="true"
-            className="bg-pink/30 animate-drift absolute -top-24 -left-16 size-80 rounded-full blur-3xl"
-          />
-          <div
-            aria-hidden="true"
-            className="bg-terra-soft/70 animate-drift absolute -right-20 -bottom-28 size-96 rounded-full blur-3xl"
-            style={{ animationDelay: '4s' }}
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-[var(--color-buttercream)]"
           />
           {mayAnimate ? <ParticleField /> : null}
         </>
