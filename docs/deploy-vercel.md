@@ -128,6 +128,16 @@ internal hostname — the public booking page calls it directly.
 
 ## 3. Order of operations
 
+0. **Check the Production Branch first** — both projects, Settings → Git →
+   Production Branch, must name the branch the work is on (`feat/deploy-vercel`
+   at the time of writing; `master` is dozens of commits behind it). A push to
+   any other branch only creates a _Preview_ deployment, and previews sit
+   behind Vercel Authentication, so nobody can use them. That is how a fix
+   committed on 30 Sep 2026 stayed absent from production for three weeks:
+   every push was a preview, the production URLs kept serving a hand-deployed
+   build from before the fix, and the bug looked as if it had come back.
+   Fast check: `curl -s -o /dev/null -w '%{http_code}' https://<api-domain>/api/v1/class-types`
+   must answer `401` (route exists, sign-in required), never `404`.
 1. Deploy the API first and note its domain.
 2. Set `NEXT_PUBLIC_API_URL` on the web project to that domain.
 3. Deploy the web project and note its domain.
