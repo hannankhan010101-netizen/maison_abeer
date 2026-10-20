@@ -80,7 +80,9 @@ Only booking-page specs run; say which specs were skipped.
 
 # Phase 0 — Foundation (inline, sequential)
 
-### Task T0.1: Typefaces wired and self-hosted
+### Task T0.1: Typefaces self-hosted and read through their variables
+
+> **Correction:** this task was first written as a bug fix ("the fonts never apply"). That was wrong. The live site's fonts load; only local dev and builds on this machine fell back to system fonts, because Node cannot reach Google. The task is still worth doing — it makes local match production, removes the Google build dependency, and uses the size-adjusted fallback — but it is hardening, not a fix.
 
 **Files:**
 
@@ -99,7 +101,7 @@ Only booking-page specs run; say which specs were skipped.
 - [ ] **Step 3: Write the failing e2e** `fonts.spec.ts` (`/login`, no API needed): `await document.fonts.ready`, read the first family of each `--font-*-loaded`, assert `document.fonts.check('16px ' + family)` is true for all three. Expected before the fix: FAIL.
 - [ ] **Step 4: Implement** — local font declarations in `layout.tsx` (`weight: '100 900'`-style ranges for variable files, `display: 'swap'`), tokens as `var(--font-x-loaded), <fallbacks>`.
 - [ ] **Step 5: Overflow sweep (Review Focus 1)** — run `e2e/mobile.spec.ts -g "never scrolls sideways|never smaller than 12px"` on the **mobile** project over _every_ path, not only `/book`. Fix any overflow by letting text wrap in the offending component, never by shrinking type. Expected: pass.
-- [ ] **Step 6:** Run `G`, then commit `fix(fonts): the typefaces were never applied — wire and self-host them`.
+- [ ] **Step 6:** Run `G`, then commit `build(fonts): self-host the typefaces and read them through their variables`.
 
 ### Task T0.2: Motion tokens, glass tokens, `.clay`
 
@@ -226,7 +228,7 @@ Component signatures under `booking/` are exactly today's (`ClassPicker({classes
 - [ ] **Step 3:** `G` and `GB` — Expected: all existing tests pass unchanged; `wc -l BookingFlow.tsx` < 150.
 - [ ] **Step 4: Commit** `refactor(booking): split BookingFlow into a composition root and step components`.
 
-**Phase 0 exit:** typefaces render (`document.fonts` reports them `loaded`), nothing scrolls sideways at 375px on any route, the kit is tested, nothing animates under reduced motion. Show the user the live page; this is the first visible change (real fonts).
+**Phase 0 exit:** a face with each family reaches `loaded`, nothing scrolls sideways at 375px on any route, the kit is tested, nothing animates under reduced motion. There is **no visible change** on production from Phase 0; locally, the page now shows the real typefaces.
 
 ---
 

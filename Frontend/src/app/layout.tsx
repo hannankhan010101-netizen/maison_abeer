@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Caveat, Nunito, Young_Serif } from 'next/font/google';
+import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
 
 import { MOCHA_INIT_SCRIPT } from '@/components/ui/MochaToggle';
@@ -7,29 +7,40 @@ import { MOCHA_INIT_SCRIPT } from '@/components/ui/MochaToggle';
 import './globals.css';
 
 /**
- * Fonts are self-hosted by next/font rather than fetched from Google at
- * runtime: it removes a render-blocking third-party request on the critical
- * path, which matters for the PRD's sub-2s dashboard budget on 4G (§3.1).
+ * Fonts are self-hosted: the files live in `src/fonts` (licences in
+ * `CREDITS.md`) and `next/font/local` serves them from this origin. That keeps
+ * the render-blocking third-party request off the critical path (PRD §3.1),
+ * and it means the build never depends on Google being reachable — with
+ * `next/font/google` a build on a machine that could not reach it quietly
+ * shipped system fonts instead.
+ *
+ * The variables are what `tokens.css` reads; each holds the real family plus a
+ * size-adjusted fallback, so the swap from system font to real font does not
+ * move the page.
  */
 
-const display = Young_Serif({
+const display = localFont({
+  src: '../fonts/young-serif.woff2',
   weight: '400',
-  subsets: ['latin'],
   variable: '--font-display-loaded',
   display: 'swap',
+  adjustFontFallback: 'Times New Roman',
 });
 
-const body = Nunito({
-  subsets: ['latin'],
+const body = localFont({
+  src: '../fonts/nunito-variable.woff2',
+  weight: '200 1000',
   variable: '--font-body-loaded',
   display: 'swap',
+  adjustFontFallback: 'Arial',
 });
 
-const hand = Caveat({
-  weight: ['500', '600'],
-  subsets: ['latin'],
+const hand = localFont({
+  src: '../fonts/caveat-variable.woff2',
+  weight: '400 700',
   variable: '--font-hand-loaded',
   display: 'swap',
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {

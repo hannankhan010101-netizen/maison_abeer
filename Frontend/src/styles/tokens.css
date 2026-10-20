@@ -116,9 +116,11 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ---- type -------------------------------------------------------------- */
-  --font-display: 'Young Serif', Georgia, serif;
-  --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
-  --font-hand: 'Caveat', 'Segoe Script', cursive;
+  /* The loaded family leads. Each `--font-*-loaded` variable is defined on <html>
+     by next/font (app/layout.tsx) and carries a size-adjusted fallback with it. */
+  --font-display: var(--font-display-loaded), Georgia, serif;
+  --font-body: var(--font-body-loaded), system-ui, -apple-system, sans-serif;
+  --font-hand: var(--font-hand-loaded), 'Segoe Script', cursive;
 
   /* ---- touch ------------------------------------------------------------- */
   --tap-min: 44px; /* PRD §3.4 — in-studio use with clay-dusted fingers */
