@@ -1,0 +1,87 @@
+/* "The making of": a static strip by default, a pinned single-vessel stage when scroll may drive it. */
+
+.making {
+  margin-inline: auto;
+  max-width: 1040px;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.making__intro {
+  margin-inline: auto;
+  max-width: 40ch;
+}
+
+.making__strip {
+  display: grid;
+  gap: 1rem 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .making__strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.making__frame {
+  margin: 0;
+}
+
+.making__svg {
+  aspect-ratio: 200 / 240;
+  display: block;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.making__shape {
+  fill: var(--color-terra);
+  stroke: var(--color-cocoa);
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.making__caption {
+  color: var(--color-cocoa);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+/* While pinned the strip stays for screen readers but the single stage is what is seen. */
+.making[data-pinned] {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100svh;
+  width: 100%;
+}
+
+.making[data-pinned] .making__strip {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.making__stage {
+  margin-top: 1.5rem;
+  width: min(48vh, 20rem);
+}
+
+.making__stage-caption {
+  color: var(--color-cocoa);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin-top: 0.75rem;
+  min-height: 2em;
+}
