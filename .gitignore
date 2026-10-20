@@ -52,3 +52,7 @@ desktop.ini
 *.log
 npm-debug.log*
 .next-e2e/
+
+# ---------- agent worktrees and stray build output ----------
+.claude/worktrees/
+.next-perfdev/

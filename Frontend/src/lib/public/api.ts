@@ -36,9 +36,27 @@ export interface PublicClass {
   waitlist_is_open: boolean;
 }
 
+/** A photograph the studio chose to show, with the line written under it. */
+export interface PublicMemory {
+  id: string;
+  photo_url: string;
+  caption: string;
+  craft: 'pottery' | 'cake' | 'painting' | null;
+}
+
+/** One word a guest chose to share, already approved by the host. Text only. */
+export interface PublicWord {
+  id: string;
+  word: string;
+}
+
 export interface PublicClassList {
   studio: PublicStudio;
   classes: PublicClass[];
+  /** Absent until the studio has added some; the page never invents them. */
+  memories?: PublicMemory[];
+  /** Absent until a guest has shared a word and the host has approved it. */
+  words?: PublicWord[];
 }
 
 export interface BookingRequest {

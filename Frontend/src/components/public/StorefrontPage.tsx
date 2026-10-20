@@ -2,11 +2,13 @@
 
 import { BookingHero } from '@/components/public/BookingHero';
 import { BookingPostcard } from '@/components/public/BookingPostcard';
-import { CeramicShowcase } from '@/components/public/CeramicShowcase';
 import { CraftChapters } from '@/components/public/CraftChapters';
 import { CustomCursor } from '@/components/public/CustomCursor';
 import { HowItWorks } from '@/components/public/HowItWorks';
 import { PhotoMarquee } from '@/components/public/PhotoMarquee';
+import { MakingOf } from '@/components/public/making/MakingOf';
+import { MemoryWall } from '@/components/public/memories/MemoryWall';
+import { StickyCta } from '@/components/public/atmosphere/StickyCta';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
 import { StorefrontBackdrop } from '@/components/public/StorefrontBackdrop';
 import { StudioFooter } from '@/components/public/StudioFooter';
@@ -14,7 +16,7 @@ import { StudioRibbon } from '@/components/public/StudioRibbon';
 import { StorySection } from '@/components/public/booking/StorySection';
 import { TicketStub } from '@/components/public/booking/TicketStub';
 import { cn } from '@/lib/cn';
-import { type PublicClass } from '@/lib/public/api';
+import { type PublicClass, type PublicMemory, type PublicWord } from '@/lib/public/api';
 
 export interface StorefrontPageProps {
   children: React.ReactNode;
@@ -27,6 +29,8 @@ export interface StorefrontPageProps {
   step?: 1 | 2 | 3;
   showBrandSections?: boolean;
   classes?: PublicClass[];
+  memories?: PublicMemory[];
+  words?: PublicWord[];
 }
 
 /**
@@ -48,6 +52,8 @@ export function StorefrontPage({
   step,
   showBrandSections,
   classes,
+  memories,
+  words,
 }: StorefrontPageProps) {
   const brandSections = Boolean(showBrandSections && classes && classes.length > 0);
   const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
@@ -87,7 +93,8 @@ export function StorefrontPage({
             <HowItWorks />
             {story ? <StorySection story={story} /> : null}
             <CraftChapters classes={classes!} />
-            <CeramicShowcase />
+            <MemoryWall classes={classes!} memories={memories} words={words} />
+            <MakingOf />
             <PhotoMarquee classes={classes!} />
             <BookingPostcard classes={classes!} />
           </div>
@@ -128,6 +135,7 @@ export function StorefrontPage({
       </div>
 
       {studioName ? <StudioFooter studioName={studioName} handle={handle} /> : null}
+      <StickyCta />
     </main>
   );
 }

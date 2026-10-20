@@ -17,7 +17,10 @@ import { defineConfig, devices } from '@playwright/test';
  * layout that only works at 1440px fails the actual use case.
  */
 
-const PORT = 3100;
+// A port per run, so two runs at once never share a server. The config reuses a server that
+// is already listening (`reuseExistingServer`), so a shared port would quietly test whichever
+// checkout started first.
+const PORT = Number(process.env['E2E_PORT'] ?? 3100);
 
 export default defineConfig({
   testDir: './e2e',

@@ -84,6 +84,8 @@ export function BookingFlow({ slug }: BookingFlowProps) {
       accentColor={data.studio.accent_color}
       heroPhotoUrl={data.studio.hero_photo_url}
       story={data.studio.story}
+      memories={data.memories}
+      words={data.words}
       step={step}
       // The brand strip and postcard are the arrival experience — once a
       // guest has committed to a class or finished booking, the page's job
