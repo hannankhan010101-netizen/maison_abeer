@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 
+import { loadGsap } from '@/lib/motion/gsap';
 import { useMayAnimate } from '@/lib/public/useMayAnimate';
 
 /**
@@ -11,11 +12,12 @@ import { useMayAnimate } from '@/lib/public/useMayAnimate';
  * progress rather than to time. Only `transform` is animated, so it runs on
  * the compositor and never forces layout.
  *
- * Both libraries come in through `import()`, after mount, as their own chunk:
- * this is decoration, and a page whose job is a fast booking form for someone
- * on mobile data does not wait on an animation library to be useful. Under
- * `useMayAnimate`'s three vetoes the effect never runs and the module is
- * never fetched — the picture is simply a picture.
+ * The library comes in through `loadGsap` (`lib/motion`), after mount, as its
+ * own chunk: this is decoration, and a page whose job is a fast booking form
+ * for someone on mobile data does not wait on an animation library to be
+ * useful. Under `useMayAnimate`'s three vetoes the effect never runs and the
+ * module is never fetched, and if it fails to load the picture is simply a
+ * picture.
  *
  * The image must be taller than its frame, by more than `range` on each side,
  * or the drift would uncover an edge. `CraftChapters` sizes it to 116% with a
@@ -35,39 +37,38 @@ export function useScrollParallax<T extends HTMLElement>(range = 7) {
     let cancelled = false;
     let teardown: (() => void) | undefined;
 
-    Promise.all([import('gsap'), import('gsap/ScrollTrigger')]).then(
-      ([{ default: gsap }, { ScrollTrigger }]) => {
-        if (cancelled) return;
+    loadGsap('ScrollTrigger').then((kit) => {
+      // Cancelled while loading, or the library never arrived: leave the
+      // picture as a picture.
+      if (cancelled || !kit) return;
 
-        gsap.registerPlugin(ScrollTrigger);
+      const { gsap } = kit;
+      const frame = node.closest<HTMLElement>('[data-parallax-frame]') ?? node.parentElement;
+      if (!frame) return;
 
-        const frame = node.closest<HTMLElement>('[data-parallax-frame]') ?? node.parentElement;
-        if (!frame) return;
-
-        const tween = gsap.fromTo(
-          node,
-          { yPercent: -range },
-          {
-            yPercent: range,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: frame,
-              start: 'top bottom',
-              end: 'bottom top',
-              // A touch of lag on the scrub: the picture eases toward where
-              // the scroll says it should be instead of being bolted to it.
-              scrub: 0.6,
-            },
+      const tween = gsap.fromTo(
+        node,
+        { yPercent: -range },
+        {
+          yPercent: range,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: frame,
+            start: 'top bottom',
+            end: 'bottom top',
+            // A touch of lag on the scrub: the picture eases toward where
+            // the scroll says it should be instead of being bolted to it.
+            scrub: 0.6,
           },
-        );
+        },
+      );
 
-        teardown = () => {
-          tween.scrollTrigger?.kill();
-          tween.kill();
-          gsap.set(node, { clearProps: 'transform' });
-        };
-      },
-    );
+      teardown = () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+        gsap.set(node, { clearProps: 'transform' });
+      };
+    });
 
     return () => {
       cancelled = true;
