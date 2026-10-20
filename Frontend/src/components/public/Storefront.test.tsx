@@ -1,8 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { CraftChapters } from './CraftChapters';
 import { DateLeaf } from './DateLeaf';
 import { HowItWorks, STEPS } from './HowItWorks';
+import { PhotoFan } from './PhotoFan';
+import { PhotoMarquee } from './PhotoMarquee';
 import { StudioFooter } from './StudioFooter';
 import { StudioRibbon, ribbonItems } from './StudioRibbon';
 
@@ -83,5 +86,106 @@ describe('DateLeaf', () => {
 
     expect(container.textContent).toContain('23');
     expect(container.textContent).toMatch(/Fri\s+Oct/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The photographs
+// ---------------------------------------------------------------------------
+
+function aClass(token: string, name = 'A class') {
+  return {
+    id: `${token}-1`,
+    name,
+    starts_at: '2026-10-23T09:00:00.000Z',
+    ends_at: '2026-10-23T11:00:00.000Z',
+    location: null,
+    color_token: token,
+    photo_url: null,
+    seats_left: 4,
+    is_full: false,
+    waitlist_is_open: false,
+  };
+}
+
+describe('PhotoFan', () => {
+  it('draws nothing when no craft is known, rather than an empty frame', () => {
+    const { container } = render(<PhotoFan classes={[]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('deals three captioned polaroids', () => {
+    render(<PhotoFan classes={[aClass('terra')]} />);
+
+    expect(screen.getAllByRole('figure')).toHaveLength(3);
+    // The cover of the craft leads.
+    expect(screen.getAllByText('on the wheel').length).toBeGreaterThan(0);
+  });
+
+  it('sends a phone the small file and a laptop the large one', () => {
+    render(<PhotoFan classes={[aClass('pink')]} />);
+
+    const img = screen.getAllByRole('img')[0]!;
+    expect(img.getAttribute('src')).toMatch(/-800\.jpg$/);
+    expect(img.getAttribute('srcset')).toMatch(/-800\.jpg 800w, .*\.jpg 1400w/);
+    // The real pixel size, so the page does not shift when it arrives.
+    expect(img).toHaveAttribute('width');
+    expect(img).toHaveAttribute('height');
+  });
+});
+
+describe('PhotoMarquee', () => {
+  it('draws nothing for a single photograph — that is a picture, not a strip', () => {
+    // No craft produces fewer than three photos, so this guards the rule.
+    const { container } = render(<PhotoMarquee classes={[]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('lets a screen reader meet each photograph once', () => {
+    render(<PhotoMarquee classes={[aClass('terra')]} />);
+
+    const section = screen.getByRole('region', { name: 'Moments from the studio' });
+    const described = [...section.querySelectorAll('img')].filter(
+      (img) => !img.closest('[aria-hidden="true"]') && img.getAttribute('alt'),
+    );
+
+    // One of each pottery photograph — not the repeats, not the second row.
+    expect(described).toHaveLength(4);
+    expect(new Set(described.map((img) => img.getAttribute('alt'))).size).toBe(4);
+  });
+
+  it('only shows the crafts on offer', () => {
+    const { container } = render(<PhotoMarquee classes={[aClass('sage')]} />);
+
+    const sources = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(sources.every((src) => src?.startsWith('/studio/paint-'))).toBe(true);
+  });
+});
+
+describe('CraftChapters', () => {
+  it('writes a chapter per craft in the studio’s voice', () => {
+    render(<CraftChapters classes={[aClass('terra', 'Pottery'), aClass('pink', 'Bento cakes')]} />);
+
+    expect(screen.getByRole('heading', { name: 'Pick your kind of mess' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Pottery' })).toHaveTextContent(
+      'clay under your fingertips',
+    );
+    expect(screen.getByRole('article', { name: 'Bento cakes' })).toHaveTextContent(
+      'frosting is a love language',
+    );
+  });
+
+  it('leads each chapter to the booking card', () => {
+    render(<CraftChapters classes={[aClass('terra', 'Pottery')]} />);
+
+    expect(screen.getByRole('link', { name: /Save a seat/ })).toHaveAttribute(
+      'href',
+      '#booking-widget',
+    );
+  });
+
+  it('draws nothing when there are no classes', () => {
+    const { container } = render(<CraftChapters classes={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

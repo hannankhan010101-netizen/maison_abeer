@@ -1,9 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { Component, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
+import { useMayAnimate } from '@/lib/public/useMayAnimate';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 
 /**
@@ -41,31 +42,6 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
   override render() {
     return this.state.failed ? null : this.props.children;
   }
-}
-
-function useMayAnimate(): boolean {
-  const [allowed, setAllowed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    type NetworkInformation = { saveData?: boolean; effectiveType?: string };
-    const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
-    const dataConscious = Boolean(
-      connection?.saveData ||
-      connection?.effectiveType === 'slow-2g' ||
-      connection?.effectiveType === '2g',
-    );
-
-    const evaluate = () => setAllowed(!motionQuery.matches && !dataConscious);
-    evaluate();
-
-    motionQuery.addEventListener('change', evaluate);
-    return () => motionQuery.removeEventListener('change', evaluate);
-  }, []);
-
-  return allowed;
 }
 
 /** A hand-drawn silhouette standing in for the 3D piece — the whole

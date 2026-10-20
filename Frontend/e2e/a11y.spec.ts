@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Accessibility.
@@ -59,21 +59,8 @@ for (const path of PAGES) {
   });
 }
 
-/*
- * Reduced motion, for this page only.
- *
- * The booking page reveals its sections on scroll, which means anything below
- * the fold is still at `opacity-0` when axe walks the tree — and zero-opacity
- * text fails the contrast rule by definition. That made this check fail or
- * pass depending on how much of the page happened to be on screen.
- *
- * Asking for reduced motion is not hiding the problem: `useRevealOnScroll`
- * then renders every section in its settled state, which is exactly the state
- * whose colours are worth checking.
- */
-test('the booking page has no accessibility violations', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-
+/** One pink class — enough for the page to draw every section it has. */
+async function stubBookingApi(page: Page) {
   await page.route('**/api/v1/public/**', (route) =>
     route.fulfill({
       status: 200,
@@ -96,6 +83,24 @@ test('the booking page has no accessibility violations', async ({ page }) => {
       }),
     }),
   );
+}
+
+/*
+ * Reduced motion, for this page only.
+ *
+ * The booking page reveals its sections on scroll, which means anything below
+ * the fold is still at `opacity-0` when axe walks the tree — and zero-opacity
+ * text fails the contrast rule by definition. That made this check fail or
+ * pass depending on how much of the page happened to be on screen.
+ *
+ * Asking for reduced motion is not hiding the problem: `useRevealOnScroll`
+ * then renders every section in its settled state, which is exactly the state
+ * whose colours are worth checking.
+ */
+test('the booking page has no accessibility violations', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  await stubBookingApi(page);
 
   await page.goto('/book/maison-abeer');
   await expect(page.getByRole('heading', { name: 'Pick your class' })).toBeVisible();
@@ -131,4 +136,59 @@ test('the whole dashboard is reachable by keyboard', async ({ page }) => {
   }
 
   expect(seen.size, 'focus appears to be trapped').toBeGreaterThan(5);
+});
+
+/*
+ * The photo strips, in both motion modes.
+ *
+ * The test above runs under reduced motion only — it has to, or sections still
+ * fading in fail the contrast rule — so it can never see the strip as a guest
+ * with motion on gets it. The strip is a row of photographs sliding past on
+ * its own; if it were a scroll container, axe would (rightly) demand a tab
+ * stop that scrolled nothing. `scrollable-region-focusable` does not depend on
+ * opacity, so it is safe to run here with motion on.
+ */
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`the photo strips are not scrollable regions (${reducedMotion})`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    await stubBookingApi(page);
+
+    await page.goto('/book/maison-abeer');
+    await expect(page.getByRole('region', { name: 'Moments from the studio' })).toBeAttached();
+
+    const results = await new AxeBuilder({ page })
+      .withRules(['scrollable-region-focusable'])
+      .analyze();
+    expect(summarise(results.violations)).toEqual([]);
+  });
+}
+
+test('with reduced motion the photo strip is a still gallery, each photograph once', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await stubBookingApi(page);
+
+  await page.goto('/book/maison-abeer');
+  const strip = page.getByRole('region', { name: 'Moments from the studio' });
+  await expect(strip).toBeAttached();
+
+  const shown = await strip.evaluate((node) => {
+    const visible = [...node.querySelectorAll('img')].filter((img) => {
+      const box = img.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    });
+
+    return {
+      photos: visible.length,
+      distinct: new Set(visible.map((img) => img.getAttribute('src'))).size,
+      overflowX: node.scrollWidth - node.clientWidth,
+    };
+  });
+
+  // Four photographs of the one craft on offer: shown once each, wrapped, and
+  // nothing sitting behind an edge waiting to be scrolled to.
+  expect(shown.photos).toBe(4);
+  expect(shown.distinct).toBe(4);
+  expect(shown.overflowX).toBeLessThanOrEqual(1);
 });

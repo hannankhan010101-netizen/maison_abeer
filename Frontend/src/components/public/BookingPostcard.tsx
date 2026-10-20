@@ -33,7 +33,7 @@ export function BookingPostcard({ classes }: { classes: PublicClass[] }) {
     <div ref={ref} className="px-4 sm:px-6">
       <div
         className={cn(
-          'mx-auto max-w-[340px] rounded-[var(--radius-lg)] p-[5px] shadow-[var(--shadow-soft)]',
+          'mx-auto max-w-[400px] rounded-[var(--radius-lg)] p-[5px] shadow-[var(--shadow-soft)]',
           'bg-[linear-gradient(140deg,var(--color-pink)_0%,var(--color-butter)_55%,var(--color-sage)_110%)]',
           'relative rotate-[1.1deg] transition-[opacity,transform] duration-500',
           visible ? 'opacity-100' : 'translate-y-3 opacity-0',

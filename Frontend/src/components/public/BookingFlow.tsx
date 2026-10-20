@@ -5,11 +5,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { BookingHero } from '@/components/public/BookingHero';
 import { BookingPostcard } from '@/components/public/BookingPostcard';
 import { CeramicShowcase } from '@/components/public/CeramicShowcase';
-import { CraftStrip } from '@/components/public/CraftStrip';
+import { CraftChapters } from '@/components/public/CraftChapters';
 import { CustomCursor } from '@/components/public/CustomCursor';
 import { DateLeaf } from '@/components/public/DateLeaf';
 import { HowItWorks } from '@/components/public/HowItWorks';
 import { MagicalPattern } from '@/components/public/MagicalPattern';
+import { PhotoMarquee } from '@/components/public/PhotoMarquee';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
 import { StudioFooter } from '@/components/public/StudioFooter';
 import { StudioRibbon } from '@/components/public/StudioRibbon';
@@ -226,8 +227,9 @@ function Shell({
           <div className="space-y-14 pt-10 pb-4 sm:space-y-20 sm:pt-14">
             <HowItWorks />
             {story ? <StorySection story={story} /> : null}
-            <CraftStrip classes={classes!} />
+            <CraftChapters classes={classes!} />
             <CeramicShowcase />
+            <PhotoMarquee classes={classes!} />
             <BookingPostcard classes={classes!} />
           </div>
         </>

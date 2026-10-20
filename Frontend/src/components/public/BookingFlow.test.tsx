@@ -276,9 +276,11 @@ describe('BookingFlow', () => {
 
     render(<BookingFlow slug="maison-abeer" />);
 
-    expect(await screen.findByText('What we make here')).toBeInTheDocument();
-    // Craft names appear both as a craft card and a class-picker button, so
-    // more than one match is expected — the point is that both crafts show.
+    expect(
+      await screen.findByRole('heading', { name: 'Pick your kind of mess' }),
+    ).toBeInTheDocument();
+    // Craft names appear both as a chapter heading and a class-picker button,
+    // so more than one match is expected — the point is that both crafts show.
     expect(screen.getAllByText('Bento cake decorating').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Pottery & wheel throwing').length).toBeGreaterThan(0);
   });
@@ -308,11 +310,13 @@ describe('BookingFlow', () => {
     fetchMock.mockImplementation(json(classList()));
 
     render(<BookingFlow slug="maison-abeer" />);
-    await screen.findByText('What we make here');
+    await screen.findByRole('heading', { name: 'Pick your kind of mess' });
 
     await userEvent.click(await screen.findByRole('button', { name: /Bento cake/ }));
 
-    expect(screen.queryByText('What we make here')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Pick your kind of mess' }),
+    ).not.toBeInTheDocument();
   });
 
   it("carries the studio's own brand colours through when it has set any", async () => {
@@ -362,7 +366,7 @@ describe('BookingFlow', () => {
     const { container } = render(<BookingFlow slug="maison-abeer" />);
     await screen.findByRole('button', { name: /Bento cake/ });
 
-    const heroImg = container.querySelector('header img');
+    const heroImg = container.querySelector('header img.animate-hero-zoom');
     expect(heroImg).toHaveAttribute('src', 'https://images.unsplash.com/photo-hero-test');
   });
 
@@ -372,7 +376,9 @@ describe('BookingFlow', () => {
     const { container } = render(<BookingFlow slug="maison-abeer" />);
     await screen.findByRole('button', { name: /Bento cake/ });
 
-    expect(container.querySelector('header img')).not.toBeInTheDocument();
+    // The polaroids beneath the headline are photos too; what must be absent
+    // is the full-bleed hero photograph.
+    expect(container.querySelector('header img.animate-hero-zoom')).not.toBeInTheDocument();
   });
 
   it("shows the studio's own story text when it has written one", async () => {
@@ -394,7 +400,7 @@ describe('BookingFlow', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows a real class photo on its craft card, falling back to the hand-drawn motif otherwise', async () => {
+  it("shows a class's own photo in its chapter, and the studio's photo of the craft otherwise", async () => {
     fetchMock.mockImplementation(
       json({
         studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
@@ -417,15 +423,20 @@ describe('BookingFlow', () => {
     );
 
     const { container } = render(<BookingFlow slug="maison-abeer" />);
-    await screen.findByText('What we make here');
+    await screen.findByRole('heading', { name: 'Pick your kind of mess' });
 
     const craftImgs = container.querySelectorAll(
       'img[src="https://images.unsplash.com/photo-cake-test"]',
     );
     expect(craftImgs).toHaveLength(1);
-    // The pottery craft has no photo, so it still shows via the SVG motif
-    // fallback rather than an empty card — the strip itself still renders it.
-    expect(screen.getAllByText('Pottery & wheel throwing').length).toBeGreaterThan(0);
+
+    // The pottery class has no photo of its own, so its chapter shows the
+    // studio's photograph of pottery rather than an empty frame.
+    const pottery = screen.getByRole('article', { name: 'Pottery & wheel throwing' });
+    expect(pottery.querySelector('img[src^="/studio/pottery-"]')).toBeInTheDocument();
+    // And the cake chapter did not borrow one: the class's own photo is the picture.
+    const cake = screen.getByRole('article', { name: /Bento cake/ });
+    expect(cake.querySelector('img[src^="/studio/cake-piping"]')).not.toBeInTheDocument();
   });
 
   // -------------------------------------------------------------------------
@@ -478,6 +489,53 @@ describe('BookingFlow', () => {
       'href',
       'https://instagram.com/maisonabeer',
     );
+  });
+
+  it('deals a fan of photos of the crafts on offer — and none of crafts that are not', async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
+        classes: [{ ...classList().classes[0], id: 'c2', name: 'Pottery', color_token: 'terra' }],
+      }),
+    );
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('button', { name: /Pottery/ });
+
+    // Three polaroids under the headline, each a pottery photograph.
+    const fan = [...container.querySelectorAll('header figure img')] as HTMLImageElement[];
+    expect(fan).toHaveLength(3);
+    expect(fan.every((img) => img.getAttribute('src')?.startsWith('/studio/pottery-'))).toBe(true);
+
+    // The page never shows a photograph of a craft the studio has no class in.
+    const sources = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(sources.some((src) => src?.includes('/studio/cake-'))).toBe(false);
+    expect(sources.some((src) => src?.includes('/studio/paint-'))).toBe(false);
+  });
+
+  it('shows each craft the studio teaches, once the studio teaches several', async () => {
+    fetchMock.mockImplementation(
+      json({
+        studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
+        classes: [
+          { ...classList().classes[0], id: 'c1', name: 'Bento cakes', color_token: 'pink' },
+          { ...classList().classes[0], id: 'c2', name: 'Pottery', color_token: 'terra' },
+          { ...classList().classes[0], id: 'c3', name: 'Ceramic painting', color_token: 'sage' },
+        ],
+      }),
+    );
+
+    const { container } = render(<BookingFlow slug="maison-abeer" />);
+    await screen.findByRole('heading', { name: 'Pick your kind of mess' });
+
+    expect(screen.getAllByRole('article')).toHaveLength(3);
+    const sources = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    for (const prefix of ['/studio/cake-', '/studio/pottery-', '/studio/paint-']) {
+      expect(
+        sources.some((src) => src?.startsWith(prefix)),
+        prefix,
+      ).toBe(true);
+    }
   });
 
   it('keeps the storefront on the light palette whatever the visitor prefers', async () => {

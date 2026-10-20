@@ -202,6 +202,34 @@
   }
 }
 
+/* The same walk the other way, for the second photo strip: starting half a
+   track along and returning to the origin, so the two rows pass each other. */
+@keyframes marquee-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* A polaroid dropped onto the table: it falls from above its resting place,
+   overshoots a hair and settles at its own tilt (`--tilt`, set per photo).
+   Used with `animation-fill-mode: backwards`, never `both`: a fill that held
+   the final frame would keep winning over `:hover`'s transform, and the photo
+   could never straighten when touched. The element's own resting style is the
+   end state, so nothing jumps when the animation finishes. */
+@keyframes polaroid-in {
+  from {
+    opacity: 0;
+    transform: translateY(-90px) rotate(calc(var(--tilt, 0deg) - 16deg)) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--tilt, 0deg)) scale(1);
+  }
+}
+
 /* A small star catching the light: scale and opacity only, no travel. */
 @keyframes twinkle {
   0%,
@@ -262,6 +290,20 @@
 
   .animate-twinkle {
     animation: twinkle 2.6s ease-in-out infinite;
+  }
+
+  /* The photo strips: slow enough to read each picture as it passes, and
+     different speeds so the two rows never fall into step. */
+  .animate-strip-fwd {
+    animation: marquee 80s linear infinite;
+  }
+
+  .animate-strip-rev {
+    animation: marquee-reverse 95s linear infinite;
+  }
+
+  .animate-polaroid-in {
+    animation: polaroid-in 1s var(--ease-spring) backwards;
   }
 
   /* `.sheen-on-hover` draws the highlight as a pseudo-element so the button's

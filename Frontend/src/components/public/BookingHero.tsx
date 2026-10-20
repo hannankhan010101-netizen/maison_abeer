@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 
 import {
   StickerCake,
@@ -10,12 +10,14 @@ import {
   StickerSpark,
 } from '@/components/public/CraftStickers';
 import { ParticleField } from '@/components/public/ParticleField';
+import { PhotoFan } from '@/components/public/PhotoFan';
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
 import { nextClass, whenCopy } from '@/lib/public/format';
 import { scrollToId } from '@/lib/public/lenisBridge';
 import { useHeroParallax } from '@/lib/public/useHeroParallax';
 import { useMagnetic } from '@/lib/public/useMagnetic';
+import { useMayAnimate } from '@/lib/public/useMayAnimate';
 import { useMountedNow } from '@/lib/public/useMountedNow';
 
 /**
@@ -50,44 +52,6 @@ import { useMountedNow } from '@/lib/public/useMountedNow';
  * the bottom edge — so the hero doesn't end at a hard seam, it fades into
  * the section beneath it the way a page in a printed book turns.
  */
-
-/**
- * Whether it's reasonable to spend a guest's battery and, on some
- * connections, their data plan on a decorative animation.
- *
- * Three separate signals, any one of which is enough to say no:
- * `prefers-reduced-motion`, the OS-level accessibility setting; Data Saver,
- * which a visitor turns on specifically to ask sites to do less; and a
- * connection the browser itself already classifies as slow.
- */
-function useMayAnimate(): boolean {
-  const [allowed, setAllowed] = useState(false);
-
-  useEffect(() => {
-    // matchMedia is missing in some test environments and a handful of
-    // embedded/legacy WebViews. Either way, the safe default for a guest we
-    // can't ask is "don't animate" — the hero is a complete scene without it.
-    if (typeof window.matchMedia !== 'function') return;
-
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    type NetworkInformation = { saveData?: boolean; effectiveType?: string };
-    const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
-    const dataConscious = Boolean(
-      connection?.saveData ||
-      connection?.effectiveType === 'slow-2g' ||
-      connection?.effectiveType === '2g',
-    );
-
-    const evaluate = () => setAllowed(!motionQuery.matches && !dataConscious);
-    evaluate();
-
-    motionQuery.addEventListener('change', evaluate);
-    return () => motionQuery.removeEventListener('change', evaluate);
-  }, []);
-
-  return allowed;
-}
 
 export interface BookingHeroProps {
   studioName: string;
@@ -370,10 +334,10 @@ export function BookingHero({
               </a>
             </p>
           ) : null}
-
-          <ScrollCue delay={`${afterName + 380}ms`} light={hasPhoto} />
         </div>
       </div>
+
+      {hasPhoto ? null : <PhotoFan classes={classes} />}
     </header>
   );
 }
@@ -388,24 +352,24 @@ function Stickers() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
       <StickerCake
-        className="animate-float absolute top-0 -left-1 w-16 sm:top-1 sm:left-[3%] sm:w-24 lg:-left-2 lg:w-28"
+        className="animate-float absolute -top-11 left-1 w-14 sm:top-1 sm:left-[3%] sm:w-24 lg:-left-2 lg:w-28"
         style={{ '--float-rot': '-9deg' } as CSSProperties}
       />
       <StickerPot
-        className="animate-float absolute top-14 -right-1 w-16 sm:top-8 sm:right-[3%] sm:w-24 lg:-right-2 lg:w-28"
+        className="animate-float absolute -top-11 right-1 w-14 sm:top-8 sm:right-[3%] sm:w-24 lg:-right-2 lg:w-28"
         style={{ '--float-rot': '7deg', animationDelay: '0.9s' } as CSSProperties}
       />
       <StickerPalette
         className="animate-float absolute bottom-2 hidden w-20 sm:left-[10%] sm:block lg:left-[6%] lg:w-24"
         style={{ '--float-rot': '-6deg', animationDelay: '1.7s' } as CSSProperties}
       />
-      <StickerSpark className="animate-twinkle absolute top-2 right-[18%] w-7 sm:right-[22%] sm:w-9" />
+      <StickerSpark className="animate-twinkle absolute -top-6 right-[30%] w-6 sm:top-2 sm:right-[22%] sm:w-9" />
       <StickerSpark
-        className="animate-twinkle absolute bottom-16 left-[8%] w-5 sm:left-[24%] sm:w-6"
+        className="animate-twinkle absolute bottom-16 left-[8%] hidden w-5 sm:left-[24%] sm:block sm:w-6"
         style={{ animationDelay: '1.2s' }}
       />
       <StickerHeart
-        className="animate-float absolute right-[10%] bottom-4 w-8 sm:right-[14%] sm:w-10"
+        className="animate-float absolute right-[10%] bottom-4 hidden w-8 sm:right-[14%] sm:block sm:w-10"
         style={{ '--float-rot': '12deg', animationDelay: '2.4s' } as CSSProperties}
       />
     </div>
@@ -455,33 +419,5 @@ function NextClassChip({
         {now ? `Next class ${whenCopy(soonest.starts_at, now)} · ${seats}` : ' '}
       </span>
     </p>
-  );
-}
-
-/** A small nudge downward — the booking widget is one scroll away, not a tap. */
-function ScrollCue({ delay, light }: { delay: string; light?: boolean }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="animate-rise-in mt-8 flex justify-center"
-      style={{ animationDelay: delay }}
-    >
-      <svg
-        viewBox="0 0 24 24"
-        className={cn(
-          'size-6 motion-safe:animate-bounce motion-reduce:animate-none',
-          light ? 'text-photo-ink' : 'text-rose-ink',
-        )}
-        fill="none"
-      >
-        <path
-          d="M12 4v14M6 12l6 6 6-6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
   );
 }
