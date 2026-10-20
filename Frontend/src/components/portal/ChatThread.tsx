@@ -280,7 +280,7 @@ export function ChatThread({ roomId }: ChatThreadProps) {
      * contents and pushes the composer off-screen instead of scrolling — which
      * is exactly what was happening.
      */
-    <section className="grid h-dvh grid-rows-[auto_1fr_auto] overflow-hidden">
+    <section className="grid h-screen grid-rows-[auto_1fr_auto] overflow-hidden">
       <header className="border-line bg-buttercream/95 z-20 border-b-[1.5px] backdrop-blur">
         <div className="mx-auto flex max-w-[720px] items-center gap-1 px-2 py-1.5">
           <Link

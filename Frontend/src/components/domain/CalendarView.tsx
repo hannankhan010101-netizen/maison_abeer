@@ -7,6 +7,7 @@ import { NewSessionModal } from '@/components/domain/NewSessionModal';
 import { SessionChip } from '@/components/domain/SessionChip';
 import { Button } from '@/components/ui/Button';
 import { Card, HandNote } from '@/components/ui/Card';
+import { Announcer } from '@/components/ui/Announcer';
 import { Chip } from '@/components/ui/Chip';
 import { Fab } from '@/components/ui/Fab';
 import { ApiError } from '@/lib/api/errors';
@@ -17,6 +18,7 @@ import {
   addWeeks,
   dayKey,
   formatDayLabel,
+  formatWeekLabel,
   groupByDay,
   isToday,
   weekDays,
@@ -124,6 +126,23 @@ function CalendarViewInner({ now }: { now: Date }) {
       <p className="text-latte mb-4">
         <HandNote>Your rest day is protected 🌙</HandNote>
       </p>
+
+      {/*
+        The week changed, out loud.
+
+        Both routes into a new week — the prev/next buttons and the swipe —
+        funnel through `setAnchor`, so one region covers both; the swipe added
+        a second silent way to change seven columns of content, and the
+        buttons had always been the first. The heading above says "This week"
+        whatever week is showing (its own defect, not fixed here), so without
+        this nothing tells a screen-reader user where they landed.
+
+        Mounted here, outside every `query.*` branch below: a refetch for the
+        new week re-enters `isPending`, and a live region that unmounts with
+        the old week's content announces nothing when it comes back with the
+        new week's.
+      */}
+      <Announcer state={formatWeekLabel(anchor)} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <nav className="flex items-center gap-2" aria-label="Change week">

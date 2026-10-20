@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AlertCard } from './AlertCard';
+import { Announcer } from './Announcer';
 import { Button } from './Button';
 import { CapacityRing, RING_CIRCUMFERENCE, deriveState } from './CapacityRing';
 import { Chip } from './Chip';
@@ -173,5 +174,96 @@ describe('AlertCard', () => {
   it('hides decorative icons from assistive technology', () => {
     const { container } = render(<AlertCard title="Kiln alert" icon="🔥" />);
     expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('🔥');
+  });
+});
+
+/**
+ * The live region, and the four ways it can be silent while looking right.
+ *
+ * No test in this repo can hear a screen reader — jsdom has no assistive
+ * technology and Playwright drives a Chromium with none attached — so these
+ * assert the mechanical preconditions AT needs before it will speak: the
+ * right role, a node that survives the change, exactly one announcement per
+ * change, and nothing read out that the host did not ask for. ADR 0004
+ * records the rest as a human pass with VoiceOver and NVDA.
+ */
+describe('Announcer', () => {
+  it('is a polite status region, empty on arrival', () => {
+    render(<Announcer state="6 guests" />);
+
+    const region = screen.getByTestId('announcer');
+
+    // `role="status"` rather than a bare `aria-live="polite"` div: status
+    // implies `aria-atomic="true"`, so "Week of August 10" is read as one
+    // sentence instead of as the words that changed since the last one.
+    expect(region).toHaveAttribute('role', 'status');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region).toHaveClass('sr-only');
+
+    // The count the page loaded with is not news. Announcing it would read
+    // the result of opening a page back at the host who just opened it.
+    expect(region.textContent).toBe('');
+  });
+
+  it('speaks the first state when the host is the one who caused it', () => {
+    // /chat's case: `state` is null only because no room is open, so the
+    // first non-null value *is* the tap. Suppressing it would leave the only
+    // announcement on a one-room studio unspoken, and an e2e written against
+    // it would have to click twice to see anything.
+    render(<Announcer state="Reading The lounge" announceFirst />);
+
+    expect(screen.getByTestId('announcer').textContent).toBe('Reading The lounge');
+  });
+
+  it('announces a change without replacing the node', () => {
+    const { rerender } = render(<Announcer state="6 guests" />);
+    const region = screen.getByTestId('announcer');
+
+    rerender(<Announcer state="2 guests, regulars" />);
+
+    // The defect this component exists to fix: the old region had its text
+    // *inserted with it*, because it lived inside the branch that re-rendered.
+    // AT announces changes to a region it is already watching, so the node
+    // identity is the guarantee — not the text.
+    expect(screen.getByTestId('announcer')).toBe(region);
+    expect(region.isConnected).toBe(true);
+    expect(region.textContent).toBe('2 guests, regulars');
+  });
+
+  it('keeps the last sentence while the next state is unknown', () => {
+    const { rerender } = render(<Announcer state="6 guests" announceFirst />);
+    const region = screen.getByTestId('announcer');
+
+    // A refetch: `isPending` again, nothing to say. Clearing the region here
+    // would make the identical value that comes back a *change*, and the host
+    // would hear the same count twice for one tap.
+    rerender(<Announcer state={null} announceFirst />);
+    expect(region.textContent).toBe('6 guests');
+
+    rerender(<Announcer state="6 guests" announceFirst />);
+    expect(region.textContent).toBe('6 guests');
+  });
+
+  it('does not touch the DOM for a state that has not changed', () => {
+    const { rerender } = render(<Announcer state="6 guests" />);
+    const region = screen.getByTestId('announcer');
+
+    rerender(<Announcer state="1 guest" />);
+    expect(region.textContent).toBe('1 guest');
+
+    /*
+     * Searching "sana" and then "sanaa" is one guest either way. The region
+     * must say nothing the second time: forcing a mutation — an invisible
+     * counter, a zero-width space — would make it fire on states that did not
+     * change, which is the noise this component is for. The silence is
+     * recorded as a deliberate limit in ADR 0004, not fixed here.
+     */
+    const observer = new MutationObserver(() => {});
+    observer.observe(region, { childList: true, characterData: true, subtree: true });
+
+    rerender(<Announcer state="1 guest" />);
+
+    expect(observer.takeRecords()).toHaveLength(0);
+    observer.disconnect();
   });
 });

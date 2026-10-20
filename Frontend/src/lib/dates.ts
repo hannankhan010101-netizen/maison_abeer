@@ -88,6 +88,28 @@ export function formatDayLabel(date: Date, locale?: string): string {
   return `${weekday} ${date.getDate()}`;
 }
 
+/**
+ * "Week of August 10" — the week, named out loud.
+ *
+ * Written for the calendar's live region (`ui/Announcer`): the week navigation
+ * changes seven columns of content and the heading above it says "This week"
+ * whatever week is showing, so this is the only sentence that tells a
+ * screen-reader user where the prev/next buttons and the swipe just landed.
+ *
+ * Always the *Monday* of the week containing `date`, not `date` itself — the
+ * anchor is wherever the host happens to have landed (today, or today plus
+ * n weeks), and two anchors inside one week must name the same week.
+ *
+ * Field order is Intl's, unlike `formatDayLabel`: "Week of August 10" in
+ * en-US, "Week of 10 August" in en-GB, and the sentence reads correctly in
+ * both. Only a two-field *heading* needed its order pinning.
+ */
+export function formatWeekLabel(date: Date, locale?: string): string {
+  const monday = startOfWeek(date);
+
+  return `Week of ${monday.toLocaleDateString(locale, { month: 'long', day: 'numeric' })}`;
+}
+
 export function formatDateLong(iso: string, locale?: string): string {
   return new Date(iso).toLocaleDateString(locale, {
     weekday: 'short',

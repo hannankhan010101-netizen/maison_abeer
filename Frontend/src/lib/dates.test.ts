@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   formatDayLabel,
+  formatWeekLabel,
   addDays,
   addWeeks,
   dayKey,
@@ -80,6 +81,34 @@ describe('formatDayLabel', () => {
 
   it('still localises the weekday name', () => {
     expect(formatDayLabel(at(2026, 8, 4), 'fr-FR')).toMatch(/^mar\.? 4$/);
+  });
+});
+
+describe('formatWeekLabel', () => {
+  // The sentence `ui/Announcer` speaks on /calendar. Locales are explicit
+  // here, as everywhere in this file, because the runner's default is not the
+  // studio's — and the component cannot pass one (it has no locale to pass).
+  it('names the Monday of the week, not the day it was handed', () => {
+    // Tuesday the 4th sits in the week of Monday the 3rd.
+    expect(formatWeekLabel(at(2026, 8, 4), 'en-US')).toBe('Week of August 3');
+  });
+
+  it('gives every day of one week the same label', () => {
+    // Otherwise "next week" would name a different date depending on which
+    // weekday the host happened to be anchored to.
+    expect(formatWeekLabel(at(2026, 8, 9), 'en-US')).toBe('Week of August 3');
+  });
+
+  it("follows the locale's field order", () => {
+    // Unlike `formatDayLabel`, whose order had to be pinned: a two-field
+    // column heading read wrong as "4 Tue", while both "Week of August 3" and
+    // "Week of 3 August" are correct sentences.
+    expect(formatWeekLabel(at(2026, 8, 4), 'en-GB')).toBe('Week of 3 August');
+  });
+
+  it('names the month the week started in', () => {
+    // Tuesday 2026-09-01's week starts on Monday 31 August.
+    expect(formatWeekLabel(at(2026, 9, 1), 'en-US')).toBe('Week of August 31');
   });
 });
 

@@ -9,6 +9,10 @@
 node_modules/
 .next/
 .next-build/
+# The hero perf suite's production build (playwright.perf.config.ts). Its own
+# directory for the same reason `.next-build` has one — a build that writes
+# into `.next` corrupts it underneath a live dev server.
+.next-perf/
 out/
 build/
 dist/

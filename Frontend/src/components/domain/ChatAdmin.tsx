@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
+import { Announcer } from '@/components/ui/Announcer';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
@@ -74,6 +75,30 @@ export function ChatAdmin() {
           📣 Broadcast
         </Link>
       </header>
+
+      {/*
+        Which room you are in, out loud.
+
+        A direct child of the `section`, by rule rather than by taste: it must
+        not go inside either column below. Those are `hidden lg:grid` on the
+        column that is not showing, so below `lg` the detail column is
+        `display: none` until a room is open — and a live region revealed by
+        the same tap that fills it is exactly as unannounced as one inserted
+        with its content. That failure would be invisible here: `textContent`
+        reads fine on a `display: none` node, so an e2e asserting the text
+        would stay green while the phone — the stated user — said nothing.
+        (`e2e/announcements.spec.ts` asserts `checkVisibility()` on this node
+        before the tap as the one mechanical proxy for it.)
+
+        `announceFirst`, unlike /calendar and /guests: here the first state is
+        the host's own tap. `state` is `null` only because no room is open, so
+        `null` → "Reading …" is the switch itself — and below `lg` that tap
+        hides the room list, which is where focus was, so focus lands on
+        `<body>` and this sentence is all there is. The one load-time
+        announcement it buys is arriving at `/chat?room=…` from a guest's
+        Message button, which names the thread you just asked for.
+      */}
+      <Announcer state={selected ? `Reading ${selected.name}` : null} announceFirst />
 
       {/*
         Master/detail, and on a phone only one of them at a time.

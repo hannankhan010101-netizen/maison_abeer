@@ -21,6 +21,19 @@ const PORT = 3100;
 
 export default defineConfig({
   testDir: './e2e',
+
+  /*
+   * The hero performance suite lives in this directory but is not part of
+   * this suite.
+   *
+   * `e2e/hero-perf.spec.ts` needs a production build, one worker and a CPU
+   * throttle, and it asserts ratios that mean nothing against `next dev` —
+   * see `playwright.perf.config.ts`, which runs it and nothing else. Stated
+   * at the top level rather than per project, so a project added later
+   * inherits it instead of having to remember it.
+   */
+  testIgnore: /hero-perf\.spec\.ts/,
+
   fullyParallel: true,
 
   // A test that only passes on a retry is a flaky test, and a flaky suite

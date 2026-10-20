@@ -6,6 +6,7 @@ import { AddGuestModal } from '@/components/domain/AddGuestModal';
 import { GuestRow } from '@/components/domain/GuestRow';
 import { SessionPicker } from '@/components/domain/SessionPicker';
 import { SessionRoster } from '@/components/domain/SessionRoster';
+import { Announcer } from '@/components/ui/Announcer';
 import { Button } from '@/components/ui/Button';
 import { Card, Eyebrow, HandNote } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
@@ -26,6 +27,72 @@ import { addWeeks } from '@/lib/dates';
  */
 
 type Filter = 'all' | 'regulars';
+
+interface ResultDescription {
+  /** The sentence the live region speaks when this result arrives. */
+  spoken: string;
+  /** The designed empty state, or `null` when there are guests to show. */
+  empty: { title: string; note: string } | null;
+}
+
+/**
+ * One description of a result set, for the eye and for the ear.
+ *
+ * Both callers below go through this. The three empties are the reason: they
+ * mean three different things ("no guests yet" is not "no one by that name"),
+ * and a second copy of that wording for the live region would have drifted
+ * from the visible one the first time either was reworded — the spoken half
+ * being the copy nobody can see go stale.
+ *
+ * The count sentence deliberately does not include the search term. Spoken,
+ * the term is already in the field the host just typed into, and folding it in
+ * would make every keystroke that reaches the API a *different* sentence —
+ * turning one announcement per result into one per letter. The cost is the
+ * residual silence recorded in ADR 0004: searching "sana" and then "sanaa",
+ * both one guest, says nothing the second time.
+ */
+export function describeResult({
+  count,
+  searching,
+  regularsOnly,
+}: {
+  count: number;
+  searching: boolean;
+  regularsOnly: boolean;
+}): ResultDescription {
+  if (count === 0) {
+    if (searching) {
+      return {
+        spoken: 'No one by that name',
+        empty: { title: 'No one by that name', note: 'Try a shorter search?' },
+      };
+    }
+
+    if (regularsOnly) {
+      return {
+        spoken: 'No regulars just yet',
+        empty: {
+          title: 'No regulars just yet',
+          note: 'They earn the badge on their third visit — it’ll happen 💗',
+        },
+      };
+    }
+
+    return {
+      spoken: 'No guests yet',
+      empty: {
+        title: 'No guests yet',
+        note: 'Add someone from a DM or a phone call — a name is enough to start',
+      },
+    };
+  }
+
+  const guests = `${count} guest${count === 1 ? '' : 's'}`;
+
+  // Which list this is a count *of*: tapping a filter changes the number and
+  // nothing else, so "2 guests" alone would not say what the tap did.
+  return { spoken: regularsOnly ? `${guests}, regulars` : guests, empty: null };
+}
 
 export interface GuestListProps {
   now?: Date;
@@ -76,6 +143,25 @@ function GuestListInner({ now }: { now: Date }) {
     search: debouncedSearch.trim() || undefined,
     regularsOnly: filter === 'regulars',
   });
+
+  /*
+   * `null` until a result actually arrives, which is what keeps the region
+   * quiet during the flicker. Every filter tap and every settled search is a
+   * new query key with no placeholder data, so the list re-enters `isPending`
+   * — and announcing "Loading…" there would say nothing a host asked for and
+   * would make the real count that follows the *second* announcement of one
+   * tap. The two skeletons already carry loading (ADR 0004 records that they
+   * are a second live region firing alongside this one).
+   */
+  const described = query.isSuccess
+    ? describeResult({
+        count: query.data?.length ?? 0,
+        // The debounced term, like the body below: "No one by that name" must
+        // not be spoken for a search the list has not run yet.
+        searching: Boolean(debouncedSearch.trim()),
+        regularsOnly: filter === 'regulars',
+      })
+    : null;
 
   return (
     <section>
@@ -144,6 +230,19 @@ function GuestListInner({ now }: { now: Date }) {
         ))}
       </div>
 
+      {/*
+        What the filters and the search just did, out loud.
+
+        Outside the `Card`, which is the whole point. The count used to live
+        *inside* `GuestListBody`'s success branch as an `sr-only` paragraph —
+        so every filter tap and every settled search unmounted it with the old
+        list and inserted a brand-new node with the new count. A live region
+        that arrives already holding its text has not changed, and nothing is
+        announced. The unit test for it passed throughout, because the visible
+        count `Chip` next to it carries the same words.
+      */}
+      <Announcer state={described?.spoken ?? null} />
+
       <Card>
         <GuestListBody
           query={query}
@@ -202,35 +301,19 @@ function GuestListBody({
 
   const guests = query.data ?? [];
 
-  if (guests.length === 0) {
-    // Three different empties, because they mean three different things.
-    if (searching) {
-      return <Empty title="No one by that name" note="Try a shorter search?" />;
-    }
+  // Three different empties, because they mean three different things — and
+  // the same `describeResult` the live region speaks, so the two cannot drift.
+  const { empty } = describeResult({ count: guests.length, searching, regularsOnly });
 
-    if (regularsOnly) {
-      return (
-        <Empty
-          title="No regulars just yet"
-          note="They earn the badge on their third visit — it&rsquo;ll happen 💗"
-        />
-      );
-    }
-
-    return (
-      <Empty
-        title="No guests yet"
-        note="Add someone from a DM or a phone call — a name is enough to start"
-      />
-    );
+  if (empty) {
+    return <Empty title={empty.title} note={empty.note} />;
   }
 
   return (
     <>
-      <p className="sr-only" role="status" aria-live="polite">
-        {guests.length} guest{guests.length === 1 ? '' : 's'}
-      </p>
-
+      {/* The spoken count is `ui/Announcer`, mounted above this `Card`. An
+          `sr-only` copy here would be read twice over and would still be
+          inserted-with-its-content on every change. */}
       <div className="mb-1 flex items-center gap-2">
         <Chip tone="neutral">
           {guests.length} guest{guests.length === 1 ? '' : 's'}

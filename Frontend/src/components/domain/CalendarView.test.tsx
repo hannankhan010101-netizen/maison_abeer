@@ -232,6 +232,67 @@ describe('CalendarView', () => {
     expect(new Date(last.searchParams.get('start')!).getDate()).toBe(3);
   });
 
+  /**
+   * The week changes; something has to say so.
+   *
+   * The prev/next buttons always changed seven columns of content silently,
+   * and the swipe added a second silent route to the same change. Nothing
+   * navigates, nothing takes focus, and the `h1` above reads "This week"
+   * whichever week is showing, so a screen-reader user had no confirmation at
+   * all. These assert the preconditions for an announcement, not the speech —
+   * see ADR 0004.
+   */
+  describe('the week announcement', () => {
+    it('says nothing about the week it loaded on', async () => {
+      respondWith([]);
+      renderCalendar();
+      await screen.findAllByText(/Nothing scheduled/);
+
+      // Arriving on this week is not a change the host made. Reading it out
+      // would announce the result of opening the page.
+      expect(screen.getByTestId('announcer').textContent).toBe('');
+    });
+
+    it('names the new week on the same node', async () => {
+      respondWith([]);
+      renderCalendar();
+      await screen.findAllByText(/Nothing scheduled/);
+
+      // Captured *before* the click: a region that is unmounted and inserted
+      // again with the new text announces nothing, and `getByTestId` after
+      // the fact would happily resolve the replacement.
+      const region = screen.getByTestId('announcer');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Next →' }));
+
+      // The month's position is Intl's business and the runner has no locale
+      // to pin here (`formatWeekLabel` is asserted against explicit locales in
+      // dates.test.ts). Mon 10 Aug is the week after NOW either way.
+      expect(region.textContent).toMatch(/^Week of /);
+      expect(region.textContent).toContain('10');
+      expect(screen.getByTestId('announcer')).toBe(region);
+      expect(region.isConnected).toBe(true);
+    });
+
+    it('speaks again on the way back', async () => {
+      respondWith([]);
+      renderCalendar();
+      await screen.findAllByText(/Nothing scheduled/);
+
+      const region = screen.getByTestId('announcer');
+
+      // "This week" is only a change once the host has left it — from the
+      // anchor it loaded on the label is identical, and silence there is
+      // correct.
+      await userEvent.click(screen.getByRole('button', { name: 'Next →' }));
+      await userEvent.click(screen.getByRole('button', { name: 'This week' }));
+
+      expect(region.textContent).toMatch(/^Week of /);
+      expect(region.textContent).toContain('3');
+      expect(region.isConnected).toBe(true);
+    });
+  });
+
   it('surfaces the API message on failure', async () => {
     fetchImpl.mockImplementation(
       () =>
@@ -351,6 +412,23 @@ describe('CalendarView', () => {
       // twice — in the agenda and in the grid's column headers.
       expect(await screen.findAllByText(/Tue 11/)).not.toHaveLength(0);
       expect(screen.queryByText(/Tue 4 · today/)).not.toBeInTheDocument();
+    });
+
+    it('announces the week it landed on', async () => {
+      const list = await agenda();
+      // Before the gesture, so a region replaced rather than updated fails.
+      const region = screen.getByTestId('announcer');
+
+      fireEvent(list, pointer('pointerdown', { id: 1, x: 300 }));
+      fireEvent(list, pointer('pointerup', { id: 1, x: 200, y: 130 }));
+
+      // One region serves both routes into a week, because both go through
+      // `setAnchor` — and the gesture is the half with nothing to re-read
+      // afterwards. Mon 10 Aug is the week after NOW.
+      expect(await screen.findAllByText(/Tue 11/)).not.toHaveLength(0);
+      expect(region.textContent).toMatch(/^Week of /);
+      expect(region.textContent).toContain('10');
+      expect(screen.getByTestId('announcer')).toBe(region);
     });
   });
 

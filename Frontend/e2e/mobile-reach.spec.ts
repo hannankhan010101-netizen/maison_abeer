@@ -182,6 +182,36 @@ async function scrollToBottom(page: Page) {
   );
 }
 
+/**
+ * `main`'s and `body`'s bottom padding, and the inset the browser reports.
+ *
+ * `calc()` and `env()` only resolve in a browser, so the inset is read by
+ * measuring a probe rather than by parsing a class name. Shared with the
+ * emulated-inset block at the foot of this file, which asserts the same three
+ * numbers with the inset turned on — the point being that one measurement
+ * covers both the derivation and the one-owner rule.
+ */
+async function paddingAndInset(page: Page) {
+  return page.evaluate(() => {
+    const probe = document.createElement('div');
+    probe.style.height = 'env(safe-area-inset-bottom, 0px)';
+    document.body.append(probe);
+    const inset = probe.getBoundingClientRect().height;
+    probe.remove();
+
+    const main = document.querySelector('main')!;
+
+    return {
+      inset,
+      main: parseFloat(getComputedStyle(main).paddingBottom),
+      body: parseFloat(getComputedStyle(document.body).paddingBottom),
+      bar: parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--tab-bar-host'),
+      ),
+    };
+  });
+}
+
 async function stubPublic(page: Page) {
   await page.route('**/api/v1/public/**', (route) =>
     route.fulfill({
@@ -249,35 +279,19 @@ test.describe('the create action is within thumb reach', () => {
    * whose whole problem is vertical room. The test below said nothing, because
    * more padding never overlaps anything.
    *
-   * Headless Chromium reports the inset as 0px, so the doubled term itself
-   * cannot be measured here; `AppShell.test.tsx` asserts that exactly one layer
-   * names it. What is measurable is the derivation: `main` reserves the bar
-   * plus the floating button's clearance, and nothing else.
+   * At this browser's default 0px inset the doubled term cancels out, so both
+   * assertions below hold whether or not `main` names the inset — which is why
+   * `AppShell.test.tsx` had to assert the class string instead. The block at
+   * the foot of this file closes that: with the inset emulated at 34px, `main`
+   * reads 160px and re-adding `env()` to it reads 194px. What is measurable in
+   * both runs is the derivation: `main` reserves the bar plus the floating
+   * button's clearance, and nothing else.
    */
   test('reserves the bar and the button, and no more', async ({ page }) => {
     await page.goto('/guests');
     await settled(page);
 
-    const measured = await page.evaluate(() => {
-      // `calc()` and `env()` only resolve in a browser, so the inset is read by
-      // measuring a probe rather than by parsing a class name.
-      const probe = document.createElement('div');
-      probe.style.height = 'env(safe-area-inset-bottom)';
-      document.body.append(probe);
-      const inset = probe.getBoundingClientRect().height;
-      probe.remove();
-
-      const main = document.querySelector('main')!;
-
-      return {
-        inset,
-        main: parseFloat(getComputedStyle(main).paddingBottom),
-        body: parseFloat(getComputedStyle(document.body).paddingBottom),
-        bar: parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--tab-bar-host'),
-        ),
-      };
-    });
+    const measured = await paddingAndInset(page);
 
     // 6rem covers the floating button — `ui/Fab` sits 1rem above the bar and is
     // 56px tall — and leaves the 1.5rem of air the row below it needs.
@@ -412,5 +426,58 @@ test.describe('a tap gets an answer', () => {
 
     // `hover:` alone never fires on a touch screen.
     expect(classes).toMatch(/active:/);
+  });
+});
+
+/* ==========================================================================
+   The one-owner rule, measured rather than proxied.
+   ========================================================================== */
+
+/**
+ * `env(safe-area-inset-bottom)` has exactly one owner for in-flow content —
+ * `body` — and until now nothing in a browser could see that, because the
+ * browser reported the inset as 0px and a term worth 0 is invisible. The
+ * guarantee was held by `AppShell.test.tsx` matching `main`'s class string for
+ * the absence of `env(`, which is a proxy: it says what the declaration looks
+ * like, not what the page does.
+ *
+ * `Emulation.setSafeAreaInsetsOverride` over CDP makes
+ * `env(safe-area-inset-bottom)` resolve to a real value, so the probe already
+ * in `paddingAndInset` simply starts reading 34 and the same three numbers
+ * become a measurement. At 34px, `main` must stay at `--tab-bar-host` + 96 =
+ * 160px while `body` pads by 34; re-adding the inset to `main` reads 194px and
+ * fails here. See the head of `mobile-occlusion.spec.ts` for the mechanism and
+ * for what a green run does *not* prove — chiefly that the app does not yet
+ * declare `viewport-fit=cover`, so iOS reports 0 regardless.
+ */
+const HOME_INDICATOR = 34;
+
+test.describe('with a home indicator underneath it', () => {
+  test.beforeEach(async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'the inset is emulated over CDP');
+    // `main`'s reservation is `lg:pb-16`; above `lg` there is no bar to reserve
+    // for and no Fab to clear.
+    below(page, LG, 'the home-indicator offsets');
+
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { bottom: HOME_INDICATOR } });
+  });
+
+  test('reserves the bar and the button, and no more', async ({ page }) => {
+    await page.goto('/guests');
+    await settled(page);
+
+    const measured = await paddingAndInset(page);
+
+    // The precondition: without it every assertion below is the inset-0 test
+    // again under a different name, and the block would pass proving nothing.
+    expect(measured.inset, 'the emulated inset did not reach the page').toBe(HOME_INDICATOR);
+
+    // Unchanged by the inset, because `main` is inside `body`'s padding box.
+    // 194 here is the doubled term ADR 0003 decision 1 is about.
+    expect(measured.main, 'the inset is counted twice').toBeCloseTo(measured.bar + 96, 0);
+
+    // One owner for the home-indicator inset, and it is `body`.
+    expect(measured.body).toBeCloseTo(HOME_INDICATOR, 0);
   });
 });
