@@ -37,34 +37,43 @@ export function StickyCta(): JSX.Element | null {
   useEffect(() => {
     if (typeof IntersectionObserver !== 'function') return;
 
-    const observers: IntersectionObserver[] = [];
-    let heroSeen = false;
-    let widgetSeen = false;
+    const observers = new Set<IntersectionObserver>();
 
-    const watch = (target: Element, report: (visible: boolean) => void) => {
-      const observer = new IntersectionObserver((entries) => {
-        const last = entries[entries.length - 1];
-        if (last) report(last.isIntersecting);
-      });
-      observer.observe(target);
-      observers.push(observer);
+    // One watcher per target. It looks the target up each time it is asked and
+    // moves to a new element if the old one has been replaced: the storefront
+    // swaps its loading placeholder for the loaded page, which throws away the
+    // booking card the first lookup found. Watching only the first would leave
+    // the bar convinced the card was off screen, on top of the card.
+    const watcher = (find: () => Element | null, report: (visible: boolean) => void) => {
+      let current: { target: Element; observer: IntersectionObserver } | null = null;
+
+      return () => {
+        const target = find();
+        if (!target || target === current?.target) return;
+
+        if (current) {
+          current.observer.disconnect();
+          observers.delete(current.observer);
+        }
+        const observer = new IntersectionObserver((entries) => {
+          const last = entries[entries.length - 1];
+          // A callback already queued for a replaced element is stale.
+          if (last && current?.observer === observer) report(last.isIntersecting);
+        });
+        current = { target, observer };
+        observers.add(observer);
+        observer.observe(target);
+      };
     };
 
     // The hero is rendered only once the studio's details have arrived, which
-    // is after this effect first runs, so the lookup is retried whenever the
+    // is after this effect first runs, so the lookups are retried whenever the
     // page's direct children change.
-    const attach = () => {
-      const hero = findHero();
-      if (hero && !heroSeen) {
-        heroSeen = true;
-        watch(hero, setHeroVisible);
-      }
-      const widget = document.getElementById('booking-widget');
-      if (widget && !widgetSeen) {
-        widgetSeen = true;
-        watch(widget, setWidgetVisible);
-      }
-    };
+    const watchers = [
+      watcher(findHero, setHeroVisible),
+      watcher(() => document.getElementById('booking-widget'), setWidgetVisible),
+    ];
+    const attach = () => watchers.forEach((run) => run());
 
     attach();
     const main = document.getElementById('main');

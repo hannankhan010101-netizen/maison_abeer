@@ -80,6 +80,29 @@ describe('StickyCta', () => {
     expect(screen.getByRole('link', { name: /Save a seat/ })).toBeInTheDocument();
   });
 
+  it('follows the booking card when React replaces it, instead of watching the old one', async () => {
+    // The page swaps its loading placeholder for the loaded page (a changed `key`), so the
+    // card the observer first found is thrown away and a new one takes its place.
+    renderBar();
+    setIntersecting(hero, false);
+    setIntersecting(widget, true);
+
+    const main = document.getElementById('main')!;
+    const replacement = document.createElement('div');
+    replacement.id = 'booking-widget';
+    main.replaceChild(replacement, widget);
+    await act(async () => {});
+
+    // The detached card reports itself gone, as a browser does...
+    setIntersecting(widget, false);
+    // ...but the card the guest can actually see is the new one.
+    setIntersecting(replacement, true);
+    expect(screen.queryByRole('link', { name: /Save a seat/ })).toBeNull();
+
+    setIntersecting(replacement, false);
+    expect(screen.getByRole('link', { name: /Save a seat/ })).toBeInTheDocument();
+  });
+
   it('is a phone bar: fixed to the bottom, hidden from md up, glass, and at least 44px tall', () => {
     const { container } = renderBar();
     setIntersecting(hero, false);
