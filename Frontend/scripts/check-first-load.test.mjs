@@ -12,7 +12,7 @@ import { gzipSync } from 'node:zlib';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, 'check-first-load.mjs');
-const DIST = join(HERE, '__fixtures__', 'dist');
+const DIST = join(HERE, '__fixtures__', 'fixture-build');
 const PAGE = '/book/[slug]/page';
 
 function run(...args) {

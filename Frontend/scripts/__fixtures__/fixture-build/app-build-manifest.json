@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "/book/[slug]/page": [
+      "static/chunks/a.js",
+      "static/chunks/b.js",
+      "static/chunks/a.js",
+      "static/chunks/c.css"
+    ]
+  }
+}
