@@ -38,7 +38,9 @@ export default defineConfig({
    * is `testIgnore` in playwright.config.ts, which keeps the reverse from
    * happening.
    */
-  testMatch: /hero-perf\.spec\.ts/,
+  // `hero-perf.spec.ts` measured the 3D hero this page no longer has; it is left in the repo,
+  // unreferenced, until the owner decides whether to delete it.
+  testMatch: /perf-scroll\.spec\.ts/,
 
   /*
    * Load-bearing, not tidiness.
