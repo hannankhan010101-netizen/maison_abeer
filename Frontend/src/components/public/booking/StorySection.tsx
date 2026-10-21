@@ -19,8 +19,11 @@ import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 export function StorySection({ story }: { story: string }) {
   const [ref, visible] = useRevealOnScroll<HTMLElement>();
 
+  // `overflow-hidden`: the pattern behind is drawn wider than the section so
+  // its edge never shows, which on a phone means wider than the screen — and
+  // unclipped it pushed the whole page sideways (e2e/story-overflow.spec.ts).
   return (
-    <section ref={ref} className="relative px-5 sm:px-8">
+    <section ref={ref} className="relative overflow-hidden px-5 sm:px-8">
       <MagicalPattern className="inset-0 -z-10" />
       <div
         className={cn(
