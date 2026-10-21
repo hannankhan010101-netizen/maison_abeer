@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { DateLeaf } from '@/components/public/DateLeaf';
 import { Field } from '@/components/public/booking/Field';
 import { cn } from '@/lib/cn';
@@ -12,6 +12,10 @@ import {
 } from '@/lib/public/api';
 import { accentFor, formatDay, formatTime } from '@/lib/public/bookingCopy';
 import { useMountedNow } from '@/lib/public/useMountedNow';
+import '@/styles/units/booking.css';
+
+// The same name ClassPicker puts on the picked card's leaf; the browser flies one to the other.
+const CLASS_LEAF = 'class-leaf';
 
 // ---------------------------------------------------------------------------
 // Step 2 — your details
@@ -31,6 +35,8 @@ export function DetailsStep({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const now = useMountedNow();
   const ids = useId();
+  const noteWrapRef = useRef<HTMLDivElement>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +44,11 @@ export function DetailsStep({
 
   // Moving focus is what makes this a step rather than a silent swap.
   useEffect(() => headingRef.current?.focus(), []);
+
+  // Opening moves focus into the field, or a screen-reader user would be left on the button.
+  useEffect(() => {
+    if (noteOpen) noteWrapRef.current?.querySelector('input')?.focus();
+  }, [noteOpen]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,7 +113,9 @@ export function DetailsStep({
           aria-hidden="true"
           className={cn('absolute inset-y-0 left-0 w-1.5', accentFor(item.color_token).bar)}
         />
-        <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
+        <span className="flex" style={{ viewTransitionName: CLASS_LEAF }}>
+          <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
+        </span>
         <div className="min-w-0">
           <b className="font-display block text-lg leading-tight">{item.name}</b>
           <span className="text-latte block text-sm" suppressHydrationWarning>
@@ -168,13 +181,31 @@ export function DetailsStep({
           hint="Optional — but please do tell us, we take it seriously"
         />
 
-        <Field
-          id={`${ids}-note`}
-          name="note"
-          label="Anything fun we should put on your name tag?"
-          icon="sparkle"
-          hint="Optional — a flavour, a nickname, whatever you like"
-        />
+        {/* Only the fun, optional note is folded away. The allergies field above
+            is safety-critical and never hides. The field stays mounted (merely
+            `hidden`) so a typed value survives closing it and is still sent. */}
+        <div>
+          <button
+            type="button"
+            aria-expanded={noteOpen}
+            aria-controls={`${ids}-note-wrap`}
+            onClick={() => setNoteOpen((open) => !open)}
+            className="text-rose-ink focus-visible:outline-rose flex min-h-[44px] items-center gap-2 text-sm font-extrabold focus-visible:outline-[3px] focus-visible:outline-offset-2"
+          >
+            <span aria-hidden="true">{noteOpen ? '−' : '+'}</span>
+            Anything fun for your name tag?
+          </button>
+
+          <div id={`${ids}-note-wrap`} ref={noteWrapRef} hidden={!noteOpen} className="mt-1">
+            <Field
+              id={`${ids}-note`}
+              name="note"
+              label="Anything fun we should put on your name tag?"
+              icon="sparkle"
+              hint="Optional — a flavour, a nickname, whatever you like"
+            />
+          </div>
+        </div>
 
         {/* Honeypot. Hidden from sight and from the accessibility tree, and
             skipped by tabbing, so no human ever reaches it. */}
@@ -201,10 +232,10 @@ export function DetailsStep({
         <button
           type="submit"
           disabled={submitting}
+          style={{ '--clay-glow': 'var(--color-rose)' } as CSSProperties}
           className={cn(
-            'sheen-on-hover bg-rose text-on-rose relative min-h-[52px] overflow-hidden rounded-[var(--radius-pill)]',
-            'px-5 text-base font-extrabold shadow-[0_14px_28px_-12px_var(--color-rose)]',
-            'transition-transform hover:-translate-y-0.5 active:translate-y-0',
+            'clay sheen-on-hover bg-rose text-on-rose relative min-h-[52px] overflow-hidden rounded-[var(--radius-pill)]',
+            'px-5 text-base font-extrabold',
             'motion-reduce:transform-none',
             'focus-visible:outline-cocoa focus-visible:outline-[3px] focus-visible:outline-offset-2',
             'disabled:opacity-70',

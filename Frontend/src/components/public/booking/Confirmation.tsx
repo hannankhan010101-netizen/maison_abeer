@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { DateLeaf } from '@/components/public/DateLeaf';
 import { cn } from '@/lib/cn';
+import { haptic } from '@/lib/motion';
 import { type BookingResult } from '@/lib/public/api';
 import { formatDay, formatTime } from '@/lib/public/bookingCopy';
+import { useMayAnimate } from '@/lib/public/useMayAnimate';
 import { useMountedNow } from '@/lib/public/useMountedNow';
+import '@/styles/units/booking.css';
 
 // ---------------------------------------------------------------------------
 // Step 3 — done
@@ -15,7 +18,17 @@ export function Confirmation({ result, token }: { result: BookingResult; token: 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const now = useMountedNow();
 
+  const buzzed = useRef(false);
+
   useEffect(() => headingRef.current?.focus(), []);
+
+  // Once per confirmation. React StrictMode runs effects twice in development;
+  // a ref survives that, so the phone buzzes once rather than twice.
+  useEffect(() => {
+    if (buzzed.current) return;
+    buzzed.current = true;
+    haptic('success');
+  }, []);
 
   const waitlisted = result.outcome === 'waitlisted';
   const portalToken = result.portal_token;
@@ -25,9 +38,17 @@ export function Confirmation({ result, token }: { result: BookingResult; token: 
     <section className="relative text-center" aria-live="polite">
       <Confetti />
 
-      <p className="animate-rise-in text-6xl" aria-hidden="true" style={{ animationDelay: '80ms' }}>
-        {waitlisted ? '💌' : '🎀'}
-      </p>
+      {waitlisted ? (
+        <p
+          className="animate-rise-in text-6xl"
+          aria-hidden="true"
+          style={{ animationDelay: '80ms' }}
+        >
+          💌
+        </p>
+      ) : (
+        <CheckMark />
+      )}
 
       <h2
         ref={headingRef}
@@ -85,35 +106,84 @@ export function Confirmation({ result, token }: { result: BookingResult; token: 
 }
 
 /**
- * One confetti burst, per the style guide's own rule — not a looping
- * celebration, a single moment. CSS only, and skipped entirely under
- * reduced motion rather than left static: a field of frozen dots is just
- * clutter with no motion left to justify it.
+ * The check that says "saved". It is drawn on by CSS (`stroke-dashoffset`, in
+ * `booking.css`) and is simply complete wherever motion is off. Only a booked
+ * seat gets one: a waitlist place is not a seat, and a tick would say it was.
+ */
+function CheckMark() {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+      className="booking-check mx-auto size-16 overflow-visible"
+      fill="none"
+    >
+      <circle
+        cx="32"
+        cy="32"
+        r="30"
+        fill="var(--color-blush)"
+        stroke="var(--color-rose)"
+        strokeWidth="3"
+      />
+      <path
+        d="M19 33l9 9 17-19"
+        stroke="var(--color-rose)"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength={30}
+      />
+    </svg>
+  );
+}
+
+const CONFETTI_COLORS = ['rose', 'terra', 'sage', 'butter', 'pink'] as const;
+
+/**
+ * Twenty-four pieces, each with its own fixed flight (`--dx --dy --rot
+ * --delay`). They are worked out once from the piece's index (a golden-angle
+ * spiral, so the burst looks scattered without being random) rather than with
+ * `Math.random` at render, which would differ between server and client and on
+ * every re-render.
+ */
+const CONFETTI = Array.from({ length: 24 }, (_, index) => {
+  const angle = (index * 137.5 * Math.PI) / 180;
+  const reach = 70 + (index % 6) * 22;
+  return {
+    color: CONFETTI_COLORS[index % CONFETTI_COLORS.length]!,
+    dx: Math.round(Math.cos(angle) * reach),
+    dy: Math.round(Math.sin(angle) * reach * 0.8 + 60),
+    rot: `${(index * 97) % 540}deg`,
+    delay: `${(index % 8) * 35}ms`,
+  };
+});
+
+/**
+ * One burst, per the style guide's own rule: not a looping celebration. Left
+ * out of the page entirely when motion is not welcome (a field of frozen
+ * pieces is clutter), and also hidden by the stylesheet's reduced-motion rule.
  */
 function Confetti() {
-  const pieces = [
-    { left: '12%', color: 'var(--color-rose)', delay: '0ms' },
-    { left: '28%', color: 'var(--color-terra)', delay: '60ms' },
-    { left: '45%', color: 'var(--color-sage)', delay: '20ms' },
-    { left: '58%', color: 'var(--color-butter)', delay: '90ms' },
-    { left: '72%', color: 'var(--color-pink)', delay: '40ms' },
-    { left: '86%', color: 'var(--color-rose)', delay: '110ms' },
-  ];
+  const mayAnimate = useMayAnimate();
+  if (!mayAnimate) return null;
 
   return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 -top-2 h-0 motion-reduce:hidden"
-    >
-      {pieces.map((piece, index) => (
+    <div aria-hidden="true" className="booking-confetti">
+      {CONFETTI.map((piece, index) => (
         <span
           key={index}
-          className="absolute top-0 size-2 rounded-full opacity-90"
-          style={{
-            left: piece.left,
-            backgroundColor: piece.color,
-            animation: `fall 900ms ease-in ${piece.delay} both`,
-          }}
+          data-confetti=""
+          className="booking-confetti__piece"
+          style={
+            {
+              backgroundColor: `var(--color-${piece.color})`,
+              '--dx': `${piece.dx}px`,
+              '--dy': `${piece.dy}px`,
+              '--rot': piece.rot,
+              '--delay': piece.delay,
+            } as CSSProperties
+          }
         />
       ))}
     </div>

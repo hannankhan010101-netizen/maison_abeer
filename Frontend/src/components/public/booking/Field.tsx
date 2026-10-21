@@ -126,9 +126,9 @@ export function Field({
           aria-describedby={hintId}
           aria-invalid={invalid || undefined}
           className={cn(
-            'bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] py-2.5 pr-3 pl-10',
+            'bg-paper text-cocoa min-h-[48px] w-full rounded-[var(--radius-sm)] border-[1.5px] py-2.5 pr-3 pl-10 shadow-[inset_0_2px_4px_rgb(64_48_42_/_8%)]',
             'transition-[border-color,box-shadow] duration-150',
-            'focus-visible:border-rose focus-visible:shadow-[0_0_0_4px_var(--color-blush)] focus-visible:outline-none',
+            'focus-visible:border-rose focus-visible:shadow-[inset_0_0_0_1px_var(--color-rose),inset_0_3px_8px_var(--color-blush)] focus-visible:outline-none',
             invalid ? 'border-danger' : 'border-line',
           )}
         />

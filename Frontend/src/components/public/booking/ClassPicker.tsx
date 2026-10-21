@@ -1,12 +1,19 @@
 'use client';
 
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { DateLeaf } from '@/components/public/DateLeaf';
 import { cn } from '@/lib/cn';
 import { type PublicClass } from '@/lib/public/api';
 import { accentFor, formatDay, formatTime, seatCopy } from '@/lib/public/bookingCopy';
 import { durationCopy } from '@/lib/public/format';
 import { useMountedNow } from '@/lib/public/useMountedNow';
+import { withViewTransition } from '@/lib/motion';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
+import '@/styles/units/booking.css';
+
+/** The one shared-element name; it must sit on a single element at any moment. */
+export const CLASS_LEAF = 'class-leaf';
 
 // ---------------------------------------------------------------------------
 // Step 1 — pick a class
@@ -15,12 +22,33 @@ import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 export function ClassPicker({
   classes,
   onPick,
+  returnedFromId = null,
 }: {
   classes: PublicClass[];
   onPick: (item: PublicClass) => void;
+  /** The class whose details step we just came back from: its leaf is where the stub flies home to. */
+  returnedFromId?: string | null;
 }) {
   const now = useMountedNow();
+  // One id, not one flag per card, so two cards can never carry the name together.
+  const [namedId, setNamedId] = useState<string | null>(returnedFromId);
+  const inFlight = useRef(false);
   const [listRef, listVisible] = useRevealOnScroll<HTMLUListElement>();
+
+  function pick(item: PublicClass) {
+    // A second tap while the first transition runs would start a second one and
+    // abort the first halfway.
+    if (inFlight.current) return;
+    inFlight.current = true;
+
+    // The name goes on before the transition starts: the browser photographs
+    // the page as it is at that moment, and the leaf must already be in it.
+    flushSync(() => setNamedId(item.id));
+
+    void withViewTransition(() => onPick(item)).finally(() => {
+      inFlight.current = false;
+    });
+  }
 
   if (classes.length === 0) {
     return (
@@ -59,7 +87,7 @@ export function ClassPicker({
             >
               <button
                 type="button"
-                onClick={() => onPick(item)}
+                onClick={() => pick(item)}
                 data-cursor-label="BOOK"
                 className={cn(
                   'group border-line bg-paper relative grid w-full grid-cols-[auto_1fr_auto] items-center gap-3.5',
@@ -81,7 +109,12 @@ export function ClassPicker({
                     colour — same colour language as the admin calendar, so
                     a returning guest's eye already knows what pink versus
                     terracotta means here. */}
-                <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
+                <span
+                  className="flex"
+                  style={namedId === item.id ? { viewTransitionName: CLASS_LEAF } : undefined}
+                >
+                  <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
+                </span>
 
                 <span className="min-w-0">
                   <span className="font-display block text-lg leading-tight">{item.name}</span>
