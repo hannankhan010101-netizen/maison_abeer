@@ -136,3 +136,32 @@ describe('BookingHero', () => {
     });
   });
 });
+
+describe('BookingHero Instagram line', () => {
+  it('builds the link and the @ text from the parsed handle', () => {
+    render(
+      <BookingHero
+        studioName="Maison Abeer"
+        classes={[upcoming]}
+        handle=" https://www.instagram.com/Maison._Abeer/?igsh=1 "
+      />,
+    );
+    const link = screen.getByRole('link', { name: /find us on instagram/i });
+    expect(link.getAttribute('href')).toBe('https://instagram.com/maison._abeer');
+    expect(link.textContent).toContain('@maison._abeer');
+    expect(link.textContent).not.toContain('@@');
+  });
+
+  it.each([null, undefined, '', '  ', 'a..b', 'javascript:alert(1)', '@@x'])(
+    'renders no Instagram link and no stray @ for %j',
+    (handle) => {
+      const { container } = render(
+        <BookingHero studioName="Maison Abeer" classes={[upcoming]} handle={handle} />,
+      );
+      expect(container.querySelector('a[href*="instagram.com"]')).toBeNull();
+      expect(container.querySelector('a[href*="ig.me"]')).toBeNull();
+      expect(container.textContent).not.toMatch(/find us on instagram/i);
+      expect(container.textContent).not.toContain('@');
+    },
+  );
+});

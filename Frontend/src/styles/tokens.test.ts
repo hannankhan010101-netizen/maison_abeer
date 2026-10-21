@@ -97,3 +97,24 @@ describe('storefront rhythm', () => {
     expect(root).toMatch(/--section-gap:\s*clamp\(56px,\s*9vw,\s*112px\)/);
   });
 });
+
+describe('craft tints, springs and the sticker shadow', () => {
+  it.each([
+    '--craft-bento',
+    '--craft-bento-ink',
+    '--craft-pottery',
+    '--craft-pottery-ink',
+    '--craft-painting',
+    '--craft-painting-ink',
+  ])('defines %s as a flat hex colour', (token) => {
+    expect(root).toMatch(new RegExp(`${token}:\\s*#[0-9a-fA-F]{6};`));
+  });
+
+  it.each(['--spring-squish', '--spring-pop'])('defines %s as an easing curve', (token) => {
+    expect(root).toMatch(new RegExp(`${token}:\\s*(cubic-bezier|linear)\\(`));
+  });
+
+  it('defines the sticker shadow', () => {
+    expect(root).toMatch(/--sticker-shadow:\s*[^;]+rgb\(/);
+  });
+});

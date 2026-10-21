@@ -240,3 +240,27 @@ describe('token file integrity', () => {
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   });
 });
+
+/**
+ * The craft tints are named `--craft-*`, not `--color-*`, so
+ * `extractColorTokens` does not see them; they are read here directly. They
+ * are light-theme surfaces only (not redefined under `.mocha`), so the inks are
+ * held against the light card.
+ */
+describe('craft tints', () => {
+  const root = extractBlock(css, ':root');
+  function craft(token: string): string {
+    const match = new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6});`).exec(root);
+    if (!match?.[1]) throw new Error(`${token} is missing from tokens.css`);
+    return match[1];
+  }
+
+  it.each(['bento', 'pottery', 'painting'])(
+    '%s ink reads at AA on its tint and on paper',
+    (name) => {
+      const ink = craft(`--craft-${name}-ink`);
+      expect(ratio(ink, craft(`--craft-${name}`))).toBeGreaterThanOrEqual(AA_NORMAL);
+      expect(ratio(ink, light['--color-paper'] ?? '')).toBeGreaterThanOrEqual(AA_NORMAL);
+    },
+  );
+});

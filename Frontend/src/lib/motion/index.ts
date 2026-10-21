@@ -9,5 +9,6 @@ export { loadGsap, type GsapKit, type GsapPluginName } from './gsap';
 export { haptic, type HapticKind } from './haptics';
 export { withViewTransition } from './viewTransition';
 export { useTilt } from './useTilt';
+export { useMotionTier, type MotionTier, type TierSignals } from './useMotionTier';
 export { useMayAnimate } from '@/lib/public/useMayAnimate';
 export { prefersReducedMotion } from '@/lib/public/motion';
