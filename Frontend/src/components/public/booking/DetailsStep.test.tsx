@@ -64,7 +64,9 @@ describe('DetailsStep', () => {
     const note = screen.getByRole('textbox', { name: /name tag/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(note).toHaveFocus();
-    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toContainElement(note);
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toContainElement(
+      note,
+    );
 
     await userEvent.type(note, 'Bunny');
     // Collapsing must not lose the typed value.
