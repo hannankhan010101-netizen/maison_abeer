@@ -243,7 +243,11 @@ export function createFrameMonitor(opts: {
 
 ## Baseline
 
-_Filled in by Task O1._
+Measured 2026-10-22 at d351665 (typecheck exit 0; vitest exit 0; build exit 0):
+
+- Unit tests: 104 files, 1154 tests passed.
+- First Load JS: `/book/[slug]` 139 kB (route 30.6 kB), `/login` 183 kB, `/portal` 208 kB, `/today` 210 kB; shared 102 kB.
+- Budget for the gate: `/book/[slug]` at most 139 kB.
 
 ## Self-review
 
