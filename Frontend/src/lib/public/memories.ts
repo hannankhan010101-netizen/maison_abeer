@@ -1,5 +1,6 @@
 import type { PublicMemory } from './api';
-import { photosOfCrafts, type CraftKind } from './studioPhotos';
+import { allocatePhotos } from './photoBudget';
+import type { CraftKind } from './studioPhotos';
 
 /**
  * What the memory wall shows, and what it is honest to call it.
@@ -53,8 +54,9 @@ export function buildMemories(
   return {
     heading: "What you'll make here",
     eyebrow: 'a peek at the mess',
-    items: photosOfCrafts(crafts)
-      .slice(0, MAX_TILES)
+    // What the fan and the chapters left, so no photograph shows a third time.
+    items: allocatePhotos(crafts)
+      .wall.slice(0, MAX_TILES)
       .map((photo) => ({
         id: photo.id,
         photo: {

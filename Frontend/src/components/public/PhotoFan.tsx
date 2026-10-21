@@ -6,7 +6,8 @@ import { DragToss } from '@/components/public/hero/DragToss';
 import { StudioImage } from '@/components/public/StudioImage';
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
-import { craftsIn, fanPhotos, type StudioPhoto } from '@/lib/public/studioPhotos';
+import { allocatePhotos } from '@/lib/public/photoBudget';
+import { craftsIn, type StudioPhoto } from '@/lib/public/studioPhotos';
 import { useHeroParallax } from '@/lib/public/useHeroParallax';
 
 /**
@@ -15,7 +16,8 @@ import { useHeroParallax } from '@/lib/public/useHeroParallax';
  *
  * They are photos of the crafts the studio actually has classes in (cover of
  * each craft first, then more of the same), so the fan never advertises one it
- * does not run.
+ * does not run. The photo budget (`allocatePhotos`) picks them, so the rest of
+ * the page knows what the fan has already shown.
  *
  * Three layers of motion, each answering to `prefers-reduced-motion`:
  *
@@ -75,9 +77,9 @@ const SLOTS: readonly Slot[] = [
 
 export function PhotoFan({ classes }: { classes: PublicClass[] }) {
   const parallaxRef = useHeroParallax<HTMLDivElement>(10);
-  const photos = fanPhotos(craftsIn(classes.map((item) => item.color_token)), SLOTS.length);
+  const photos = allocatePhotos(craftsIn(classes.map((item) => item.color_token))).fan;
 
-  if (photos.length === 0) return null;
+  if (photos.length < SLOTS.length) return null;
 
   return (
     <div

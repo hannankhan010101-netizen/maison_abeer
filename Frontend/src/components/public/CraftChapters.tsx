@@ -8,11 +8,13 @@ import { StudioImage } from '@/components/public/StudioImage';
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
 import { scrollToId } from '@/lib/public/lenisBridge';
+import { allocatePhotos, type PhotoBudget } from '@/lib/public/photoBudget';
 import {
   CRAFT_COPY,
   accentPhotoFor,
   chapterPhotoFor,
   craftOf,
+  craftsIn,
   type CraftKind,
 } from '@/lib/public/studioPhotos';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
@@ -23,7 +25,12 @@ import '@/styles/units/atmosphere.css';
  * "Pick your kind of mess" — one chapter for each craft the studio actually
  * teaches, derived from the real classes on offer rather than a hardcoded
  * three. A studio that only runs pottery shouldn't advertise cake decorating
- * just because this app's palette has a slot for it.
+ * just because this app's palette has a slot for it — and with one chapter
+ * there is nothing to pick between, so the menu heading goes and the chapter
+ * stands under its own eyebrow (the section is named after the class).
+ *
+ * The photographs come from the page's photo budget (`allocatePhotos`), which
+ * steers each chapter away from the ones the polaroid fan already showed.
  *
  * Each chapter is a tall photograph beside a few lines in the studio's voice,
  * alternating sides down the page. The photograph is, in order of preference:
@@ -85,27 +92,37 @@ export function CraftChapters({ classes }: { classes: PublicClass[] }) {
   const crafts = craftsFrom(classes);
   if (crafts.length === 0) return null;
 
+  const budget = allocatePhotos(craftsIn(classes.map((item) => item.color_token)));
+  const menu = crafts.length > 1;
+
   return (
-    <section aria-labelledby="chapters-heading" className="px-4 sm:px-6">
-      <header className="mx-auto max-w-[680px] text-center">
-        <StickerMorph className="mx-auto mb-2 w-14" />
-        <p className="font-hand text-rose-ink text-xl">all of it is welcome</p>
-        <h2
-          id="chapters-heading"
-          className="font-display mt-1 text-[clamp(28px,5.4vw,44px)] leading-[1.06] text-balance"
-        >
-          Pick your kind of mess
-        </h2>
-      </header>
+    <section
+      aria-labelledby={menu ? 'chapters-heading' : undefined}
+      aria-label={menu ? undefined : classes[0]!.name}
+      className="px-4 sm:px-6"
+    >
+      {menu && (
+        <header className="mx-auto mb-14 max-w-[680px] text-center">
+          <StickerMorph className="mx-auto mb-2 w-14" />
+          <p className="font-hand text-rose-ink text-xl">all of it is welcome</p>
+          <h2
+            id="chapters-heading"
+            className="font-display mt-1 text-[clamp(28px,5.4vw,44px)] leading-[1.06] text-balance"
+          >
+            Pick your kind of mess
+          </h2>
+        </header>
+      )}
 
       <div
-        className="chapter-stack mx-auto mt-14 grid max-w-[1040px] gap-20 sm:gap-28"
+        className="chapter-stack mx-auto grid max-w-[1040px] gap-20 sm:gap-28"
         style={{ '--tl-scope': crafts.map((_, i) => `--chapter-${i}`).join(', ') } as CSSProperties}
       >
         {crafts.map((craft, index) => (
           <Chapter
             key={craft.token}
             craft={craft}
+            photos={budget.chapters[craft.kind]}
             index={index}
             hasNext={index < crafts.length - 1}
           />
@@ -115,14 +132,26 @@ export function CraftChapters({ classes }: { classes: PublicClass[] }) {
   );
 }
 
-function Chapter({ craft, index, hasNext }: { craft: Craft; index: number; hasNext: boolean }) {
+function Chapter({
+  craft,
+  photos,
+  index,
+  hasNext,
+}: {
+  craft: Craft;
+  photos: PhotoBudget['chapters'][CraftKind];
+  index: number;
+  hasNext: boolean;
+}) {
   const [ref, visible] = useRevealOnScroll<HTMLElement>();
   const parallaxRef = useScrollParallax<HTMLDivElement>(7);
   const headingId = useId();
 
   const copy = CRAFT_COPY[craft.kind];
-  const main = chapterPhotoFor(craft.kind);
-  const accent = accentPhotoFor(craft.kind);
+  // The budget has a pair for every craft taught; the fixed set is only a
+  // type-level fallback.
+  const main = photos?.large ?? chapterPhotoFor(craft.kind);
+  const accent = photos?.accent ?? accentPhotoFor(craft.kind);
   const Sticker = STICKERS[craft.kind];
   const flip = index % 2 === 1;
 
@@ -219,12 +248,14 @@ function Chapter({ craft, index, hasNext }: { craft: Craft; index: number; hasNe
 
       {/* Opacity and rise belong to atmosphere.css: `data-shown` is the JS
           reveal's switch, and where the browser can tie the reveal to the
-          scroll itself the stylesheet lets go of it. */}
+          scroll itself the stylesheet lets go of it. The words sit flush left
+          at every width, whichever side the photo is on: a deliberate break
+          from the centred headers around them. */}
       <div
         data-shown={visible}
         className={cn(
-          'chapter-text text-center',
-          flip ? 'md:pr-4 md:text-right' : 'md:pl-4 md:text-left',
+          'chapter-text flex flex-col items-start text-left md:text-left',
+          flip ? 'md:pr-4' : 'md:pl-4',
         )}
       >
         <p className="font-hand text-rose-ink text-xl">{copy.eyebrow}</p>
@@ -234,12 +265,7 @@ function Chapter({ craft, index, hasNext }: { craft: Craft; index: number; hasNe
         >
           {craft.name}
         </h3>
-        <p
-          className={cn(
-            'text-cocoa mx-auto mt-4 max-w-[38ch] text-[15px] leading-relaxed sm:text-[17px]',
-            flip ? 'md:ml-auto' : 'md:mx-0',
-          )}
-        >
+        <p className="text-cocoa mt-4 max-w-[38ch] text-[15px] leading-relaxed sm:text-[17px]">
           {copy.blurb}
         </p>
 

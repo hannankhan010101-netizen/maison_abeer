@@ -2,8 +2,13 @@ import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/motion/gsap', () => ({ loadGsap: vi.fn(() => Promise.resolve(null)) }));
+vi.mock('@/lib/public/photoBudget', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/public/photoBudget')>();
+  return { ...actual, allocatePhotos: vi.fn(actual.allocatePhotos) };
+});
 
 import type { PublicClass } from '@/lib/public/api';
+import { allocatePhotos } from '@/lib/public/photoBudget';
 
 import { PhotoFan } from './PhotoFan';
 
@@ -30,5 +35,16 @@ describe('PhotoFan', () => {
       expect((node as HTMLElement).style.touchAction).toBe('pan-y');
       expect(node.querySelector('figure')).not.toBeNull();
     }
+  });
+
+  it('draws its three polaroids from the photo budget', () => {
+    vi.mocked(allocatePhotos).mockClear();
+    const pottery: PublicClass = { ...cake, id: 'class-2', color_token: 'terra' };
+    const { container } = render(<PhotoFan classes={[pottery]} />);
+
+    expect(allocatePhotos).toHaveBeenCalledWith(['pottery']);
+    const expected = allocatePhotos(['pottery']).fan.map((item) => item.small);
+    const shown = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(shown).toEqual(expected.slice(0, 3));
   });
 });

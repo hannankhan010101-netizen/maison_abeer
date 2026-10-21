@@ -1,0 +1,26 @@
+/*
+ * "How it works" as a receipt: one paper slip, three lines, a torn foot.
+ * Layout and colour are Tailwind utilities on the component; this file draws
+ * only what utilities cannot — the tear.
+ */
+
+/*
+ * The torn foot: a strip of the same paper, cut into teeth by a mask. Each
+ * tooth is a 90° wedge opening upwards from the bottom of a 14px-wide tile,
+ * so the strip is solid along its top and hangs in points along its bottom.
+ * A mask rather than a picture of a tear: it takes the paper's own colour in
+ * every theme and costs no request.
+ */
+.receipt__edge {
+  height: 7px;
+  margin-top: -1px;
+  background-color: var(--color-paper);
+  -webkit-mask-image: conic-gradient(from -45deg at 50% 100%, #000 90deg, transparent 0);
+  mask-image: conic-gradient(from -45deg at 50% 100%, #000 90deg, transparent 0);
+  -webkit-mask-size: 14px 100%;
+  mask-size: 14px 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-position: center top;
+  mask-position: center top;
+}

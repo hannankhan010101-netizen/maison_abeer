@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { PublicMemory } from './api';
 import { buildMemories, layoutSpans, MAX_TILES, packs } from './memories';
-import { STUDIO_PHOTOS } from './studioPhotos';
+import { allocatePhotos } from './photoBudget';
+import { STUDIO_PHOTOS, type CraftKind } from './studioPhotos';
 
 const studio = (n: number, craft: PublicMemory['craft'] = null): PublicMemory[] =>
   Array.from({ length: n }, (_, i) => ({
@@ -20,6 +21,23 @@ describe('buildMemories', () => {
     expect(built.items.length).toBeGreaterThan(0);
     expect(built.items.every((item) => item.origin === 'craft')).toBe(true);
     expect(built.items.every((item) => item.craft === 'pottery')).toBe(true);
+  });
+
+  it.each([
+    [['pottery'] as CraftKind[], 3],
+    [['cake', 'pottery'] as CraftKind[], 8],
+    [['pottery', 'cake', 'painting'] as CraftKind[], 8],
+  ])('takes the photos the budget leaves the wall (%j)', (crafts, count) => {
+    const built = buildMemories(crafts, undefined);
+    expect(built.items).toHaveLength(count);
+    expect(built.items.map((item) => item.id)).toEqual(
+      allocatePhotos(crafts).wall.map((photo) => photo.id),
+    );
+  });
+
+  it('lets studio memories win over the budget', () => {
+    const built = buildMemories(['pottery'], studio(5));
+    expect(built.items.map((item) => item.id)).toEqual(['m0', 'm1', 'm2', 'm3', 'm4']);
   });
 
   it('treats an empty list the same as none', () => {
