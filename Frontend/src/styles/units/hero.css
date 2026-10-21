@@ -30,3 +30,41 @@
     rise-in 0.5s var(--ease-spring) both,
     soften 0.9s var(--ease-out-expo) both;
 }
+
+/* The promise line's rolling verb (`VerbRoll`).
+
+   Every verb sits in grid cell 1/1, so the roll is as wide as its widest verb
+   and the sentence never shifts. The roll clips its own box: a verb waits
+   below it, rises in, and leaves upward. Transform and opacity only.
+
+   Under reduced motion `VerbRoll` renders one verb, already `data-active`, so
+   the resting rules below are its whole story; the transitions exist only
+   under `no-preference`. */
+
+.verb-roll {
+  overflow: clip;
+  vertical-align: bottom;
+}
+
+.verb-roll > [data-verb] {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.verb-roll > [data-active] {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.verb-roll > [data-leaving] {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .verb-roll > [data-verb] {
+    transition-property: transform, opacity;
+    transition-duration: var(--dur-slow);
+    transition-timing-function: var(--ease-spring-soft);
+  }
+}

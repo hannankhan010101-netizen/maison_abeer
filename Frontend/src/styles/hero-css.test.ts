@@ -54,3 +54,81 @@ describe('hero.css', () => {
     expect(rest).toMatch(/font-variation-settings:\s*["']SOFT["']\s*100/);
   });
 });
+
+/** The body of every block opened by `opener`, nested braces balanced. */
+function bodiesOf(source: string, opener: RegExp): string[] {
+  const bodies: string[] = [];
+  const pattern = new RegExp(opener.source, 'g');
+  for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
+    let depth = 1;
+    let index = pattern.lastIndex;
+    while (depth > 0 && index < source.length) {
+      if (source[index] === '{') depth += 1;
+      if (source[index] === '}') depth -= 1;
+      index += 1;
+    }
+    bodies.push(source.slice(pattern.lastIndex, index - 1));
+  }
+  return bodies;
+}
+
+/** The declarations of each top-level rule whose selector matches, in `source`. */
+function declarationsFor(source: string, selector: RegExp): string[] {
+  const found: string[] = [];
+  const rule = /([^{}]+)\{([^{}]*)\}/g;
+  for (let match = rule.exec(source); match; match = rule.exec(source)) {
+    if (selector.test(match[1]!)) found.push(match[2]!);
+  }
+  return found;
+}
+
+describe('hero.css — the verb roll', () => {
+  const comments = /\/\*[\s\S]*?\*\//g;
+  const source = css.replace(comments, '');
+  const noPreference = bodiesOf(
+    source,
+    /@media\s*\(\s*prefers-reduced-motion:\s*no-preference\s*\)\s*\{/,
+  ).join('\n');
+
+  it('clips the roll to its own box', () => {
+    const roll = declarationsFor(source, /^\s*\.verb-roll\s*$/).join(';');
+    expect(roll).toMatch(/overflow:\s*clip/);
+  });
+
+  it('transitions transform and opacity only, on the soft spring, under no-preference', () => {
+    const rules = declarationsFor(noPreference, /\.verb-roll/).join(';');
+    expect(rules, 'no verb-roll transition under no-preference').toMatch(/transition/);
+
+    const properties = [...rules.matchAll(/transition-property:\s*([^;]+)/g)]
+      .flatMap((match) => match[1]!.split(','))
+      .map((value) => value.trim());
+    expect(properties.length).toBeGreaterThan(0);
+    for (const property of properties) expect(['transform', 'opacity']).toContain(property);
+    expect(rules).not.toMatch(/transition:\s/);
+    expect(rules).toMatch(/transition-timing-function:\s*var\(--ease-spring-soft\)/);
+    expect(rules).toMatch(/transition-duration:\s*var\(--dur-slow\)/);
+  });
+
+  it('sets no transition on the roll outside no-preference', () => {
+    let outside = source;
+    for (const body of bodiesOf(
+      source,
+      /@media\s*\(\s*prefers-reduced-motion:\s*no-preference\s*\)\s*\{/,
+    )) {
+      outside = outside.replace(body, '');
+    }
+    expect(declarationsFor(outside, /\.verb-roll/).join(';')).not.toMatch(/transition/);
+  });
+
+  it('rolls in from below and out above', () => {
+    const rest = declarationsFor(source, /\.verb-roll\s*>\s*\[data-verb\]\s*$/).join(';');
+    const active = declarationsFor(source, /\.verb-roll\s*>\s*\[data-active\]\s*$/).join(';');
+    const leaving = declarationsFor(source, /\.verb-roll\s*>\s*\[data-leaving\]\s*$/).join(';');
+    expect(rest).toMatch(/translateY\(100%\)/);
+    expect(rest).toMatch(/opacity:\s*0/);
+    expect(active).toMatch(/translateY\(0\)/);
+    expect(active).toMatch(/opacity:\s*1/);
+    expect(leaving).toMatch(/translateY\(-100%\)/);
+    expect(leaving).toMatch(/opacity:\s*0/);
+  });
+});
