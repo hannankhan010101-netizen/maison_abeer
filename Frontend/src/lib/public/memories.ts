@@ -71,3 +71,94 @@ export function buildMemories(
       })),
   };
 }
+
+/** How many grid cells a tile covers: columns wide, rows tall. */
+export interface Span {
+  w: 1 | 2 | 4;
+  h: 1 | 2;
+}
+
+/**
+ * Whether tiles laid out by CSS `grid-auto-flow: dense` fill every cell, on a
+ * grid `cols` wide. A tile wider than the grid is clamped to it, as the
+ * stylesheet does on a phone.
+ */
+export function packs(spans: readonly Span[], cols: number): boolean {
+  const filled: boolean[][] = [];
+  const fits = (row: number, col: number, w: number, h: number) => {
+    if (col + w > cols) return false;
+    for (let r = row; r < row + h; r += 1)
+      for (let c = col; c < col + w; c += 1) if (filled[r]?.[c]) return false;
+    return true;
+  };
+
+  for (const span of spans) {
+    const w = Math.min(span.w, cols);
+    let placed = false;
+    for (let row = 0; !placed; row += 1) {
+      for (let col = 0; col < cols && !placed; col += 1) {
+        if (!fits(row, col, w, span.h)) continue;
+        for (let r = row; r < row + span.h; r += 1) {
+          filled[r] ??= Array.from({ length: cols }, () => false);
+          for (let c = col; c < col + w; c += 1) filled[r]![c] = true;
+        }
+        placed = true;
+      }
+    }
+  }
+
+  return filled.every((row) => Array.from(row).every(Boolean));
+}
+
+const PORTRAIT_CHOICES: Span[] = [
+  { w: 1, h: 2 },
+  { w: 1, h: 1 },
+  { w: 2, h: 2 },
+  { w: 2, h: 1 },
+  { w: 4, h: 2 },
+  { w: 4, h: 1 },
+];
+const LANDSCAPE_CHOICES: Span[] = [
+  { w: 1, h: 1 },
+  { w: 2, h: 1 },
+  { w: 1, h: 2 },
+  { w: 2, h: 2 },
+  { w: 4, h: 1 },
+  { w: 4, h: 2 },
+];
+
+/**
+ * How big each tile is, chosen so the mosaic has no empty cell on either the
+ * four-column desktop grid or the two-column phone grid.
+ *
+ * Each tile starts as its photograph's own shape (a portrait is two rows tall)
+ * and is only changed where the whole would otherwise leave a gap — widened, or
+ * brought down to one row. The first arrangement that packs on both grids wins,
+ * preferring the natural shape of the earliest tiles. `cells` is the desktop
+ * area, always a multiple of four.
+ */
+export function layoutSpans(items: readonly { portrait: boolean }[]): {
+  spans: Span[];
+  cells: number;
+} {
+  const chosen: Span[] = [];
+
+  const search = (index: number): boolean => {
+    if (index === items.length) return packs(chosen, 4) && packs(chosen, 2);
+    const choices = items[index]!.portrait ? PORTRAIT_CHOICES : LANDSCAPE_CHOICES;
+    for (const choice of choices) {
+      chosen[index] = choice;
+      if (search(index + 1)) return true;
+    }
+    chosen.length = index;
+    return false;
+  };
+
+  if (!search(0)) {
+    // Unreachable for the sizes this wall uses; a plain grid beats no wall.
+    const plain: Span[] = items.map(() => ({ w: 1, h: 1 }));
+    return { spans: plain, cells: plain.length };
+  }
+
+  return { spans: [...chosen], cells: chosen.reduce((sum, s) => sum + s.w * s.h, 0) };
+}

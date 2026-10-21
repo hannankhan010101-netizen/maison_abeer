@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PublicMemory } from './api';
-import { buildMemories, MAX_TILES } from './memories';
+import { buildMemories, layoutSpans, MAX_TILES, packs } from './memories';
 import { STUDIO_PHOTOS } from './studioPhotos';
 
 const studio = (n: number, craft: PublicMemory['craft'] = null): PublicMemory[] =>
@@ -61,5 +61,60 @@ describe('buildMemories', () => {
   it('caps the mosaic', () => {
     expect(buildMemories([], studio(12)).items).toHaveLength(MAX_TILES);
     expect(MAX_TILES).toBe(8);
+  });
+});
+
+describe('layoutSpans', () => {
+  // A few orientation mixes, so the result is not tuned to one pattern.
+  const patterns = [
+    (i: number) => i % 2 === 0,
+    (i: number) => i % 3 === 0,
+    (i: number) => i % 2 === 1,
+    () => true,
+    () => false,
+    (i: number) => i < 3,
+  ];
+
+  for (let n = 1; n <= MAX_TILES; n += 1) {
+    it(`leaves no empty cell for ${n} tiles, on the desktop and phone grids`, () => {
+      for (const portrait of patterns) {
+        const items = Array.from({ length: n }, (_, i) => ({ portrait: portrait(i) }));
+        const { spans, cells } = layoutSpans(items);
+
+        expect(spans).toHaveLength(n);
+        expect(cells % 4).toBe(0);
+        expect(packs(spans, 4)).toBe(true);
+        expect(packs(spans, 2)).toBe(true);
+      }
+    });
+  }
+
+  it('keeps a portrait photo tall when the grid allows it', () => {
+    const { spans } = layoutSpans([
+      { portrait: true },
+      { portrait: false },
+      { portrait: false },
+      { portrait: true },
+    ]);
+    expect(spans[0]!.h).toBe(2);
+  });
+
+  it('is empty for nothing', () => {
+    expect(layoutSpans([])).toEqual({ spans: [], cells: 0 });
+  });
+
+  it('packs the visible set after a filter the same way', () => {
+    // Three of eight visible, one portrait.
+    const { spans, cells } = layoutSpans([
+      { portrait: false },
+      { portrait: true },
+      { portrait: false },
+    ]);
+    expect(cells % 4).toBe(0);
+    expect(packs(spans, 4) && packs(spans, 2)).toBe(true);
+  });
+
+  it('detects a gap', () => {
+    expect(packs([{ w: 1, h: 1 }], 4)).toBe(false);
   });
 });

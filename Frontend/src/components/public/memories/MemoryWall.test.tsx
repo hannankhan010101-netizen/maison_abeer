@@ -7,6 +7,8 @@ const motion = vi.hoisted(() => ({
   mayAnimate: false,
   loadGsap: vi.fn(),
   transition: vi.fn(),
+  hold: false,
+  holds: [] as (() => void)[],
 }));
 
 vi.mock('@/lib/motion', () => ({
@@ -15,6 +17,8 @@ vi.mock('@/lib/motion', () => ({
   withViewTransition: async (update: () => void) => {
     motion.transition();
     update();
+    // A transition whose animation has not finished: the update ran, the promise waits.
+    if (motion.hold) await new Promise<void>((resolve) => motion.holds.push(resolve));
   },
 }));
 
@@ -58,6 +62,8 @@ beforeEach(() => {
   motion.mayAnimate = false;
   motion.loadGsap.mockReset();
   motion.transition.mockReset();
+  motion.hold = false;
+  motion.holds = [];
   localStorage.clear();
 });
 
@@ -92,13 +98,21 @@ describe('MemoryWall', () => {
       expect(screen.getByRole('button', { name: 'our first mug' })).toBeInTheDocument();
     });
 
-    it('spans two rows for a portrait photo and one for a landscape', () => {
-      render(<MemoryWall classes={pottery} />);
-      const spans = Array.from(document.querySelectorAll('[data-span]')).map((el) =>
-        el.getAttribute('data-span'),
-      );
-      expect(spans).toContain('2');
-      expect(spans).toContain('1');
+    it('lays tiles out with no empty cell, before and after filtering', () => {
+      render(<MemoryWall classes={[cls('terra'), cls('pink'), cls('sage')]} />);
+      const cells = () =>
+        Array.from(document.querySelectorAll<HTMLElement>('.memory-tile'))
+          .filter((t) => !t.hidden)
+          .reduce((sum, t) => sum + Number(t.dataset.w) * Number(t.dataset.span), 0);
+
+      expect(cells()).toBeGreaterThan(0);
+      expect(cells() % 4).toBe(0);
+      expect(document.querySelector('[data-span="2"]')).not.toBeNull();
+
+      for (const name of ['Pottery', 'Cake', 'Painting']) {
+        fireEvent.click(screen.getByRole('button', { name }));
+        expect(cells() % 4).toBe(0);
+      }
     });
 
     it('keeps a heart across renders, with no count anywhere', () => {
@@ -244,6 +258,45 @@ describe('MemoryWall', () => {
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(viewTransitionNames().length).toBeLessThanOrEqual(1);
       await act(async () => {});
+      expect(viewTransitionNames()).toEqual([]);
+    });
+
+    it('is not disturbed by a close that finishes after the next photo has opened', async () => {
+      render(<MemoryWall classes={[]} memories={studio(3)} />);
+      const tileA = screen.getByRole('button', { name: 'memory 0' });
+      const tileB = screen.getByRole('button', { name: 'memory 1' });
+
+      fireEvent.click(tileA);
+      await act(async () => {});
+
+      // A closes, its animation still running...
+      motion.hold = true;
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await act(async () => {});
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      // ...and B opens before it ends.
+      motion.hold = false;
+      fireEvent.click(tileB);
+      await act(async () => {});
+      const dialog = screen.getByRole('dialog');
+
+      // Now A's close finishes.
+      await act(async () => motion.holds.shift()!());
+
+      expect(dialog.contains(document.activeElement)).toBe(true);
+      expect(viewTransitionNames()).toEqual(['memory']);
+      expect(dialog.querySelector<HTMLElement>('img')!.style.viewTransitionName).toBe('memory');
+
+      // Closing B animates from B's own tile and gives focus back to it.
+      motion.hold = true;
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await act(async () => {});
+      expect(viewTransitionNames()).toEqual(['memory']);
+      expect(tileB.style.viewTransitionName).toBe('memory');
+
+      await act(async () => motion.holds.shift()!());
+      expect(tileB).toHaveFocus();
       expect(viewTransitionNames()).toEqual([]);
     });
 

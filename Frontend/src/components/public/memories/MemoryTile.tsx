@@ -3,7 +3,7 @@
 import type { Ref } from 'react';
 
 import { MemoryImage } from '@/components/public/memories/MemoryImage';
-import type { Memory } from '@/lib/public/memories';
+import type { Memory, Span } from '@/lib/public/memories';
 
 /**
  * One photograph in the mosaic.
@@ -17,6 +17,8 @@ import type { Memory } from '@/lib/public/memories';
 export interface MemoryTileProps {
   memory: Memory;
   hidden: boolean;
+  /** Chosen by `layoutSpans` so the mosaic has no gaps. */
+  span: Span;
   hearted: boolean;
   /** Carries the shared-element name while a photo is opening or closing. */
   transitionName: boolean;
@@ -28,19 +30,19 @@ export interface MemoryTileProps {
 export function MemoryTile({
   memory,
   hidden,
+  span,
   hearted,
   transitionName,
   onOpen,
   onHeart,
   buttonRef,
 }: MemoryTileProps) {
-  const portrait = memory.photo.height > memory.photo.width;
-
   return (
     <li
       className="memory-tile"
       hidden={hidden}
-      data-span={portrait ? '2' : '1'}
+      data-span={span.h}
+      data-w={span.w}
       data-craft={memory.craft ?? undefined}
     >
       <button

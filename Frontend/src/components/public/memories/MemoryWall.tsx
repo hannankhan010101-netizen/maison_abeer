@@ -10,7 +10,7 @@ import { Reveal } from '@/components/motion/Reveal';
 import { cn } from '@/lib/cn';
 import { loadGsap, useMayAnimate, withViewTransition } from '@/lib/motion';
 import type { PublicClass, PublicMemory, PublicWord } from '@/lib/public/api';
-import { buildMemories } from '@/lib/public/memories';
+import { buildMemories, layoutSpans } from '@/lib/public/memories';
 import { craftsIn, type CraftKind } from '@/lib/public/studioPhotos';
 
 import '@/styles/units/memories.css';
@@ -73,6 +73,9 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
   const gridRef = useRef<HTMLUListElement>(null);
   const tileRefs = useRef(new Map<string, HTMLButtonElement>());
   const busy = useRef(false);
+  // Counts every open and close, so a close that finishes after a newer open
+  // has begun can tell it is stale and leave focus and the name alone.
+  const sequence = useRef(0);
 
   useEffect(() => {
     // Read after mount: the server cannot know a guest's hearts.
@@ -83,7 +86,18 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
     () => [...new Set(items.flatMap((item) => (item.craft ? [item.craft] : [])))],
     [items],
   );
-  const shown = items.filter((item) => filter === null || item.craft === filter);
+  const shown = useMemo(
+    () => items.filter((item) => filter === null || item.craft === filter),
+    [items, filter],
+  );
+
+  // Sized from what is visible, so a filtered wall has no gaps either.
+  const spanById = useMemo(() => {
+    const { spans } = layoutSpans(
+      shown.map((item) => ({ portrait: item.photo.height > item.photo.width })),
+    );
+    return new Map(shown.map((item, index) => [item.id, spans[index]!]));
+  }, [shown]);
 
   const select = useCallback(
     async (next: CraftKind | null) => {
@@ -127,6 +141,7 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
     // One at a time: a second tap while the first is still opening is ignored.
     if (busy.current || openId !== null) return;
     busy.current = true;
+    sequence.current += 1;
 
     // Name the tile first so the "before" photograph has something to carry.
     flushSync(() => setOriginId(id));
@@ -137,11 +152,13 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
 
   const close = useCallback(() => {
     const id = openId;
+    const mine = (sequence.current += 1);
 
     // The tile keeps the name until the transition has landed, then lets go,
     // so it is never left named for the next one. Focus goes to the tile now
     // showing, which is not the one tapped if the guest paged on.
     void withViewTransition(() => setOpenId(null)).then(() => {
+      if (sequence.current !== mine) return;
       setOriginId(null);
       if (id) tileRefs.current.get(id)?.focus();
     });
@@ -200,6 +217,7 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
                   key={item.id}
                   memory={item}
                   hidden={filter !== null && item.craft !== filter}
+                  span={spanById.get(item.id) ?? { w: 1, h: 1 }}
                   hearted={hearts.includes(item.id)}
                   transitionName={originId === item.id && openId === null}
                   onOpen={() => open(item.id)}

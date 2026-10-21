@@ -165,6 +165,35 @@ test.describe('the lightbox, from the keyboard alone', () => {
     await expect(wall.getByRole('button', { name: 'memory number 2', exact: true })).toBeFocused();
   });
 
+  // The browser's view-transition overlay swallows a real pointer for the length
+  // of the animation, so a hurried second tap is simulated with a dispatched
+  // click (what a quick tap or a switch device delivers once it gets through).
+  for (const delay of [60, 150, 300, 500]) {
+    test(`opening another photo ${delay}ms after closing keeps focus in the dialog`, async ({
+      page,
+    }) => {
+      await stub(page, { memories: memories(3) });
+      const wall = await openWall(page);
+
+      await wall.getByRole('button', { name: 'memory number 0', exact: true }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(delay);
+      await wall
+        .getByRole('button', { name: 'memory number 1', exact: true })
+        .dispatchEvent('click');
+      await expect(page.getByRole('dialog')).toBeVisible();
+
+      // Let the first close's animation finish; it must not pull focus out, and
+      // the second photo is still open.
+      await page.waitForTimeout(1200);
+      await expect(page.getByRole('dialog')).toBeVisible();
+      expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(
+        true,
+      );
+    });
+  }
+
   test('one photo has no navigation', async ({ page }) => {
     await stub(page, { memories: memories(1) });
     const wall = await openWall(page);

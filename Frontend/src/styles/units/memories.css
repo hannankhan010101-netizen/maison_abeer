@@ -59,6 +59,19 @@
   grid-row: span 2;
 }
 
+/* Widths come from `layoutSpans`, which checks them against both grids: a
+   four-wide tile is the whole desktop row and, clamped, the whole phone row. */
+.memory-tile[data-w='2'],
+.memory-tile[data-w='4'] {
+  grid-column: span 2;
+}
+
+@media (min-width: 768px) {
+  .memory-tile[data-w='4'] {
+    grid-column: span 4;
+  }
+}
+
 .memory-open {
   position: relative;
   display: block;
