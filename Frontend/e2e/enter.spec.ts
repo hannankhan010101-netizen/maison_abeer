@@ -57,30 +57,30 @@ test.describe('/enter', () => {
     await shoot(page, 'spent');
   });
 
-  test('a throw reads as our side, with Try again', async ({ page }) => {
+  test('a throw reads as our side, and does not offer a reload that would spend the link', async ({
+    page,
+  }) => {
     await failTheClientChunk(page);
 
     await page.goto('/enter?token=x');
 
     await expect(alert(page)).toHaveText(/We couldn.t sign you in just now/);
-    const retry = page.getByRole('button', { name: 'Try again' });
-    await expect(retry).toBeVisible();
-    expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    // The token left the address bar before anything touched the network.
+    // The token already left the address bar, so a reload would call a good link used.
+    await expect(page.getByRole('button')).toHaveCount(0);
+    await expect(page.getByText(/open the link from your message again/i)).toBeVisible();
     await expect(page).toHaveURL(/\/enter$/);
     await expectNoSidewaysScroll(page);
     await shoot(page, 'broken');
   });
 
   /*
-   * Known gap, outside this unit: `redeemPortalToken` returns false for every
-   * auth error, and supabase-js reports a 500 from verify as an error rather
-   * than throwing, so a server failure reads as "already used". Marked as an
-   * expected failure so the day it is fixed, this test says so.
+   * Known gap, outside this unit: `redeemPortalToken` (src/lib/supabase/client.ts)
+   * returns false for every auth error, and supabase-js reports a 500 from verify
+   * as an error rather than throwing, so a server outage reads as "already used".
+   * This pins today's behaviour; when the client tells the two apart, it fails and
+   * should be flipped to expect the "our side" copy.
    */
-  test('a 500 from verify reads as our side', async ({ page }) => {
-    test.fail();
-
+  test('today a 500 from verify still reads as a used link (known gap)', async ({ page }) => {
     await page.route(VERIFY, (route) =>
       route.fulfill({
         status: 500,
@@ -91,7 +91,7 @@ test.describe('/enter', () => {
 
     await page.goto('/enter?token=x');
 
-    await expect(alert(page)).toHaveText(/We couldn.t sign you in just now/, { timeout: 4000 });
+    await expect(alert(page)).toHaveText('That link has already been used');
   });
 
   for (const reducedMotion of ['no-preference', 'reduce'] as const) {

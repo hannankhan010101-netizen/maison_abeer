@@ -12,6 +12,8 @@ const createObjectURL = vi.fn(() => 'blob:ticket');
 const revokeObjectURL = vi.fn();
 
 beforeEach(() => {
+  // Every test starts with no pending timers, so a download's delayed revoke cannot leak.
+  vi.useFakeTimers();
   clicked = [];
   createObjectURL.mockClear();
   revokeObjectURL.mockClear();
@@ -24,6 +26,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   Reflect.deleteProperty(navigator, 'share');
@@ -66,7 +70,16 @@ describe('saveTicket', () => {
     expect(clicked).toHaveLength(1);
     expect(clicked[0]!.download).toBe(FILENAME);
     expect(clicked[0]!.href).toBe('blob:ticket');
-    await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:ticket'));
+  });
+
+  it('keeps the download URL alive long enough for the browser to start it', async () => {
+    // Some browsers cancel a download whose URL is revoked straight away.
+    await expect(saveTicket(blob, FILENAME)).resolves.toBe('downloaded');
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:ticket');
   });
 
   it('downloads when canShare says no', async () => {

@@ -19,16 +19,23 @@ export function SaveTicket({ model }: { model: TicketModel }) {
 
   async function save() {
     setState('saving');
-    const { renderTicket, saveTicket } = await import('@/lib/public/ticketCanvas');
 
-    const blob = await renderTicket(model).catch(() => null);
-    if (!blob) {
+    try {
+      const { renderTicket, saveTicket } = await import('@/lib/public/ticketCanvas');
+
+      const blob = await renderTicket(model);
+      if (!blob) {
+        setState('failed');
+        return;
+      }
+
+      const outcome = await saveTicket(blob, ticketFilename(model.className));
+      setState(outcome === 'downloaded' ? 'saved' : 'idle');
+    } catch {
+      // A chunk that 404s after a deploy, a blocked download, no canvas: all
+      // read the same to the guest, and none may leave the button on "Saving…".
       setState('failed');
-      return;
     }
-
-    const outcome = await saveTicket(blob, ticketFilename(model.className));
-    setState(outcome === 'downloaded' ? 'saved' : 'idle');
   }
 
   return (

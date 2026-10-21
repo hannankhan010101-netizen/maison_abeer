@@ -1,13 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
 import { EnterFailed, EnterWaiting } from './EnterStates';
 
 /** The recovery link's waiting and failure states: presentation only. */
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
 
 describe('EnterWaiting', () => {
   it('is a polite status that says what is happening, with no visible digits', () => {
@@ -35,22 +31,13 @@ describe('EnterFailed', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('broken: says it is our side and offers one 44px Try again that reloads', () => {
-    const reload = vi.fn();
-    vi.stubGlobal('location', { ...window.location, reload });
-
+  it('broken: says it is our side and offers no reload, because the token is already off the address bar', () => {
     render(<EnterFailed kind="broken" />);
 
     expect(screen.getByRole('alert')).toHaveTextContent(/We couldn.t sign you in just now/);
-
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(1);
-
-    const retry = screen.getByRole('button', { name: 'Try again' });
-    expect(retry.className).toMatch(/min-h-\[44px\]/);
-
-    fireEvent.click(retry);
-    expect(reload).toHaveBeenCalledTimes(1);
+    // A reload would load /enter with no token and call a good link "already used".
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByText(/open the link from your message again/i)).toBeInTheDocument();
   });
 
   it('keeps the illustration out of the accessibility tree', () => {

@@ -215,6 +215,8 @@ export async function renderTicket(model: TicketModel): Promise<Blob | null> {
   });
 }
 
+const REVOKE_AFTER_MS = 2000;
+
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -225,8 +227,9 @@ function download(blob: Blob, filename: string) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  // Give the browser a beat to start the download before the URL goes.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  // Some Safari and Firefox versions cancel a download whose URL goes at once;
+  // two seconds is far longer than starting one takes.
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS);
 }
 
 /**

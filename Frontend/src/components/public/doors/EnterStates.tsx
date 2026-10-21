@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/cn';
 
@@ -139,12 +138,9 @@ export function EnterFailed({ kind }: { kind: 'spent' | 'broken' }) {
               We couldn&rsquo;t sign you in just now
             </p>
             <p className="text-latte mt-2 text-sm">
-              Something went wrong on our side, not yours — your link may still work. Check your
-              connection and try it again.
+              Something went wrong on our side, not yours — your link may still work. Give it a
+              minute, then open the link from your message again.
             </p>
-            <Button className="mt-5" onClick={() => window.location.reload()}>
-              Try again
-            </Button>
           </>
         )}
       </Card>

@@ -84,4 +84,27 @@ describe('SaveTicket', () => {
     expect(await screen.findByText('Saved to your photos or downloads')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('recovers when saving throws, instead of sticking on Saving…', async () => {
+    canvas.renderTicket.mockResolvedValue(blob);
+    canvas.saveTicket.mockRejectedValue(new Error('download blocked'));
+    render(<SaveTicket model={model} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Save my ticket' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We couldn’t make your ticket just now',
+    );
+    expect(screen.getByRole('button', { name: /Try again/ })).toBeEnabled();
+  });
+
+  it('recovers when drawing throws', async () => {
+    canvas.renderTicket.mockImplementation(() => {
+      throw new Error('canvas unavailable');
+    });
+    render(<SaveTicket model={model} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Save my ticket' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Try again/ })).toBeEnabled();
+  });
 });
