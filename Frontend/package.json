@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:perf": "playwright test --config playwright.perf.config.ts"
+    "test:e2e:perf": "playwright test --config playwright.perf.config.ts",
+    "test:e2e:ssr": "playwright test --config playwright.ssr.config.ts"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",
