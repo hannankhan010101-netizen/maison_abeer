@@ -1,7 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { mayAnimate } = vi.hoisted(() => ({ mayAnimate: vi.fn(() => false) }));
 
 vi.mock('@/lib/motion/gsap', () => ({ loadGsap: vi.fn(() => Promise.resolve(null)) }));
+vi.mock('@/lib/public/useMayAnimate', () => ({ useMayAnimate: mayAnimate }));
 
 import type { PublicClass } from '@/lib/public/api';
 
@@ -19,6 +22,24 @@ const upcoming: PublicClass = {
   is_full: false,
   waitlist_is_open: false,
 };
+
+beforeEach(() => {
+  mayAnimate.mockReset();
+  mayAnimate.mockReturnValue(false);
+});
+
+/** What a screen reader gets: the header's text with every aria-hidden subtree removed. */
+function accessibleText(root: HTMLElement): string {
+  const copy = root.cloneNode(true) as HTMLElement;
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+  return (copy.textContent ?? '').replace(/\s+/g, ' ');
+}
+
+function visibleVerbs(container: HTMLElement): string[] {
+  return [...container.querySelectorAll('.hero-promise [data-verb]')].map(
+    (node) => node.textContent ?? '',
+  );
+}
 
 describe('BookingHero', () => {
   it('names the studio in a single h1, split into letters for the entrance', () => {
@@ -59,5 +80,59 @@ describe('BookingHero', () => {
   it('shows no chip, and so no tilt, when there is no class to name', () => {
     const { container } = render(<BookingHero studioName="Maison Abeer" classes={[]} />);
     expect(container.querySelector('[data-tilt]')).toBeNull();
+  });
+
+  describe('the promise line', () => {
+    const PROMISE = 'come make something with your own hands';
+
+    it('reads as one sentence to a screen reader', () => {
+      mayAnimate.mockReturnValue(true);
+      const { container } = render(<BookingHero studioName="Maison Abeer" classes={[upcoming]} />);
+
+      const text = accessibleText(container.querySelector('header')!);
+      expect(text.split(PROMISE)).toHaveLength(2);
+    });
+
+    it('is display type, with the verb in the rose ink', () => {
+      const { container } = render(<BookingHero studioName="Maison Abeer" classes={[upcoming]} />);
+
+      const promise = container.querySelector('p.hero-promise')!;
+      expect(promise).toHaveClass(
+        'font-display',
+        'text-[clamp(22px,3.2vw,40px)]',
+        'leading-[1.1]',
+        'max-w-[22ch]',
+        'text-balance',
+      );
+      expect(promise.querySelector('.verb-roll')).toHaveClass('text-rose-ink');
+    });
+
+    it('rolls the verbs of the crafts the classes teach', () => {
+      mayAnimate.mockReturnValue(true);
+      const terra = { ...upcoming, id: 'class-2', color_token: 'terra' };
+      const { container } = render(<BookingHero studioName="Maison Abeer" classes={[terra]} />);
+
+      expect(visibleVerbs(container)).toEqual(['throw', 'centre', 'trim']);
+    });
+
+    it('says "make" for a studio with no classes', () => {
+      mayAnimate.mockReturnValue(true);
+      const { container } = render(<BookingHero studioName="Maison Abeer" classes={[]} />);
+
+      expect(visibleVerbs(container)).toEqual(['make']);
+    });
+
+    it('says a still "make" when it may not animate', () => {
+      const terra = { ...upcoming, id: 'class-2', color_token: 'terra' };
+      const { container } = render(<BookingHero studioName="Maison Abeer" classes={[terra]} />);
+
+      expect(visibleVerbs(container)).toEqual(['make']);
+    });
+
+    it('no longer carries the old sentence', () => {
+      const { container } = render(<BookingHero studioName="Maison Abeer" classes={[upcoming]} />);
+
+      expect(container.textContent).not.toMatch(/pick a class below/i);
+    });
   });
 });
