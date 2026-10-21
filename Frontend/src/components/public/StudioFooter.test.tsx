@@ -69,6 +69,27 @@ describe('StudioFooter', () => {
     expect(container.querySelectorAll('[data-footer-column]')).toHaveLength(1);
   });
 
+  it('builds both links and the @ text from the parsed handle', () => {
+    render(<StudioFooter studioName="Maison Abeer" handle="  @Maison._Abeer " />);
+    expect(screen.getByRole('link', { name: '@maison._abeer' }).getAttribute('href')).toBe(
+      'https://instagram.com/maison._abeer',
+    );
+    expect(screen.getByRole('link', { name: 'Message us' }).getAttribute('href')).toBe(
+      'https://ig.me/m/maison._abeer',
+    );
+  });
+
+  it.each([null, undefined, '', '  ', 'a..b', 'javascript:alert(1)', '@@x'])(
+    'renders no Instagram link and no stray @ for %j',
+    (handle) => {
+      const { container } = render(<StudioFooter studioName="Maison Abeer" handle={handle} />);
+      expect(container.querySelector('a[href*="instagram.com"]')).toBeNull();
+      expect(container.querySelector('a[href*="ig.me"]')).toBeNull();
+      expect(screen.queryByRole('heading', { name: 'Find us' })).toBeNull();
+      expect(container.textContent).not.toContain('@');
+    },
+  );
+
   it('omits Find us without a handle', () => {
     render(<StudioFooter studioName="Maison Abeer" handle={null} classes={classes} />);
     expect(screen.queryByRole('heading', { name: 'Find us' })).toBeNull();

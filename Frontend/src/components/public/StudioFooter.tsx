@@ -3,6 +3,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 
 import type { PublicClass } from '@/lib/public/api';
+import { displayHandle, instagramDmUrl, instagramUrl } from '@/lib/public/instagram';
 import { scrollToId } from '@/lib/public/lenisBridge';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 
@@ -71,6 +72,10 @@ export function StudioFooter({
   handle?: string | null;
   classes?: PublicClass[];
 }) {
+  // Parsed once: no Find us column unless the handle is valid.
+  const instagram = instagramUrl(handle);
+  const message = instagramDmUrl(handle);
+  const shownHandle = displayHandle(handle);
   const crafts = [...new Set(classes.map((item) => item.name))];
   const [ref, visible] = useRevealOnScroll<HTMLElement>();
 
@@ -99,21 +104,21 @@ export function StudioFooter({
           </Column>
         ) : null}
 
-        {handle ? (
+        {instagram && message && shownHandle ? (
           <Column title="Find us">
             <li>
               <a
-                href={`https://instagram.com/${handle}`}
+                href={instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={LINK}
               >
-                @{handle}
+                {shownHandle}
               </a>
             </li>
             <li>
               <a
-                href={`https://ig.me/m/${handle}`}
+                href={message}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={LINK}

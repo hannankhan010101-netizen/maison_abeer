@@ -20,6 +20,7 @@ import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
 import { FALLBACK_VERB, verbsFor } from '@/lib/public/craftVerbs';
 import { nextClass, whenCopy } from '@/lib/public/format';
+import { displayHandle, instagramUrl } from '@/lib/public/instagram';
 import { scrollToId } from '@/lib/public/lenisBridge';
 import { craftsIn } from '@/lib/public/studioPhotos';
 import { useHeroParallax } from '@/lib/public/useHeroParallax';
@@ -87,6 +88,9 @@ export function BookingHero({
   classes = [],
 }: BookingHeroProps) {
   const mayAnimate = useMayAnimate();
+  // Parsed once: no link, and no stray "@", unless the handle is valid.
+  const instagram = instagramUrl(handle);
+  const shownHandle = displayHandle(handle);
   const hasPhoto = Boolean(heroPhotoUrl);
   const parallaxRef = useHeroParallax<HTMLDivElement>();
   const ctaRef = useMagnetic<HTMLAnchorElement>();
@@ -303,7 +307,7 @@ export function BookingHero({
             </a>
           </div>
 
-          {handle ? (
+          {instagram && shownHandle ? (
             <p
               className={cn(
                 'animate-rise-in mt-6 text-sm',
@@ -315,7 +319,7 @@ export function BookingHero({
               style={{ animationDelay: `${afterName + 300}ms` }}
             >
               <a
-                href={`https://instagram.com/${handle}`}
+                href={instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
@@ -325,7 +329,7 @@ export function BookingHero({
                 )}
               >
                 Find us on Instagram{' '}
-                <b className={hasPhoto ? 'text-photo-ink' : 'text-cocoa'}>@{handle}</b>
+                <b className={hasPhoto ? 'text-photo-ink' : 'text-cocoa'}>{shownHandle}</b>
               </a>
             </p>
           ) : null}
