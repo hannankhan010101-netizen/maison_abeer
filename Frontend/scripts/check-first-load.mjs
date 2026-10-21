@@ -5,9 +5,10 @@
  *   node scripts/check-first-load.mjs <distDir> <pageKey> <baselineKb> <toleranceKb>
  *
  * The number is the gzip (level 6) size of every distinct `.js` file listed
- * for `<pageKey>` in `<distDir>/app-build-manifest.json`, summed, in KB of
- * 1000 bytes. Next's own build table rounds to whole kB ("139 kB"), too coarse
- * to catch a 0.5 KB creep; this is not rounded.
+ * for `<pageKey>` in `<distDir>/app-build-manifest.json`, summed, in KiB
+ * (bytes / 1024, as the baseline was measured). Next's own build table rounds
+ * to whole kB ("139 kB"), too coarse to catch a 0.5 KiB creep; this is not
+ * rounded.
  *
  * Exit 0 within baseline + tolerance, 1 over it, 2 when the manifest or the
  * page is missing. The number is printed either way.
@@ -47,11 +48,11 @@ for (const file of scripts) {
   bytes += gzipSync(readFileSync(join(distDir, file)), { level: 6 }).length;
 }
 
-const kb = bytes / 1000;
+const kb = bytes / 1024;
 const limit = baseline + tolerance;
-const line = `${pageKey}: First Load JS ${kb.toFixed(2)} KB (${bytes} bytes gzip, ${scripts.length} files); budget ${baseline.toFixed(2)} + ${tolerance.toFixed(2)} = ${limit.toFixed(2)} KB`;
+const line = `${pageKey}: First Load JS ${kb.toFixed(2)} KiB (${bytes} bytes gzip, ${scripts.length} files); budget ${baseline.toFixed(2)} + ${tolerance.toFixed(2)} = ${limit.toFixed(2)} KiB`;
 
 if (kb > limit) {
-  fail(1, `${line}\nOVER the budget by ${(kb - limit).toFixed(2)} KB`);
+  fail(1, `${line}\nOVER the budget by ${(kb - limit).toFixed(2)} KiB`);
 }
-console.log(`${line}\nwithin the budget (${(limit - kb).toFixed(2)} KB to spare)`);
+console.log(`${line}\nwithin the budget (${(limit - kb).toFixed(2)} KiB to spare)`);

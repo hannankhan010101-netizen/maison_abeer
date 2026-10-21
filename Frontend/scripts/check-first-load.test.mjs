@@ -24,7 +24,7 @@ function run(...args) {
 function expectedKb() {
   const size = (file) =>
     gzipSync(readFileSync(join(DIST, 'static', 'chunks', file)), { level: 6 }).length;
-  return (size('a.js') + size('b.js')) / 1000;
+  return (size('a.js') + size('b.js')) / 1024;
 }
 
 describe('check-first-load', () => {
@@ -32,14 +32,14 @@ describe('check-first-load', () => {
     const kb = expectedKb();
     const { code, out } = run(DIST, PAGE, kb, 0);
     expect(code).toBe(0);
-    expect(out).toContain(`${kb.toFixed(2)} KB`);
+    expect(out).toContain(`${kb.toFixed(2)} KiB`);
   });
 
   it('fails over the budget, saying by how much', () => {
     const kb = expectedKb();
     const { code, out } = run(DIST, PAGE, kb - 1, 0.5);
     expect(code).toBe(1);
-    expect(out).toContain(`${kb.toFixed(2)} KB`);
+    expect(out).toContain(`${kb.toFixed(2)} KiB`);
     expect(out).toMatch(/over the budget/i);
   });
 
