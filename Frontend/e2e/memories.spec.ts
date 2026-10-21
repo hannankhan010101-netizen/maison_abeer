@@ -261,3 +261,61 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     expect(lightbox.violations).toEqual([]);
   });
 }
+
+/**
+ * The photo budget (`photoBudget.ts`), measured on the rendered page: no
+ * photograph shown more than twice. The marquee's loop copies and its second
+ * row are `aria-hidden` repeats of one moving strip, so they are left out;
+ * every picture a guest meets as a separate picture counts.
+ */
+async function studioPhotoCounts(page: Page): Promise<Map<string, number>> {
+  const sources = await page
+    .locator('img[src*="/studio/"]')
+    .evaluateAll((imgs) =>
+      imgs
+        .filter((img) => !img.closest('[aria-hidden="true"]'))
+        .map((img) => img.getAttribute('src') ?? ''),
+    );
+  const counts = new Map<string, number>();
+  for (const src of sources) {
+    const name = src.split('/').pop()!.replace(/-800(?=\.\w+$)/, '');
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return counts;
+}
+
+test.describe('the photo budget', () => {
+  const cases: [string, () => StubClass[]][] = [
+    ['one craft', () => [stubClass()]],
+    ['three crafts', threeCrafts],
+  ];
+
+  for (const [label, classes] of cases) {
+    test(`no photograph appears more than twice (${label})`, async ({ page }) => {
+      await stub(page, {}, classes());
+      await openWall(page);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+
+      const counts = await studioPhotoCounts(page);
+      expect(counts.size).toBeGreaterThan(0);
+      expect([...counts].filter(([, count]) => count > 2)).toEqual([]);
+    });
+  }
+
+  test('one craft shows no marquee and no chapter menu', async ({ page }) => {
+    await stub(page, {}, [stubClass()]);
+    await openWall(page);
+
+    await expect(page.getByRole('region', { name: 'The crafts, up close' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Pick your kind of mess' })).toHaveCount(0);
+  });
+
+  test('three crafts keep the menu and the honestly named marquee', async ({ page }) => {
+    await stub(page);
+    await openWall(page);
+
+    await expect(page.getByRole('region', { name: 'The crafts, up close' })).toHaveCount(1);
+    await expect(page.getByText('moments from the studio')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Pick your kind of mess' })).toHaveCount(1);
+  });
+});
