@@ -106,10 +106,6 @@
    timelines that is driven by the next chapter coming up (`--tl-next`, set
    inline), otherwise the chapters simply stack without scaling. */
 
-.chapter {
-  position: relative;
-}
-
 @media (min-width: 768px) and (min-height: 780px) {
   .chapter {
     position: sticky;

@@ -37,29 +37,44 @@ export function StickyCta(): JSX.Element | null {
   useEffect(() => {
     if (typeof IntersectionObserver !== 'function') return;
 
-    const hero = findHero();
-    const widget = document.getElementById('booking-widget');
     const observers: IntersectionObserver[] = [];
+    let heroSeen = false;
+    let widgetSeen = false;
 
-    if (hero) {
+    const watch = (target: Element, report: (visible: boolean) => void) => {
       const observer = new IntersectionObserver((entries) => {
         const last = entries[entries.length - 1];
-        if (last) setHeroVisible(last.isIntersecting);
+        if (last) report(last.isIntersecting);
       });
-      observer.observe(hero);
+      observer.observe(target);
       observers.push(observer);
-    }
+    };
 
-    if (widget) {
-      const observer = new IntersectionObserver((entries) => {
-        const last = entries[entries.length - 1];
-        if (last) setWidgetVisible(last.isIntersecting);
-      });
-      observer.observe(widget);
-      observers.push(observer);
-    }
+    // The hero is rendered only once the studio's details have arrived, which
+    // is after this effect first runs, so the lookup is retried whenever the
+    // page's direct children change.
+    const attach = () => {
+      const hero = findHero();
+      if (hero && !heroSeen) {
+        heroSeen = true;
+        watch(hero, setHeroVisible);
+      }
+      const widget = document.getElementById('booking-widget');
+      if (widget && !widgetSeen) {
+        widgetSeen = true;
+        watch(widget, setWidgetVisible);
+      }
+    };
 
-    return () => observers.forEach((observer) => observer.disconnect());
+    attach();
+    const main = document.getElementById('main');
+    const mutations = main ? new MutationObserver(attach) : null;
+    if (main && mutations) mutations.observe(main, { childList: true });
+
+    return () => {
+      mutations?.disconnect();
+      observers.forEach((observer) => observer.disconnect());
+    };
   }, []);
 
   if (heroVisible || widgetVisible) return null;
