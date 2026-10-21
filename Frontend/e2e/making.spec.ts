@@ -55,19 +55,47 @@ test('desktop: scrolling through the section ends on the vase, with no sideways 
 
   const start = await section.evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
   const viewport = page.viewportSize()!.height;
-  // 250% of the viewport is the scrubbed distance; stop just short of its end.
-  const target = start + viewport * 2.45;
-  for (let y = start; y <= target; y += 150) {
+  // One viewport (PIN_DISTANCE) is the scrubbed distance; stop just short of its end.
+  const target = start + viewport * 0.97;
+  for (let y = start; y <= target; y += 100) {
     await page.evaluate((to) => window.scrollTo(0, to), y);
     await page.waitForTimeout(30);
   }
   await page.evaluate((to) => window.scrollTo(0, to), target);
 
-  await expect(page.locator('.making__stage-caption')).toHaveText('Pulled into shape');
+  await expect(page.locator('.making-beats li[aria-current="step"]')).toHaveText(
+    'Pulled into shape',
+  );
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('desktop: the story takes at most two screens of scroll', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'pinning only happens from 768px up');
+  await open(page);
+
+  await expect(page.locator('section.making')).toHaveAttribute('data-pinned', '', {
+    timeout: 20_000,
+  });
+  const spacer = page.locator('.pin-spacer:has(> section.making)');
+  await expect(spacer).toHaveCount(1);
+  const height = await spacer.evaluate((el) => el.getBoundingClientRect().height);
+  const viewport = page.viewportSize()!.height;
+  expect(height).toBeLessThanOrEqual(2.1 * viewport);
+});
+
+test('hands are present in every frame', async ({ page }) => {
+  await open(page);
+  const frames = page.locator('section.making figure');
+  await expect(frames).toHaveCount(4);
+  for (let i = 0; i < 4; i += 1) {
+    const hands = frames.nth(i).locator('[data-making-hands] path[data-making-hand]');
+    await expect(hands).toHaveCount(2);
+    const d = await hands.evaluateAll((paths) => paths.map((p) => p.getAttribute('d') ?? ''));
+    for (const path of d) expect(path).toMatch(/^M/);
+  }
 });
 
 test('with reduced motion there is no pin and no pin spacer', async ({ page }) => {
@@ -78,7 +106,8 @@ test('with reduced motion there is no pin and no pin spacer', async ({ page }) =
   await expect(page.locator('[data-pinned]')).toHaveCount(0);
   await expect(page.locator('.pin-spacer')).toHaveCount(0);
   await expect(page.locator('.making__stage')).toHaveCount(0);
-  await expect(page.getByText('Pulled into shape', { exact: true })).toBeVisible();
+  await expect(page.locator('section.making figure')).toHaveCount(4);
+  await expect(page.locator('figcaption', { hasText: 'Pulled into shape' })).toBeVisible();
 });
 
 for (const reducedMotion of ['reduce', 'no-preference'] as const) {
