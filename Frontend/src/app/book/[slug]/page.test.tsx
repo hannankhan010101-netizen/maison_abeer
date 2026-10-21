@@ -56,8 +56,8 @@ describe('generateMetadata', () => {
     expect(metadata.title).toBe('Maison Abeer · book a class');
     expect(metadata.description).toBe("Pottery classes — pick one and we'll keep you a seat");
     const image = (metadata.openGraph?.images as Image[])[0];
-    expect(image.url.endsWith('/book/maison-abeer/opengraph-image')).toBe(true);
-    expect([image.width, image.height]).toEqual([1200, 630]);
+    expect(image?.url.endsWith('/book/maison-abeer/opengraph-image')).toBe(true);
+    expect([image?.width, image?.height]).toEqual([1200, 630]);
     expect((metadata.twitter as { card?: string }).card).toBe('summary_large_image');
     expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(metadata.metadataBase?.href).toBe(siteBase().href);

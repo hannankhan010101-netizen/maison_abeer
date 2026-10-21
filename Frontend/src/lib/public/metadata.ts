@@ -68,8 +68,8 @@ function cutStory(story: string): string {
 
 function joinCrafts(crafts: CraftKind[]): string {
   const words = crafts.map((craft) => CRAFT_WORD[craft]);
-  const phrase =
-    words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : words[0];
+  const last = words.pop() ?? '';
+  const phrase = words.length > 0 ? `${words.join(', ')} and ${last}` : last;
   return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
 
