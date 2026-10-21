@@ -10,7 +10,7 @@ import { Reveal } from '@/components/motion/Reveal';
 import { cn } from '@/lib/cn';
 import { loadGsap, useMayAnimate, withViewTransition } from '@/lib/motion';
 import type { PublicClass, PublicMemory, PublicWord } from '@/lib/public/api';
-import { buildMemories } from '@/lib/public/memories';
+import { buildMemories, layoutSpans } from '@/lib/public/memories';
 import { craftsIn, type CraftKind } from '@/lib/public/studioPhotos';
 
 import '@/styles/units/memories.css';
@@ -83,7 +83,18 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
     () => [...new Set(items.flatMap((item) => (item.craft ? [item.craft] : [])))],
     [items],
   );
-  const shown = items.filter((item) => filter === null || item.craft === filter);
+  const shown = useMemo(
+    () => items.filter((item) => filter === null || item.craft === filter),
+    [items, filter],
+  );
+
+  // Sized from what is visible, so a filtered wall has no gaps either.
+  const spanById = useMemo(() => {
+    const { spans } = layoutSpans(
+      shown.map((item) => ({ portrait: item.photo.height > item.photo.width })),
+    );
+    return new Map(shown.map((item, index) => [item.id, spans[index]!]));
+  }, [shown]);
 
   const select = useCallback(
     async (next: CraftKind | null) => {
@@ -200,6 +211,7 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
                   key={item.id}
                   memory={item}
                   hidden={filter !== null && item.craft !== filter}
+                  span={spanById.get(item.id) ?? { w: 1, h: 1 }}
                   hearted={hearts.includes(item.id)}
                   transitionName={originId === item.id && openId === null}
                   onOpen={() => open(item.id)}

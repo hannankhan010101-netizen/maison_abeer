@@ -92,13 +92,21 @@ describe('MemoryWall', () => {
       expect(screen.getByRole('button', { name: 'our first mug' })).toBeInTheDocument();
     });
 
-    it('spans two rows for a portrait photo and one for a landscape', () => {
-      render(<MemoryWall classes={pottery} />);
-      const spans = Array.from(document.querySelectorAll('[data-span]')).map((el) =>
-        el.getAttribute('data-span'),
-      );
-      expect(spans).toContain('2');
-      expect(spans).toContain('1');
+    it('lays tiles out with no empty cell, before and after filtering', () => {
+      render(<MemoryWall classes={[cls('terra'), cls('pink'), cls('sage')]} />);
+      const cells = () =>
+        Array.from(document.querySelectorAll<HTMLElement>('.memory-tile'))
+          .filter((t) => !t.hidden)
+          .reduce((sum, t) => sum + Number(t.dataset.w) * Number(t.dataset.span), 0);
+
+      expect(cells()).toBeGreaterThan(0);
+      expect(cells() % 4).toBe(0);
+      expect(document.querySelector('[data-span="2"]')).not.toBeNull();
+
+      for (const name of ['Pottery', 'Cake', 'Painting']) {
+        fireEvent.click(screen.getByRole('button', { name }));
+        expect(cells() % 4).toBe(0);
+      }
     });
 
     it('keeps a heart across renders, with no count anywhere', () => {
