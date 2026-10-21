@@ -1,0 +1,7 @@
+/* The Craft Corner. Static and complete by default; motion only under no-preference. */
+
+.corner {
+  margin-inline: auto;
+  max-width: 72rem;
+  padding: 3rem 1rem;
+}
