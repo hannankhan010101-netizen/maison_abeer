@@ -73,6 +73,9 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
   const gridRef = useRef<HTMLUListElement>(null);
   const tileRefs = useRef(new Map<string, HTMLButtonElement>());
   const busy = useRef(false);
+  // Counts every open and close, so a close that finishes after a newer open
+  // has begun can tell it is stale and leave focus and the name alone.
+  const sequence = useRef(0);
 
   useEffect(() => {
     // Read after mount: the server cannot know a guest's hearts.
@@ -138,6 +141,7 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
     // One at a time: a second tap while the first is still opening is ignored.
     if (busy.current || openId !== null) return;
     busy.current = true;
+    sequence.current += 1;
 
     // Name the tile first so the "before" photograph has something to carry.
     flushSync(() => setOriginId(id));
@@ -148,11 +152,13 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
 
   const close = useCallback(() => {
     const id = openId;
+    const mine = (sequence.current += 1);
 
     // The tile keeps the name until the transition has landed, then lets go,
     // so it is never left named for the next one. Focus goes to the tile now
     // showing, which is not the one tapped if the guest paged on.
     void withViewTransition(() => setOpenId(null)).then(() => {
+      if (sequence.current !== mine) return;
       setOriginId(null);
       if (id) tileRefs.current.get(id)?.focus();
     });

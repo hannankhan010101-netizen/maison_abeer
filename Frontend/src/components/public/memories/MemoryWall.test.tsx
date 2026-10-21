@@ -7,6 +7,8 @@ const motion = vi.hoisted(() => ({
   mayAnimate: false,
   loadGsap: vi.fn(),
   transition: vi.fn(),
+  hold: false,
+  holds: [] as (() => void)[],
 }));
 
 vi.mock('@/lib/motion', () => ({
@@ -15,6 +17,8 @@ vi.mock('@/lib/motion', () => ({
   withViewTransition: async (update: () => void) => {
     motion.transition();
     update();
+    // A transition whose animation has not finished: the update ran, the promise waits.
+    if (motion.hold) await new Promise<void>((resolve) => motion.holds.push(resolve));
   },
 }));
 
@@ -58,6 +62,8 @@ beforeEach(() => {
   motion.mayAnimate = false;
   motion.loadGsap.mockReset();
   motion.transition.mockReset();
+  motion.hold = false;
+  motion.holds = [];
   localStorage.clear();
 });
 
@@ -252,6 +258,45 @@ describe('MemoryWall', () => {
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(viewTransitionNames().length).toBeLessThanOrEqual(1);
       await act(async () => {});
+      expect(viewTransitionNames()).toEqual([]);
+    });
+
+    it('is not disturbed by a close that finishes after the next photo has opened', async () => {
+      render(<MemoryWall classes={[]} memories={studio(3)} />);
+      const tileA = screen.getByRole('button', { name: 'memory 0' });
+      const tileB = screen.getByRole('button', { name: 'memory 1' });
+
+      fireEvent.click(tileA);
+      await act(async () => {});
+
+      // A closes, its animation still running...
+      motion.hold = true;
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await act(async () => {});
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      // ...and B opens before it ends.
+      motion.hold = false;
+      fireEvent.click(tileB);
+      await act(async () => {});
+      const dialog = screen.getByRole('dialog');
+
+      // Now A's close finishes.
+      await act(async () => motion.holds.shift()!());
+
+      expect(dialog.contains(document.activeElement)).toBe(true);
+      expect(viewTransitionNames()).toEqual(['memory']);
+      expect(dialog.querySelector<HTMLElement>('img')!.style.viewTransitionName).toBe('memory');
+
+      // Closing B animates from B's own tile and gives focus back to it.
+      motion.hold = true;
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await act(async () => {});
+      expect(viewTransitionNames()).toEqual(['memory']);
+      expect(tileB.style.viewTransitionName).toBe('memory');
+
+      await act(async () => motion.holds.shift()!());
+      expect(tileB).toHaveFocus();
       expect(viewTransitionNames()).toEqual([]);
     });
 
