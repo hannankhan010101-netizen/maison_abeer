@@ -79,6 +79,27 @@ export function VerbRoll({
           {word}
         </span>
       ))}
+      {/* The handwritten underline, in its own reserved row so it never
+          changes the line's height. Keyed on the active verb: each change
+          remounts it, which restarts the CSS draw-in (`hero.css`). */}
+      <svg
+        key={rolls ? active : 'still'}
+        aria-hidden="true"
+        viewBox="0 0 120 8"
+        preserveAspectRatio="none"
+        fill="none"
+        className="block h-full w-full [grid-area:2/1]"
+      >
+        <path
+          className="verb-underline"
+          d="M2 5.2C20 2.6 34 6.4 52 4.6S86 2.4 100 4.4 112 5.6 118 3.6"
+          pathLength={1}
+          stroke="currentColor"
+          strokeWidth={3}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
     </span>
   );
 }

@@ -120,6 +120,32 @@ describe('hero.css — the verb roll', () => {
     expect(declarationsFor(outside, /\.verb-roll/).join(';')).not.toMatch(/transition/);
   });
 
+  it('draws the underline in, only under no-preference', () => {
+    const blocks = keyframeBlocks(source);
+    const draw = blocks.find((block) => block.name === 'verb-underline-draw');
+    expect(draw, 'no @keyframes verb-underline-draw').toBeDefined();
+    expect(draw!.body).toMatch(/stroke-dashoffset:\s*0/);
+
+    const inside = declarationsFor(noPreference, /\.verb-underline/).join(';');
+    expect(inside).toMatch(/stroke-dasharray:\s*1/);
+    expect(inside).toMatch(/stroke-dashoffset:\s*1/);
+    expect(inside).toMatch(
+      /animation:\s*verb-underline-draw\s+var\(--dur-slow\)\s+var\(--ease-out-expo\)\s+forwards/,
+    );
+
+    let outside = source;
+    for (const body of bodiesOf(
+      source,
+      /@media\s*\(\s*prefers-reduced-motion:\s*no-preference\s*\)\s*\{/,
+    )) {
+      outside = outside.replace(body, '');
+    }
+    for (const block of blocks) outside = outside.replace(block.body, '');
+    expect(declarationsFor(outside, /\.verb-underline/).join(';')).not.toMatch(
+      /animation|stroke-dash/,
+    );
+  });
+
   it('rolls in from below and out above', () => {
     const rest = declarationsFor(source, /\.verb-roll\s*>\s*\[data-verb\]\s*$/).join(';');
     const active = declarationsFor(source, /\.verb-roll\s*>\s*\[data-active\]\s*$/).join(';');

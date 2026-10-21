@@ -44,6 +44,17 @@
 .verb-roll {
   overflow: clip;
   vertical-align: bottom;
+  /* Row 1 is the verb window; row 2 is reserved for the underline, always
+     there, so its remount on each new verb never changes the line's box. */
+  grid-template-rows: auto 0.22em;
+}
+
+/* The handwritten underline. At rest (reduced motion, Data Saver) it is
+   simply drawn; it draws itself in only under `no-preference`, below. */
+@keyframes verb-underline-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .verb-roll > [data-verb] {
@@ -66,5 +77,11 @@
     transition-property: transform, opacity;
     transition-duration: var(--dur-slow);
     transition-timing-function: var(--ease-spring-soft);
+  }
+
+  .verb-underline {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: verb-underline-draw var(--dur-slow) var(--ease-out-expo) forwards;
   }
 }

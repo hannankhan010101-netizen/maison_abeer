@@ -118,6 +118,41 @@ describe('VerbRoll', () => {
     expect(verb(container, 'centre')).toHaveAttribute('data-active');
   });
 
+  it('draws a hand-drawn underline, hidden from assistive tech', () => {
+    const { container } = render(<VerbRoll verbs={VERBS} />);
+
+    const svg = container.querySelector('svg')!;
+    expect(svg).not.toBeNull();
+    expect(svg).toHaveAttribute('aria-hidden', 'true');
+    const paths = svg.querySelectorAll('path');
+    expect(paths).toHaveLength(1);
+    expect(paths[0]).toHaveAttribute('pathLength', '1');
+    expect(paths[0]).toHaveClass('verb-underline');
+    expect(paths[0]).toHaveAttribute('stroke', 'currentColor');
+    expect(paths[0]).toHaveAttribute('vector-effect', 'non-scaling-stroke');
+  });
+
+  it('remounts the underline each time the verb changes, so the stroke redraws', () => {
+    const { container } = render(<VerbRoll verbs={VERBS} />);
+    const first = container.querySelector('svg');
+
+    act(() => {
+      vi.advanceTimersByTime(2600);
+    });
+
+    const second = container.querySelector('svg');
+    expect(second).not.toBeNull();
+    expect(second).not.toBe(first);
+    expect(container.querySelectorAll('svg')).toHaveLength(1);
+  });
+
+  it('still underlines the static verb under reduced motion, once', () => {
+    mayAnimate.mockReturnValue(false);
+    const { container } = render(<VerbRoll verbs={VERBS} />);
+
+    expect(container.querySelectorAll('svg .verb-underline')).toHaveLength(1);
+  });
+
   it('pauses while hovered', () => {
     const { container } = render(<VerbRoll verbs={VERBS} />);
     const roll = container.firstElementChild as HTMLElement;
