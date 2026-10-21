@@ -255,9 +255,12 @@ describe('craft tints', () => {
     return match[1];
   }
 
-  it.each(['bento', 'pottery', 'painting'])('%s ink reads at AA on its tint and on paper', (name) => {
-    const ink = craft(`--craft-${name}-ink`);
-    expect(ratio(ink, craft(`--craft-${name}`))).toBeGreaterThanOrEqual(AA_NORMAL);
-    expect(ratio(ink, light['--color-paper'] ?? '')).toBeGreaterThanOrEqual(AA_NORMAL);
-  });
+  it.each(['bento', 'pottery', 'painting'])(
+    '%s ink reads at AA on its tint and on paper',
+    (name) => {
+      const ink = craft(`--craft-${name}-ink`);
+      expect(ratio(ink, craft(`--craft-${name}`))).toBeGreaterThanOrEqual(AA_NORMAL);
+      expect(ratio(ink, light['--color-paper'] ?? '')).toBeGreaterThanOrEqual(AA_NORMAL);
+    },
+  );
 });

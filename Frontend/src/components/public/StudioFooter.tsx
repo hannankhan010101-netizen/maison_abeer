@@ -107,22 +107,12 @@ export function StudioFooter({
         {instagram && message && shownHandle ? (
           <Column title="Find us">
             <li>
-              <a
-                href={instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={LINK}
-              >
+              <a href={instagram} target="_blank" rel="noopener noreferrer" className={LINK}>
                 {shownHandle}
               </a>
             </li>
             <li>
-              <a
-                href={message}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={LINK}
-              >
+              <a href={message} target="_blank" rel="noopener noreferrer" className={LINK}>
                 Message us
               </a>
             </li>

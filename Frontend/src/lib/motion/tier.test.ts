@@ -80,8 +80,13 @@ describe('createFrameMonitor', () => {
   it('honours a custom window and threshold', () => {
     const clock = fakeRaf();
     const onLow = vi.fn();
-    createFrameMonitor({ raf: clock.raf, cancel: clock.cancel, onLow, windowMs: 500, lowFps: 65 })
-      .start();
+    createFrameMonitor({
+      raf: clock.raf,
+      cancel: clock.cancel,
+      onLow,
+      windowMs: 500,
+      lowFps: 65,
+    }).start();
     clock.run(600, 60);
     expect(onLow).toHaveBeenCalledTimes(1);
   });
