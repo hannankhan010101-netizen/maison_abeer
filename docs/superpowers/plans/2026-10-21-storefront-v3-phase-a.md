@@ -163,7 +163,7 @@ it('spaces its sections with the section-gap token, not per-section margins', ()
 - [ ] **Step 2:** `npm run typecheck && npm run lint && npx vitest run` → all green.
 - [ ] **Step 3: Commit** any formatting; tag the commit in the turbo plan as the base for Batch 1.
 
-**Baseline (fill in):** perf guard —/5 · First Load JS — kB · height 1440 — px · 375 — px.
+**Baseline (measured 2026-10-21 at 6502be2):** perf guard `perf-scroll.spec.ts` 1/1 passed (22.0s, throttle 4×) · `/book/[slug]` route 26.8 kB, First Load JS 136 kB (shared 102 kB) · page height one craft 1440: 5,445 px, 375: 5,150 px · three crafts 1440: 8,002 px, 375: 7,931 px (measured with `shoot.mjs` against the dev server after S0).
 
 ---
 
