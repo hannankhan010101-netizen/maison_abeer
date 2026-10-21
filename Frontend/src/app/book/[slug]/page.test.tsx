@@ -9,9 +9,18 @@ vi.mock('@/lib/public/metadata', async (importOriginal) => {
   return { ...actual, fetchStudioForMetadata: (slug: string) => fetchStudioForMetadata(slug) };
 });
 
+const fetchClassesServer = vi.fn<(slug: string) => Promise<PublicClassList | null>>();
+
+vi.mock('@/lib/public/serverClasses', () => ({
+  fetchClassesServer: (slug: string) => fetchClassesServer(slug),
+}));
+
 vi.mock('@/components/public/BookingFlow', () => ({ BookingFlow: () => null }));
 
-const { generateMetadata } = await import('./page');
+const page = await import('./page');
+const { generateMetadata } = page;
+const BookPage = page.default;
+const { BookingFlow } = await import('@/components/public/BookingFlow');
 const { siteBase } = await import('@/lib/public/metadata');
 
 const params = Promise.resolve({ slug: 'maison-abeer' });
@@ -44,7 +53,10 @@ const list: PublicClassList = {
 
 type Image = { url: string; width: number; height: number };
 
-beforeEach(() => fetchStudioForMetadata.mockReset());
+beforeEach(() => {
+  fetchStudioForMetadata.mockReset();
+  fetchClassesServer.mockReset();
+});
 
 describe('generateMetadata', () => {
   it('names the studio and points the card at its image', async () => {
@@ -72,5 +84,31 @@ describe('generateMetadata', () => {
     expect(metadata.description).toBe('Pick a workshop and save your seat.');
     expect(metadata.openGraph?.images as Image[]).toHaveLength(1);
     expect(metadata.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe('BookPage', () => {
+  it('hands the server-fetched schedule to the flow as initial data', async () => {
+    fetchClassesServer.mockResolvedValue(list);
+
+    const element = await BookPage({ params });
+
+    expect(fetchClassesServer).toHaveBeenCalledWith('maison-abeer');
+    expect(element.type).toBe(BookingFlow);
+    expect(element.props).toEqual({ slug: 'maison-abeer', initialData: list });
+  });
+
+  it('still renders, with null initial data, when the server fetch fails', async () => {
+    fetchClassesServer.mockResolvedValue(null);
+
+    const element = await BookPage({ params });
+
+    expect(element.type).toBe(BookingFlow);
+    expect(element.props).toEqual({ slug: 'maison-abeer', initialData: null });
+  });
+
+  it('revalidates every 15 s and builds each slug on demand', () => {
+    expect(page.revalidate).toBe(15);
+    expect(page.generateStaticParams()).toEqual([]);
   });
 });

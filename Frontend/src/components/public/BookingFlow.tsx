@@ -38,6 +38,8 @@ import { withViewTransition } from '@/lib/motion';
 
 export interface BookingFlowProps {
   slug: string;
+  /** The schedule the server already fetched, or null when it could not. */
+  initialData?: PublicClassList | null;
 }
 
 export function BookingFlow({ slug }: BookingFlowProps) {
