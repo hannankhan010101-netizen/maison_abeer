@@ -124,18 +124,20 @@ export function StudioFooter({
           </Column>
         ) : null}
 
-        <Column title="Photos">
-          <li>
-            <a
-              href="https://unsplash.com/license"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={LINK}
-            >
-              craft photography via Unsplash
-            </a>
-          </li>
-        </Column>
+        {classes.length > 0 ? (
+          <Column title="Photos">
+            <li>
+              <a
+                href="https://unsplash.com/license"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={LINK}
+              >
+                craft photography via Unsplash
+              </a>
+            </li>
+          </Column>
+        ) : null}
       </div>
 
       <a

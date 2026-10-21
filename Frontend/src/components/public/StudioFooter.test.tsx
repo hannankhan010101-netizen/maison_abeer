@@ -66,7 +66,7 @@ describe('StudioFooter', () => {
       <StudioFooter studioName="Maison Abeer" handle="maisonabeer" classes={[]} />,
     );
     expect(screen.queryByRole('heading', { name: 'Classes' })).toBeNull();
-    expect(container.querySelectorAll('[data-footer-column]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-footer-column]')).toHaveLength(1);
   });
 
   it('omits Find us without a handle', () => {
@@ -74,10 +74,15 @@ describe('StudioFooter', () => {
     expect(screen.queryByRole('heading', { name: 'Find us' })).toBeNull();
   });
 
-  it('credits the photography to Unsplash', () => {
-    render(<StudioFooter studioName="Maison Abeer" />);
+  it('credits the photography to Unsplash when there are classes, and so photographs', () => {
+    render(<StudioFooter studioName="Maison Abeer" classes={[aClass('terra', 'Pottery')]} />);
     const credit = screen.getByRole('link', { name: /craft photography via Unsplash/ });
     expect(credit.getAttribute('href')).toBe('https://unsplash.com/license');
+  });
+
+  it('credits nobody when no class means no stock photograph on the page', () => {
+    render(<StudioFooter studioName="Maison Abeer" />);
+    expect(screen.queryByText(/Unsplash/)).not.toBeInTheDocument();
   });
 
   it('ends on a clay Save a seat with a 44px target', () => {
