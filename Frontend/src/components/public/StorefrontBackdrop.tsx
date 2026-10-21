@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 
 import { cn } from '@/lib/cn';
 import { useScrollDrift } from '@/lib/public/useScrollDrift';
+import '@/styles/units/atmosphere.css';
 
 /**
  * The storefront's background — the whole page, behind everything.
@@ -45,12 +46,17 @@ interface Wash {
   /** Fraction of the scroll it eases upward by. */
   speed: number;
   delay: string;
+  /** The top wash only: its gradient stops breathe with `--aurora-shift`. */
+  aurora?: boolean;
 }
 
 const WASHES: readonly Wash[] = [
   {
     place: '-top-[14%] -left-[12%] size-[72vw] max-w-[860px]',
-    tint: 'bg-[radial-gradient(closest-side,var(--color-blush),transparent_72%)]',
+    // The aurora: its gradient stops drift (see atmosphere.css), so this one
+    // carries a class instead of a tint.
+    tint: '',
+    aurora: true,
     speed: 0.05,
     delay: '0s',
   },
@@ -145,7 +151,11 @@ export function StorefrontBackdrop() {
           <div
             className={cn('animate-drift size-full rounded-full', wash.tint)}
             style={{ animationDelay: wash.delay, animationDuration: '22s' }}
-          />
+          >
+            {wash.aurora ? (
+              <div data-aurora className="aurora-wash size-full rounded-full" />
+            ) : null}
+          </div>
         </div>
       ))}
 

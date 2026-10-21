@@ -43,7 +43,12 @@ export function StudioRibbon({ crafts }: { crafts: readonly string[] }) {
   const items = ribbonItems(crafts);
 
   return (
-    <div className="border-line bg-paper/85 relative overflow-hidden border-y-[1.5px] py-2.5 backdrop-blur-sm">
+    <div
+      className={
+        'relative overflow-hidden border-y-[1.5px] border-[color:var(--glass-border)] bg-[var(--glass-bg)] py-2.5 ' +
+        'backdrop-blur-[var(--glass-blur)]'
+      }
+    >
       <div className="animate-marquee flex w-max motion-reduce:animate-none">
         <Track items={items} />
         <Track items={items} hidden />
