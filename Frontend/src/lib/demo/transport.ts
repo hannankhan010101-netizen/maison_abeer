@@ -8,6 +8,7 @@ import {
   demoSessions,
   demoSettings,
 } from './fixtures';
+import { isDemoMode } from '@/lib/demo/enabled';
 import type {
   ChatMessage,
   Checklist,
@@ -124,6 +125,27 @@ function recalculate(session: Session): Session {
       accepts_bookings: session.status !== 'locked' && booked < seats,
     },
   };
+}
+
+/** Cookie the e2e sets to see the claim notices; read only in demo mode. */
+export const DEMO_CLAIM_COOKIE = 'ma-demo-claim';
+
+export type DemoClaimScenario = 'matched' | 'unmatched' | 'error';
+
+/**
+ * Which answer the demo claim endpoint gives.
+ *
+ * A test switch, so it is honoured only when `isDemoMode()` holds: that folds
+ * to `false` in a production build and the cookie is never read there.
+ */
+export function demoClaimScenario(): DemoClaimScenario {
+  if (!isDemoMode() || typeof document === 'undefined') return 'matched';
+  const value = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${DEMO_CLAIM_COOKIE}=`))
+    ?.slice(DEMO_CLAIM_COOKIE.length + 1);
+  return value === 'unmatched' || value === 'error' ? value : 'matched';
 }
 
 export function createDemoFetch(now: Date = new Date()): typeof fetch {
@@ -872,6 +894,18 @@ export function createDemoFetch(now: Date = new Date()): typeof fetch {
     }
 
     if (path === '/api/v1/portal/claim' && method === 'POST') {
+      const scenario = demoClaimScenario();
+      if (scenario === 'unmatched') {
+        // The backend's own wording for an email that matches no booking.
+        return json({
+          claimed: false,
+          display_name: null,
+          message: "We couldn't find a booking for that email. Ask your host to add it.",
+        });
+      }
+      if (scenario === 'error') {
+        return error(503, 'unavailable', 'The claim check is unavailable.');
+      }
       return json({ claimed: true, display_name: 'Sana R.', message: "You're in." });
     }
 
