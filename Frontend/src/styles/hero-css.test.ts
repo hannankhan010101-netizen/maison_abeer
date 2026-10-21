@@ -158,3 +158,28 @@ describe('hero.css — the verb roll', () => {
     expect(leaving).toMatch(/opacity:\s*0/);
   });
 });
+
+/**
+ * The fallback faces Fraunces swaps out. next/font's own adjusted fallback is
+ * `local("Times New Roman")`, which Chromium on Android and Linux never finds,
+ * so the hero painted in a plain serif about 13% narrower than Fraunces and
+ * rewrapped when the font arrived. These name faces those devices do have,
+ * scaled to Fraunces's advance widths (`e2e/font-swap.spec.ts` checks the result).
+ */
+describe('hero.css — the Fraunces fallback faces', () => {
+  const faces = [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map((match) => match[1]!);
+  const face = (family: string) =>
+    faces.find((body) => new RegExp(`font-family:\\s*['"]${family}['"]`).test(body));
+
+  it.each([
+    ['Fraunces Fallback Noto', /local\(['"]Noto Serif['"]\)/, '97\\.6%'],
+    ['Fraunces Fallback Times', /local\(['"]Liberation Serif['"]\)/, '115%'],
+  ])('%s is a local face scaled to Fraunces', (family, source, sizeAdjust) => {
+    const body = face(family);
+    expect(body, `no @font-face for ${family}`).toBeDefined();
+    expect(body).toMatch(source);
+    expect(body).toMatch(new RegExp(`size-adjust:\\s*${sizeAdjust}`));
+    expect(body).toMatch(/ascent-override:/);
+    expect(body).toMatch(/descent-override:/);
+  });
+});

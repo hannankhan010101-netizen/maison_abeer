@@ -1,3 +1,37 @@
+/* The faces the storefront's display type is set in until Fraunces arrives.
+
+   The hero is in the server HTML, so it paints before the font file lands. If
+   the stand-in is narrower than Fraunces, the headline and the promise wrap
+   differently and the whole hero jumps when the font swaps in. next/font's own
+   adjusted fallback is `local("Times New Roman")`, which Chromium on Android
+   and Linux does not resolve, so the page fell through to a plain serif about
+   13% narrower. These are local faces those devices do have, scaled so their
+   advance widths match Fraunces (measured in Chromium: "Maison Abeer" at 46px
+   is 291.5px in Fraunces, 291.5px in the Noto face, about 294px in the Times face).
+   Both are named in `src/app/book/layout.tsx`'s `fallback` list; the
+   ascent/descent overrides are Fraunces's own (0.978/0.255 em) over each
+   size-adjust. Nothing here changes how the page looks once Fraunces loads. */
+
+@font-face {
+  font-family: 'Fraunces Fallback Noto';
+  src: local('Noto Serif'), local('NotoSerif-Regular');
+  size-adjust: 97.6%;
+  ascent-override: 100.2%;
+  descent-override: 26.1%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Fraunces Fallback Times';
+  src:
+    local('Liberation Serif'), local('LiberationSerif'), local('Times New Roman'),
+    local('TimesNewRomanPSMT');
+  size-adjust: 115%;
+  ascent-override: 85%;
+  descent-override: 22.2%;
+  line-gap-override: 0%;
+}
+
 /* The hero headline: Fraunces, whose letters soften in.
 
    Only the `SOFT` axis moves. `wght`, `opsz` and `WONK` change glyph widths, so

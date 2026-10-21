@@ -101,7 +101,7 @@ describe('BookingHero', () => {
         'font-display',
         'text-[clamp(22px,3.2vw,40px)]',
         'leading-[1.1]',
-        'max-w-[22ch]',
+        'max-w-[14em]',
         'text-balance',
       );
       expect(promise.querySelector('.verb-roll')).toHaveClass('text-rose-ink');
