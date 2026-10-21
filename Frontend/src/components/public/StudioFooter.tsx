@@ -116,6 +116,7 @@ export function StudioFooter({
                 Message us
               </a>
             </li>
+            <li className="text-latte mt-1 text-sm">Made something? Tag us {shownHandle}</li>
           </Column>
         ) : null}
 

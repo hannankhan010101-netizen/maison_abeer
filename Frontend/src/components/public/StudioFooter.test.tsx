@@ -123,6 +123,17 @@ describe('StudioFooter', () => {
     expect(screen.getByText(/see you at the studio/)).toBeInTheDocument();
   });
 
+  it('asks guests to tag the studio, by its parsed handle, in the Find us column', () => {
+    render(<StudioFooter studioName="Maison Abeer" handle="https://instagram.com/MaisonAbeer" />);
+    const line = within(column('Find us')).getByText(/tag us/i);
+    expect(line).toHaveTextContent('Made something? Tag us @maisonabeer');
+  });
+
+  it('has no tag-us line without a valid handle', () => {
+    render(<StudioFooter studioName="Maison Abeer" handle="@bad handle" />);
+    expect(screen.queryByText(/tag us/i)).not.toBeInTheDocument();
+  });
+
   it('marks the footer visible once it has scrolled into view', () => {
     const { container } = render(<StudioFooter studioName="Maison Abeer" />);
     // jsdom has no IntersectionObserver, so the hook reports visible at once.
