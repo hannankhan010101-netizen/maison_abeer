@@ -312,13 +312,13 @@ describe('BookingFlow', () => {
     fetchMock.mockImplementation(json(classList()));
 
     render(<BookingFlow slug="maison-abeer" />);
-    await screen.findByRole('heading', { name: 'Pick your kind of mess' });
+    // One craft gets no "Pick your kind of mess" menu, so the receipt is the
+    // brand section this waits for.
+    await screen.findByRole('heading', { name: 'How it works' });
 
     await userEvent.click(await screen.findByRole('button', { name: /Bento cake/ }));
 
-    expect(
-      screen.queryByRole('heading', { name: 'Pick your kind of mess' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'How it works' })).not.toBeInTheDocument();
   });
 
   it("carries the studio's own brand colours through when it has set any", async () => {

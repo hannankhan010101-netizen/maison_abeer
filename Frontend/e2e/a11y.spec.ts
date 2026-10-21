@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { stubBookingApi } from './helpers/booking';
+import { stubBookingApi, threeCrafts } from './helpers/booking';
 
 /**
  * Accessibility.
@@ -127,10 +127,11 @@ test('the whole dashboard is reachable by keyboard', async ({ page }) => {
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   test(`the photo strips are not scrollable regions (${reducedMotion})`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion });
-    await stubBookingApi(page);
+    // The strip only renders when the photo budget leaves it enough — three crafts.
+    await stubBookingApi(page, threeCrafts());
 
     await page.goto('/book/maison-abeer');
-    await expect(page.getByRole('region', { name: 'Moments from the studio' })).toBeAttached();
+    await expect(page.getByRole('region', { name: 'The crafts, up close' })).toBeAttached();
 
     const results = await new AxeBuilder({ page })
       .withRules(['scrollable-region-focusable'])
@@ -143,10 +144,10 @@ test('with reduced motion the photo strip is a still gallery, each photograph on
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await stubBookingApi(page);
+  await stubBookingApi(page, threeCrafts());
 
   await page.goto('/book/maison-abeer');
-  const strip = page.getByRole('region', { name: 'Moments from the studio' });
+  const strip = page.getByRole('region', { name: 'The crafts, up close' });
   await expect(strip).toBeAttached();
 
   const shown = await strip.evaluate((node) => {
@@ -162,9 +163,10 @@ test('with reduced motion the photo strip is a still gallery, each photograph on
     };
   });
 
-  // Four photographs of the one craft on offer: shown once each, wrapped, and
-  // nothing sitting behind an edge waiting to be scrolled to.
-  expect(shown.photos).toBe(4);
-  expect(shown.distinct).toBe(4);
+  // The seven photographs the budget leaves three crafts (photoBudget.test.ts):
+  // shown once each, wrapped, and nothing sitting behind an edge waiting to be
+  // scrolled to.
+  expect(shown.photos).toBe(7);
+  expect(shown.distinct).toBe(7);
   expect(shown.overflowX).toBeLessThanOrEqual(1);
 });

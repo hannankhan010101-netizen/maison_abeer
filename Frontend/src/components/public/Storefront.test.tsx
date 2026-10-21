@@ -141,17 +141,27 @@ describe('PhotoMarquee', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('lets a screen reader meet each photograph once', () => {
-    render(<PhotoMarquee classes={[aClass('terra')]} />);
+  it('renders nothing for one craft — the budget leaves it no photographs', () => {
+    const { container } = render(<PhotoMarquee classes={[aClass('terra')]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
 
-    const section = screen.getByRole('region', { name: 'Moments from the studio' });
+  it('lets a screen reader meet each photograph once', () => {
+    render(
+      <PhotoMarquee
+        classes={[aClass('terra'), aClass('pink', 'Cakes'), aClass('sage', 'Paint')]}
+      />,
+    );
+
+    const section = screen.getByRole('region', { name: 'The crafts, up close' });
     const described = [...section.querySelectorAll('img')].filter(
       (img) => !img.closest('[aria-hidden="true"]') && img.getAttribute('alt'),
     );
 
-    // One of each pottery photograph — not the repeats, not the second row.
-    expect(described).toHaveLength(4);
-    expect(new Set(described.map((img) => img.getAttribute('alt'))).size).toBe(4);
+    // One of each photograph the budget left for the strip — not the repeats,
+    // not the second row. Three crafts leave seven (see photoBudget.test.ts).
+    expect(described).toHaveLength(7);
+    expect(new Set(described.map((img) => img.getAttribute('alt'))).size).toBe(7);
   });
 
   it('only shows the crafts on offer', () => {
