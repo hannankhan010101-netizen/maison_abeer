@@ -187,29 +187,35 @@ export function MemoryWall({ classes, memories, words }: MemoryWallProps): JSX.E
       <Reveal className="mx-auto max-w-5xl">
         {items.length > 0 ? (
           <>
-            <p className="font-hand text-rose-ink text-center text-xl">{eyebrow}</p>
-            <h2
-              id="memories-heading"
-              className="font-display text-cocoa mt-1 text-center text-[clamp(26px,6vw,38px)]"
-            >
-              {heading}
-            </h2>
-
-            {chipCrafts.length >= 2 ? (
-              <div className="memory-chips" role="group" aria-label="Filter photos by craft">
-                {[null, ...chipCrafts].map((craft) => (
-                  <button
-                    key={craft ?? 'all'}
-                    type="button"
-                    aria-pressed={filter === craft}
-                    onClick={() => void select(craft)}
-                    className={cn('memory-chip')}
-                  >
-                    {craft ? CRAFT_LABEL[craft] : 'All'}
-                  </button>
-                ))}
+            {/* On a wide screen the heading and the chips share one row — a
+                break from the centred headings elsewhere on the page. */}
+            <div className="md:flex md:items-end md:justify-between md:gap-8">
+              <div className="text-center md:text-left">
+                <p className="font-hand text-rose-ink text-xl">{eyebrow}</p>
+                <h2
+                  id="memories-heading"
+                  className="font-display text-cocoa mt-1 text-[clamp(26px,6vw,38px)]"
+                >
+                  {heading}
+                </h2>
               </div>
-            ) : null}
+
+              {chipCrafts.length >= 2 ? (
+                <div className="memory-chips" role="group" aria-label="Filter photos by craft">
+                  {[null, ...chipCrafts].map((craft) => (
+                    <button
+                      key={craft ?? 'all'}
+                      type="button"
+                      aria-pressed={filter === craft}
+                      onClick={() => void select(craft)}
+                      className={cn('memory-chip')}
+                    >
+                      {craft ? CRAFT_LABEL[craft] : 'All'}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <ul ref={gridRef} className="memory-grid mt-6">
               {items.map((item) => (

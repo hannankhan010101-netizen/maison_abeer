@@ -163,6 +163,19 @@ describe('MemoryWall', () => {
       expect(screen.queryByRole('button', { name: 'Pottery' })).not.toBeInTheDocument();
     });
 
+    it('shares one row with the heading on a wide screen, after it in reading order', () => {
+      render(<MemoryWall classes={twoCrafts} />);
+
+      const heading = screen.getByRole('heading', { level: 2 });
+      const chips = screen.getByRole('group', { name: 'Filter photos by craft' });
+      const row = chips.parentElement!;
+      expect(row).toHaveClass('md:flex', 'md:items-end', 'md:justify-between');
+      expect(row).toContainElement(heading);
+      expect(
+        heading.compareDocumentPosition(chips) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
     it('has some for two crafts, and filtering hides the others instantly under reduced motion', () => {
       render(<MemoryWall classes={twoCrafts} />);
 
