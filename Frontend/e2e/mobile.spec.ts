@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { CHAT_ENABLED } from './helpers/features';
 
 /**
  * Mobile usability, measured rather than assumed.
@@ -16,13 +17,12 @@ const PORTAL = [
   '/tags',
   '/messages',
   '/settings',
-  '/chat',
-  '/chat/broadcast',
+  ...(CHAT_ENABLED ? ['/chat', '/chat/broadcast'] : []),
 ];
 
 // The guest side. Demo mode answers these as though a guest is signed in, so
 // the same touch-target and overflow rules are enforced on both audiences.
-const GUEST = ['/portal', '/portal/chat'];
+const GUEST = ['/portal', ...(CHAT_ENABLED ? ['/portal/chat'] : [])];
 
 const PUBLIC_CLASSES = {
   studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },

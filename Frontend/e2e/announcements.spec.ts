@@ -1,4 +1,5 @@
 import { expect, test, type ElementHandle, type Page } from '@playwright/test';
+import { CHAT_ENABLED } from './helpers/features';
 
 /**
  * A state change nothing announced.
@@ -144,6 +145,8 @@ test.describe('the guest list', () => {
 });
 
 test.describe('chat oversight', () => {
+  test.skip(!CHAT_ENABLED, 'chat is hidden unless NEXT_PUBLIC_CHAT_ENABLED=1');
+
   test('opening a room names it, from a region that tap cannot have revealed', async ({ page }) => {
     await page.goto('/chat');
     await expect(page.getByRole('heading', { level: 1, name: 'Chat oversight' })).toBeVisible();

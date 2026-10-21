@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { stubBookingApi, threeCrafts } from './helpers/booking';
+import { CHAT_ENABLED } from './helpers/features';
 
 /**
  * Accessibility.
@@ -42,9 +43,7 @@ const PAGES = [
   '/messages',
   '/settings',
   '/portal',
-  '/portal/chat',
-  '/chat',
-  '/chat/broadcast',
+  ...(CHAT_ENABLED ? ['/portal/chat', '/chat', '/chat/broadcast'] : []),
 ];
 
 for (const path of PAGES) {

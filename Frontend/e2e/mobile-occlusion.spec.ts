@@ -1,4 +1,5 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
+import { CHAT_ENABLED } from './helpers/features';
 
 /**
  * Nothing fixed may cover anything else fixed.
@@ -37,7 +38,7 @@ function below(page: Page, width: number, what: string) {
 }
 
 const PORTAL = ['/today', '/calendar', '/guests', '/prep', '/tags', '/messages', '/settings'];
-const GUEST = ['/portal', '/portal/chat'];
+const GUEST = ['/portal', ...(CHAT_ENABLED ? ['/portal/chat'] : [])];
 
 async function settled(page: Page) {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });

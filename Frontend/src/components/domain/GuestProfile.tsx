@@ -19,6 +19,7 @@ import {
   useUpdateGuest,
 } from '@/lib/api/hooks';
 import { cn } from '@/lib/cn';
+import { CHAT_ENABLED } from '@/lib/features';
 import { formatDateLong, formatTime } from '@/lib/dates';
 import type { Guest, GuestVisit, MessageChannel, ScheduledMessage } from '@/lib/api/types';
 
@@ -101,7 +102,7 @@ export function GuestProfile({ guestId }: GuestProfileProps) {
       <header className="mb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-[clamp(21px,4vw,34px)]">{person.full_name}</h1>
-          <MessageGuestButton guestId={guestId} name={person.full_name} />
+          {CHAT_ENABLED ? <MessageGuestButton guestId={guestId} name={person.full_name} /> : null}
         </div>
 
         <p className="mt-1 flex flex-wrap items-center gap-1.5">

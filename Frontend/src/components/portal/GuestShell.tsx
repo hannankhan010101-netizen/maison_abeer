@@ -10,19 +10,23 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { ApiProvider } from '@/lib/api/provider';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
+import { CHAT_ENABLED } from '@/lib/features';
 
 /**
  * The guest side's chrome.
  *
  * Deliberately thinner than the host shell: a guest has two destinations, not
  * eight, and the whole point of this surface is that it does not look like an
- * admin tool.
+ * admin tool. While chat is hidden there is one, and a tab bar with a single
+ * tab is noise, so the bar goes and the page stops reserving room for it.
  */
 
 const NAV = [
   { href: '/portal', label: 'Workshops', icon: '🌷' },
   { href: '/portal/chat', label: 'Chats', icon: '💬' },
-] as const;
+].filter((item) => CHAT_ENABLED || item.href !== '/portal/chat');
+
+const SHOW_TABS = NAV.length > 1;
 
 /**
  * Is this an open conversation?
@@ -57,13 +61,18 @@ export function GuestShell({ children }: { children: ReactNode }) {
 
   return (
     <ApiProvider unauthorizedRedirectTo="/enter">
-      <ToastProvider offsetClassName="[--tab-bar-h:var(--tab-bar-guest)]">
+      <ToastProvider offsetClassName={SHOW_TABS ? '[--tab-bar-h:var(--tab-bar-guest)]' : undefined}>
         {/* Derived from the guest bar's own height, not remembered as `pb-24`:
             24px of clearance above a 56px bar plus its border, with the
             home-indicator inset left to `body` (`globals.css`), which is the
             one owner of it for in-flow content. The remembered number cleared
             the bar by 6px on a notched phone. */}
-        <div className="mx-auto w-full max-w-[720px] px-4 pb-[calc(var(--tab-bar-guest)+1.5rem)] sm:px-6">
+        <div
+          className={cn(
+            'mx-auto w-full max-w-[720px] px-4 sm:px-6',
+            SHOW_TABS ? 'pb-[calc(var(--tab-bar-guest)+1.5rem)]' : 'pb-6',
+          )}
+        >
           <header className="flex items-center justify-between py-4">
             {/* inline-flex + min-height: a 28px link is a real target on a
                 phone, not a decorative wordmark. */}
@@ -87,7 +96,7 @@ export function GuestShell({ children }: { children: ReactNode }) {
           <main id="main">{children}</main>
         </div>
 
-        <GuestNav />
+        {SHOW_TABS ? <GuestNav /> : null}
       </ToastProvider>
     </ApiProvider>
   );

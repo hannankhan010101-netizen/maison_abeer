@@ -13,6 +13,11 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/guests',
 }));
 
+// Chat is hidden by default; these tests cover the button as it is when chat is on,
+// and one case at the end covers it hidden.
+const features = vi.hoisted(() => ({ CHAT_ENABLED: true }));
+vi.mock('@/lib/features', () => features);
+
 import { GuestProfile } from './GuestProfile';
 import { ApiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/provider';
@@ -366,5 +371,21 @@ describe('GuestProfile · editing', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/already has those details/);
+  });
+});
+
+describe('GuestProfile · chat hidden', () => {
+  it('offers no private message button while chat is hidden', async () => {
+    features.CHAT_ENABLED = false;
+    try {
+      respond();
+
+      render(<GuestProfile guestId="guest-1" />, { wrapper: Wrapper });
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Ayesha K.' })).toBeVisible();
+      expect(screen.queryByRole('button', { name: /privately/i })).not.toBeInTheDocument();
+    } finally {
+      features.CHAT_ENABLED = true;
+    }
   });
 });

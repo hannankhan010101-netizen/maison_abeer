@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppShell, NAV_ITEMS, PRIMARY_NAV, isActive } from './AppShell';
 
@@ -191,5 +191,43 @@ describe('AppShell', () => {
     expect(sheet).toContain('--tab-bar-host');
     expect(sheet).toContain('--tab-bar-border');
     expect(sheet).toContain('env(safe-area-inset-bottom)');
+  });
+});
+
+describe('while chat is hidden', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('has no Chats destination in the table or the phone tab bar', () => {
+    expect(NAV_ITEMS.some((item) => item.href === '/chat')).toBe(false);
+    expect(PRIMARY_NAV).not.toContain('/chat');
+
+    render(<AppShell>content</AppShell>);
+    expect(screen.queryByRole('link', { name: /Chats/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps every other destination, Messages included', () => {
+    const hrefs = NAV_ITEMS.map((item) => item.href);
+    expect(hrefs).toEqual([
+      '/today',
+      '/calendar',
+      '/tags',
+      '/guests',
+      '/prep',
+      '/messages',
+      '/wrapped',
+      '/settings',
+    ]);
+  });
+
+  it('brings Chats back when the flag is on', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CHAT_ENABLED', '1');
+    vi.resetModules();
+    const shell = await import('./AppShell');
+
+    expect(shell.NAV_ITEMS.some((item) => item.href === '/chat')).toBe(true);
+    expect(shell.PRIMARY_NAV).toContain('/chat');
   });
 });

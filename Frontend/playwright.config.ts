@@ -93,6 +93,9 @@ export default defineConfig({
 
       // Fixtures rather than a live API, so the suite is hermetic.
       NEXT_PUBLIC_DEMO_MODE: '1',
+
+      // Chat is hidden unless a run asks for it: `NEXT_PUBLIC_CHAT_ENABLED=1 npm run test:e2e`.
+      NEXT_PUBLIC_CHAT_ENABLED: process.env.NEXT_PUBLIC_CHAT_ENABLED ?? '',
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder-anon-key',
       NEXT_PUBLIC_API_URL: `http://localhost:${PORT}/__api_not_used`,

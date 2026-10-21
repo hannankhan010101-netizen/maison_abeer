@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { CHAT_ENABLED } from './helpers/features';
 
 /**
  * The virtual keyboard, modelled as what `resizes-content` says it is.
@@ -232,6 +233,8 @@ test.describe('the viewport opts the keyboard into resizing the layout', () => {
 });
 
 test.describe('the chat survives the keyboard', () => {
+  test.skip(!CHAT_ENABLED, 'chat is hidden unless NEXT_PUBLIC_CHAT_ENABLED=1');
+
   test('keeps the composer on screen and the list scrolling', async ({ page }) => {
     below(page, LG, 'the on-screen keyboard');
 

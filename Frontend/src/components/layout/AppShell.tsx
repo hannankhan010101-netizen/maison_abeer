@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
+import { CHAT_ENABLED } from '@/lib/features';
 import { useDismissable } from '@/lib/useDismissable';
 
 /**
@@ -38,9 +39,11 @@ export interface NavItem {
  * Five is the ceiling: below about 68px a tab is hard to hit accurately, and
  * five is what fits across the narrowest phone this has to work on.
  */
-export const PRIMARY_NAV: readonly string[] = ['/today', '/calendar', '/guests', '/chat'] as const;
+export const PRIMARY_NAV: readonly string[] = ['/today', '/calendar', '/guests', '/chat'].filter(
+  (href) => CHAT_ENABLED || href !== '/chat',
+);
 
-export const NAV_ITEMS: readonly NavItem[] = [
+const ALL_NAV_ITEMS: readonly NavItem[] = [
   { href: '/today', label: 'Today', icon: '🌷' },
   { href: '/calendar', label: 'Calendar', icon: '📅' },
   { href: '/tags', label: 'Name tags', icon: '🏷️' },
@@ -51,6 +54,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/wrapped', label: 'Receipts', icon: '📊' },
   { href: '/settings', label: 'Settings', icon: '🎨' },
 ] as const;
+
+/** Chat is hidden unless it is switched on (see `lib/features`); everything else is always here. */
+export const NAV_ITEMS: readonly NavItem[] = ALL_NAV_ITEMS.filter(
+  (item) => CHAT_ENABLED || item.href !== '/chat',
+);
 
 export function isActive(pathname: string, href: string): boolean {
   // Exact match or a nested route, but never a prefix collision
