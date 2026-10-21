@@ -56,3 +56,4 @@ npm-debug.log*
 # ---------- agent worktrees and stray build output ----------
 .claude/worktrees/
 .next-perfdev/
+.superpowers/
