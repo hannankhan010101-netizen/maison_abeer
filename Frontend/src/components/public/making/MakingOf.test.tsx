@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MakingOf } from './MakingOf';
-import { MAKING_STAGES } from './makingStages';
+import { MAKING_STAGES, PIN_DISTANCE } from './makingStages';
 
 vi.mock('@/lib/motion/gsap', () => ({ loadGsap: vi.fn() }));
 
@@ -80,7 +80,7 @@ describe('MakingOf', () => {
 
     await waitFor(() => expect(ScrollTrigger.create).toHaveBeenCalledTimes(1));
     expect(ScrollTrigger.create).toHaveBeenCalledWith(
-      expect.objectContaining({ end: '+=250%', scrub: 0.6, pin: true }),
+      expect.objectContaining({ end: PIN_DISTANCE, scrub: 0.6, pin: true }),
     );
     expect(container.querySelector('section[data-pinned]')).not.toBeNull();
     captionsPresent(container);
@@ -271,5 +271,67 @@ describe('MakingOf clay', () => {
       const morphs = timeline.to.mock.calls.filter((call) => (call as unknown[])[0] === hand);
       expect(morphs, side).toHaveLength(3);
     }
+  });
+});
+
+describe('MakingOf layout and beats', () => {
+  function beats(container: HTMLElement) {
+    return Array.from(container.querySelectorAll('.making-layout ol.making-beats > li'));
+  }
+
+  it('lists the four beats beside the scene, the first one current before any scroll', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    const layout = container.querySelector('.making-layout')!;
+    expect(layout.querySelector('.making__scene .making__strip')).not.toBeNull();
+    const items = beats(container);
+    expect(items.map((li) => li.textContent?.trim())).toEqual(MAKING_STAGES.map((s) => s.caption));
+    expect(items.map((li) => li.getAttribute('aria-current'))).toEqual(['step', null, null, null]);
+  });
+
+  it('puts the heading in the beats column, not alone above the scene', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    const heading = container.querySelector('#making-heading')!;
+    const column = heading.closest('.making__words')!;
+    expect(column).not.toBeNull();
+    expect(column.querySelector('.making-beats')).not.toBeNull();
+    expect(column.parentElement?.classList.contains('making-layout')).toBe(true);
+    // Nothing of the heading sits outside the layout any more.
+    expect(container.querySelector('section > .making__intro')).toBeNull();
+  });
+
+  it('moves the current beat with the scroll on the pinned stage', async () => {
+    media({ reduced: false, wide: true });
+    const { kit, ScrollTrigger } = fakeKit();
+    load.mockResolvedValue(kit as never);
+
+    const { container } = render(<MakingOf />);
+    await waitFor(() => expect(ScrollTrigger.create).toHaveBeenCalled());
+    const options = (ScrollTrigger.create.mock.calls[0] as unknown[])[0] as {
+      onUpdate: (self: { progress: number }) => void;
+    };
+
+    act(() => options.onUpdate({ progress: 0.8 }));
+    expect(beats(container).map((li) => li.getAttribute('aria-current'))).toEqual([
+      null,
+      null,
+      null,
+      'step',
+    ]);
+    expect(
+      container.querySelector('.making__stage [data-making-lines]')?.hasAttribute('data-drawn'),
+    ).toBe(true);
+  });
+
+  it('keeps four finished frames and no pin under reduced motion, even when wide', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    expect(container.querySelectorAll('.making__strip figure')).toHaveLength(4);
+    expect(container.querySelector('[data-pinned]')).toBeNull();
+    expect(container.querySelector('.making__stage')).toBeNull();
   });
 });

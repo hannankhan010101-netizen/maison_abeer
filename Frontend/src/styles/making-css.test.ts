@@ -20,7 +20,7 @@ interface Block {
 /** Every `@media (prefers-reduced-motion: no-preference) { … }` block, braces balanced. */
 function motionBlocks(source: string): Block[] {
   const blocks: Block[] = [];
-  const opener = /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{/g;
+  const opener = /@media[^{]*\(prefers-reduced-motion:\s*no-preference\)[^{]*\{/g;
   for (let match = opener.exec(source); match; match = opener.exec(source)) {
     let depth = 1;
     let index = opener.lastIndex;

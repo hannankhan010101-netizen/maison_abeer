@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type JSX, type Ref } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type JSX, type Ref } from 'react';
 
 import { Reveal } from '@/components/motion/Reveal';
 import { loadGsap, type GsapKit } from '@/lib/motion/gsap';
@@ -10,6 +10,7 @@ import '@/styles/units/making.css';
 import {
   MAKING_STAGES,
   MAKING_VIEWBOX,
+  PIN_DISTANCE,
   RIM_OPENED,
   RIM_PULLED,
   stageForProgress,
@@ -289,7 +290,7 @@ export function MakingOf(): JSX.Element {
       const trigger = ScrollTrigger.create({
         trigger: section,
         start: 'top top',
-        end: '+=250%',
+        end: PIN_DISTANCE,
         pin: true,
         scrub: 0.6,
         animation: timeline,
@@ -416,51 +417,64 @@ export function MakingOf(): JSX.Element {
       data-mode={mode}
       className="making"
     >
-      <Reveal className="making__intro">
-        <p className="font-hand text-rose-ink text-xl">from lump to vessel</p>
-        <h2
-          id="making-heading"
-          className="font-display mt-1 text-[clamp(26px,5vw,38px)] leading-[1.08]"
-        >
-          Clay is shaped a little at a time
-        </h2>
-      </Reveal>
+      <div className="making-layout">
+        <div className="making__words">
+          <Reveal className="making__intro">
+            <p className="font-hand text-rose-ink text-xl">from lump to vessel</p>
+            <h2
+              id="making-heading"
+              className="font-display mt-1 text-[clamp(26px,5vw,38px)] leading-[1.08]"
+            >
+              Clay is shaped a little at a time
+            </h2>
+          </Reveal>
 
-      {pinned ? (
-        <div className="making__stage" aria-hidden="true">
-          <Scene
-            path={FIRST.path}
-            hands={FIRST.hands}
-            rim="opened"
-            lines
-            hidden
-            drawn={stage === 3}
-            bodyRef={stagePathRef}
-            rimRef={stageRimRef}
-            linesRef={stageLinesRef}
-            handsRef={stageHandsRef}
-            leftRef={stageLeftRef}
-            rightRef={stageRightRef}
-          />
-          <p className="making__stage-caption">{MAKING_STAGES[stage]!.caption}</p>
+          <ol className="making-beats" style={{ '--beat': stage } as CSSProperties}>
+            {MAKING_STAGES.map((item, index) => (
+              <li key={item.id} aria-current={index === stage ? 'step' : undefined}>
+                {item.caption}
+              </li>
+            ))}
+          </ol>
         </div>
-      ) : null}
 
-      <ol className="making__strip">
-        {MAKING_STAGES.map((item) => (
-          <li key={item.id}>
-            <figure className="making__frame">
+        <div className="making__scene">
+          {pinned ? (
+            <div className="making__stage" aria-hidden="true">
               <Scene
-                path={item.path}
-                hands={item.hands}
-                rim={RIMS[item.id]}
-                lines={item.id === 'pulled'}
+                path={FIRST.path}
+                hands={FIRST.hands}
+                rim="opened"
+                lines
+                hidden
+                drawn={stage === 3}
+                bodyRef={stagePathRef}
+                rimRef={stageRimRef}
+                linesRef={stageLinesRef}
+                handsRef={stageHandsRef}
+                leftRef={stageLeftRef}
+                rightRef={stageRightRef}
               />
-              <figcaption className="making__caption">{item.caption}</figcaption>
-            </figure>
-          </li>
-        ))}
-      </ol>
+            </div>
+          ) : null}
+
+          <ol className="making__strip">
+            {MAKING_STAGES.map((item) => (
+              <li key={item.id}>
+                <figure className="making__frame">
+                  <Scene
+                    path={item.path}
+                    hands={item.hands}
+                    rim={RIMS[item.id]}
+                    lines={item.id === 'pulled'}
+                  />
+                  <figcaption className="making__caption">{item.caption}</figcaption>
+                </figure>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
     </section>
   );
 }
