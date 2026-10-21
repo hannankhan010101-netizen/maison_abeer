@@ -168,7 +168,11 @@ test.describe('the lightbox, from the keyboard alone', () => {
   // The browser's view-transition overlay swallows a real pointer for the length
   // of the animation, so a hurried second tap is simulated with a dispatched
   // click (what a quick tap or a switch device delivers once it gets through).
-  for (const delay of [60, 150, 300, 500]) {
+  // These are a smoke test of focus, not a proof of the race: removing the fix does not turn
+  // them red (MemoryWall.test.tsx holds that proof, with a controllable transition). Nothing
+  // shorter than 150ms: on a busy machine the first dialog is still up and the tap is
+  // rightly ignored, which fails the test for a reason that is not a bug.
+  for (const delay of [150, 300, 500]) {
     test(`opening another photo ${delay}ms after closing keeps focus in the dialog`, async ({
       page,
     }) => {
