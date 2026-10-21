@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StorefrontPage } from '@/components/public/StorefrontPage';
 import { ClassPicker } from '@/components/public/booking/ClassPicker';
 import { Confirmation } from '@/components/public/booking/Confirmation';
@@ -13,6 +13,7 @@ import {
   type PublicClass,
   type PublicClassList,
 } from '@/lib/public/api';
+import { withViewTransition } from '@/lib/motion';
 
 /**
  * The guest-facing booking flow.
@@ -44,6 +45,22 @@ export function BookingFlow({ slug }: BookingFlowProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<PublicClass | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
+  // The class we came back from, so its leaf can carry the shared-element name home.
+  const [returnedFromId, setReturnedFromId] = useState<string | null>(null);
+  const goingBack = useRef(false);
+
+  function goBack(from: PublicClass) {
+    // A second tap during the transition would abort it halfway.
+    if (goingBack.current) return;
+    goingBack.current = true;
+
+    void withViewTransition(() => {
+      setReturnedFromId(from.id);
+      setChosen(null);
+    }).finally(() => {
+      goingBack.current = false;
+    });
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -97,9 +114,9 @@ export function BookingFlow({ slug }: BookingFlowProps) {
       {result ? (
         <Confirmation result={result} token={chosen?.color_token ?? 'pink'} />
       ) : chosen ? (
-        <DetailsStep slug={slug} item={chosen} onBack={() => setChosen(null)} onDone={setResult} />
+        <DetailsStep slug={slug} item={chosen} onBack={() => goBack(chosen)} onDone={setResult} />
       ) : (
-        <ClassPicker classes={data.classes} onPick={setChosen} />
+        <ClassPicker classes={data.classes} onPick={setChosen} returnedFromId={returnedFromId} />
       )}
     </StorefrontPage>
   );

@@ -140,7 +140,9 @@ describe('BookingFlow', () => {
     // Every field but the name is labelled optional, so the form never looks
     // longer than it is.
     expect(screen.getByLabelText(/Phone/)).toBeInTheDocument();
-    expect(screen.getByText(/Anything fun we should put on your name tag/)).toBeInTheDocument();
+    // The name-tag note is folded away until asked for.
+    await userEvent.click(screen.getByRole('button', { name: 'Anything fun for your name tag?' }));
+    expect(screen.getByText(/Anything fun we should put on your name tag/)).toBeVisible();
   });
 
   // -------------------------------------------------------------------------
