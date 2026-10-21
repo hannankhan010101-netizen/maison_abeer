@@ -66,37 +66,93 @@ const SPARKLES = [sparkle(28, 62, 8), sparkle(176, 96, 6), sparkle(158, 36, 4)];
 
 interface SceneProps {
   path: string;
+  hands: Stage['hands'];
   /** Which opening to draw, if any: bowls and vases are hollow, a lump is not. */
   rim?: 'opened' | 'pulled';
   lines?: boolean;
   /** On the pinned stage the rim and lines start hidden and fade in with the scroll. */
   hidden?: boolean;
+  /** The throwing lines have arrived and may draw themselves on. */
+  drawn?: boolean;
   bodyRef?: Ref<SVGPathElement>;
   rimRef?: Ref<SVGPathElement>;
   linesRef?: Ref<SVGGElement>;
+  handsRef?: Ref<SVGGElement>;
+  leftRef?: Ref<SVGPathElement>;
+  rightRef?: Ref<SVGPathElement>;
+}
+
+type Stage = (typeof MAKING_STAGES)[number];
+
+/** A `useId` value made safe to sit inside `url(#…)` and `href="#…"`. */
+function useSvgId(): string {
+  return useId().replace(/[^\w-]/g, '');
 }
 
 /**
- * One picture: a potter's wheel, the shadow of the piece on it, the clay with
- * a lit side and a shaded side, the dark opening where there is one, and a few
- * flecks of slip.
+ * One picture: a potter's wheel with a shadow round its head, the shadow of
+ * the piece on it, the clay lit from the upper left with a grain to it, the
+ * dark opening where there is one, the throwing lines, two hands at work and
+ * a few flecks of slip.
  *
- * Only the body and the rim are paths that morph; the wheel, shadow and flecks
- * stay put. The shading is a gradient across the body's own bounding box, so it
- * follows the shape wherever the morph has got to with nothing extra to animate.
+ * Only the body, the rim and the two hands are paths that morph; everything
+ * else stays put. The shading is a gradient across the body's own bounding
+ * box, so it follows the shape with nothing extra to animate. The grain is a
+ * filter on a still rectangle — rasterised once — shown through a clip that
+ * borrows the body's outline by reference: the filter never sits on a path
+ * that changes, so a morph frame costs a clip, not a fresh noise texture.
  */
-function Scene({ path, rim, lines, hidden, bodyRef, rimRef, linesRef }: SceneProps): JSX.Element {
-  const gradient = useId();
+function Scene({
+  path,
+  hands,
+  rim,
+  lines,
+  hidden,
+  drawn,
+  bodyRef,
+  rimRef,
+  linesRef,
+  handsRef,
+  leftRef,
+  rightRef,
+}: SceneProps): JSX.Element {
+  const id = useSvgId();
+  const ids = {
+    body: `clay-body-${id}`,
+    grain: `clay-grain-${id}`,
+    clip: `clay-clip-${id}`,
+    shape: `clay-shape-${id}`,
+  };
   const hide = hidden ? { opacity: 0 } : undefined;
 
   return (
     <svg viewBox={MAKING_VIEWBOX} className="making__svg" aria-hidden="true" focusable="false">
       <defs>
-        <linearGradient id={gradient} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" className="making__stop-lit" />
-          <stop offset="0.45" className="making__stop-mid" />
+        <radialGradient id={ids.body} cx="0.4" cy="0.34" r="0.78" fx="0.3" fy="0.24">
+          <stop offset="0" className="making__stop-highlight" />
+          <stop offset="0.22" className="making__stop-lit" />
+          <stop offset="0.6" className="making__stop-mid" />
           <stop offset="1" className="making__stop-shade" />
-        </linearGradient>
+        </radialGradient>
+        <filter id={ids.grain} x="0" y="0" width="1" height="1">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.85"
+            numOctaves="2"
+            seed="7"
+            stitchTiles="stitch"
+          />
+          <feColorMatrix
+            type="matrix"
+            values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.8 1.2"
+            result="specks"
+          />
+          <feFlood className="making__grain-ink" />
+          <feComposite in2="specks" operator="in" />
+        </filter>
+        <clipPath id={ids.clip}>
+          <use href={`#${ids.shape}`} />
+        </clipPath>
       </defs>
 
       <g data-making-wheel>
@@ -105,18 +161,29 @@ function Scene({ path, rim, lines, hidden, bodyRef, rimRef, linesRef }: ScenePro
           className="making__wheel-side"
         />
         <ellipse cx="100" cy="214" rx="82" ry="13" className="making__wheel-top" />
+        <path d="M26 218 C56 229 144 229 174 218" className="making__wheel-rim" />
         <path d="M44 214 C64 221 136 221 156 214" className="making__wheel-lines" />
-        <path d="M62 218 C80 223 120 223 138 218" className="making__wheel-lines" />
       </g>
       <ellipse data-making-shadow cx="100" cy="213" rx="60" ry="8" className="making__shadow" />
 
       <path
+        id={ids.shape}
         d={path}
         data-making-body
         ref={bodyRef}
         className="making__shape"
-        style={{ fill: `url(#${gradient})` }}
+        fill={`url(#${ids.body})`}
       />
+      <g clipPath={`url(#${ids.clip})`}>
+        <rect
+          x="0"
+          y="0"
+          width="200"
+          height="240"
+          filter={`url(#${ids.grain})`}
+          className="making__grain"
+        />
+      </g>
 
       {rim ? (
         <path
@@ -129,12 +196,23 @@ function Scene({ path, rim, lines, hidden, bodyRef, rimRef, linesRef }: ScenePro
       ) : null}
 
       {lines ? (
-        <g data-making-lines ref={linesRef} className="making__throwing-lines" style={hide}>
-          <path d="M52 146 C80 154 120 154 148 146" />
-          <path d="M50 164 C80 173 120 173 150 164" />
-          <path d="M54 182 C82 190 118 190 146 182" />
+        <g
+          data-making-lines
+          data-drawn={drawn ? '' : undefined}
+          ref={linesRef}
+          className="making__throwing-lines"
+          style={hide}
+        >
+          <path pathLength={1} className="making-line" d="M52 146 C80 154 120 154 148 146" />
+          <path pathLength={1} className="making-line" d="M50 164 C80 173 120 173 150 164" />
+          <path pathLength={1} className="making-line" d="M54 182 C82 190 118 190 146 182" />
         </g>
       ) : null}
+
+      <g data-making-hands ref={handsRef} opacity={hands.opacity} className="making__hands">
+        <path data-making-hand="left" ref={leftRef} d={hands.left} />
+        <path data-making-hand="right" ref={rightRef} d={hands.right} />
+      </g>
 
       <g className="making__flecks">
         {SPARKLES.map((d) => (
@@ -155,6 +233,9 @@ export function MakingOf(): JSX.Element {
   const stagePathRef = useRef<SVGPathElement>(null);
   const stageRimRef = useRef<SVGPathElement>(null);
   const stageLinesRef = useRef<SVGGElement>(null);
+  const stageHandsRef = useRef<SVGGElement>(null);
+  const stageLeftRef = useRef<SVGPathElement>(null);
+  const stageRightRef = useRef<SVGPathElement>(null);
 
   // Fetch the library only for a guest who may be animated, and drop it again
   // the moment they turn reduced motion on, which stops everything below.
@@ -184,14 +265,22 @@ export function MakingOf(): JSX.Element {
       const path = stagePathRef.current;
       const rim = stageRimRef.current;
       const lines = stageLinesRef.current;
-      if (!path || !rim || !lines) return;
+      const hands = stageHandsRef.current;
+      const left = stageLeftRef.current;
+      const right = stageRightRef.current;
+      if (!path || !rim || !lines || !hands || !left || !right) return;
 
-      // The body morphs the whole way; the opening appears as the bowl is
-      // opened and narrows with the neck; the throwing lines come last.
+      // The body morphs the whole way; the hands approach as it is centred,
+      // cup it, draw it up and lift away at the end; the opening appears as
+      // the bowl is opened and narrows with the neck; the lines come last.
       const timeline = gsap.timeline({ defaults: { ease: 'none' } });
       MAKING_STAGES.slice(1).forEach((next, index) => {
         timeline.to(path, { morphSVG: next.path, duration: 1 }, index);
+        timeline.to(left, { morphSVG: next.hands.left, duration: 1 }, index);
+        timeline.to(right, { morphSVG: next.hands.right, duration: 1 }, index);
       });
+      timeline.to(hands, { opacity: 1, duration: 1 }, 0);
+      timeline.to(hands, { y: -14, duration: 0.4 }, 2.6);
       timeline.to(rim, { opacity: 1, duration: 1 }, 1);
       timeline.to(rim, { morphSVG: RIM_PULLED, duration: 1 }, 2);
       timeline.to(lines, { opacity: 1, duration: 1 }, 2);
@@ -217,7 +306,7 @@ export function MakingOf(): JSX.Element {
         // Reverting removes the pin spacer and puts the section back in flow.
         trigger.kill(true);
         timeline.kill();
-        gsap.set([path, rim, lines], { clearProps: 'all' });
+        gsap.set([path, rim, lines, hands, left, right], { clearProps: 'all' });
         setStage(0);
       };
     }
@@ -233,12 +322,28 @@ export function MakingOf(): JSX.Element {
         Array.from(
           path.closest('figure')?.querySelectorAll('[data-making-rim], [data-making-lines]') ?? [],
         );
+      const handsOf = (path: SVGPathElement) => {
+        const figure = path.closest('figure');
+        return {
+          group: figure?.querySelector<SVGGElement>('[data-making-hands]') ?? null,
+          left: figure?.querySelector<SVGPathElement>('[data-making-hand="left"]') ?? null,
+          right: figure?.querySelector<SVGPathElement>('[data-making-hand="right"]') ?? null,
+        };
+      };
+      /** Put a frame's clay and hands where a given stage has them. */
+      const drawAs = (path: SVGPathElement, stage: Stage) => {
+        path.setAttribute('d', stage.path);
+        const { group, left, right } = handsOf(path);
+        left?.setAttribute('d', stage.hands.left);
+        right?.setAttribute('d', stage.hands.right);
+        group?.setAttribute('opacity', String(stage.hands.opacity));
+      };
       frames.forEach((path) => gsap.set(extras(path), { opacity: 0 }));
 
-      // Every frame past the first begins as the shape before it, so entering
-      // view is the moment the clay changes, not a jump.
+      // Every frame past the first begins as the shape before it, hands and
+      // all, so entering view is the moment the clay changes, not a jump.
       frames.forEach((path, index) => {
-        if (index > 0) path.setAttribute('d', MAKING_STAGES[index - 1]!.path);
+        if (index > 0) drawAs(path, MAKING_STAGES[index - 1]!);
       });
 
       const observer =
@@ -247,18 +352,26 @@ export function MakingOf(): JSX.Element {
               (entries) => {
                 for (const entry of entries) {
                   if (!entry.isIntersecting) continue;
-                  const index = frames.indexOf(entry.target as SVGPathElement);
-                  observer?.unobserve(entry.target);
+                  const target = entry.target as SVGPathElement;
+                  const index = frames.indexOf(target);
+                  const stage = MAKING_STAGES[index]!;
+                  const { group, left, right } = handsOf(target);
+                  observer?.unobserve(target);
+                  const morph = { duration: 0.9, ease: 'power2.out' };
                   tweens.push(
-                    gsap.to(entry.target, {
-                      morphSVG: MAKING_STAGES[index]!.path,
-                      duration: 0.9,
-                      ease: 'power2.out',
-                    }),
-                    gsap.to(extras(entry.target as SVGPathElement), {
+                    gsap.to(target, { morphSVG: stage.path, ...morph }),
+                    gsap.to(left, { morphSVG: stage.hands.left, ...morph }),
+                    gsap.to(right, { morphSVG: stage.hands.right, ...morph }),
+                    gsap.to(group, { attr: { opacity: stage.hands.opacity }, ...morph }),
+                    gsap.to(extras(target), {
                       opacity: 1,
                       duration: 0.4,
                       delay: 0.7,
+                      onStart: () =>
+                        target
+                          .closest('figure')
+                          ?.querySelector('[data-making-lines]')
+                          ?.setAttribute('data-drawn', ''),
                     }),
                   );
                 }
@@ -273,16 +386,22 @@ export function MakingOf(): JSX.Element {
         });
       } else {
         // No way to watch for visibility: show every stage as drawn.
-        frames.forEach((path, index) => path.setAttribute('d', MAKING_STAGES[index]!.path));
+        frames.forEach((path, index) => drawAs(path, MAKING_STAGES[index]!));
+        section
+          .querySelectorAll('[data-making-lines]')
+          .forEach((lines) => lines.setAttribute('data-drawn', ''));
       }
 
       return () => {
         observer?.disconnect();
         tweens.forEach((tween) => tween.kill());
         frames.forEach((path, index) => {
-          path.setAttribute('d', MAKING_STAGES[index]!.path);
+          drawAs(path, MAKING_STAGES[index]!);
           gsap.set([path, ...extras(path)], { clearProps: 'all' });
         });
+        section
+          .querySelectorAll('[data-making-lines]')
+          .forEach((lines) => lines.removeAttribute('data-drawn'));
       };
     }
   }, [kit, mode]);
@@ -294,6 +413,7 @@ export function MakingOf(): JSX.Element {
       ref={sectionRef}
       aria-labelledby="making-heading"
       data-pinned={pinned ? '' : undefined}
+      data-mode={mode}
       className="making"
     >
       <Reveal className="making__intro">
@@ -310,12 +430,17 @@ export function MakingOf(): JSX.Element {
         <div className="making__stage" aria-hidden="true">
           <Scene
             path={FIRST.path}
+            hands={FIRST.hands}
             rim="opened"
             lines
             hidden
+            drawn={stage === 3}
             bodyRef={stagePathRef}
             rimRef={stageRimRef}
             linesRef={stageLinesRef}
+            handsRef={stageHandsRef}
+            leftRef={stageLeftRef}
+            rightRef={stageRightRef}
           />
           <p className="making__stage-caption">{MAKING_STAGES[stage]!.caption}</p>
         </div>
@@ -325,7 +450,12 @@ export function MakingOf(): JSX.Element {
         {MAKING_STAGES.map((item) => (
           <li key={item.id}>
             <figure className="making__frame">
-              <Scene path={item.path} rim={RIMS[item.id]} lines={item.id === 'pulled'} />
+              <Scene
+                path={item.path}
+                hands={item.hands}
+                rim={RIMS[item.id]}
+                lines={item.id === 'pulled'}
+              />
               <figcaption className="making__caption">{item.caption}</figcaption>
             </figure>
           </li>

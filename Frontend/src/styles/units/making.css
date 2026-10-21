@@ -38,14 +38,27 @@
   width: 100%;
 }
 
+/* The fill is the radial body, set on the path itself; the stroke is the sticker outline. */
 .making__shape {
-  fill: var(--color-terra);
   stroke: var(--color-cocoa);
   stroke-linejoin: round;
   stroke-width: 2;
 }
 
-/* The lit side, the middle and the shaded side of the clay. */
+/* The grain: noise rasterised once on a still rect, seen only through the silhouette. */
+.making__grain {
+  opacity: 0.22;
+}
+
+.making__grain-ink {
+  flood-color: var(--color-cocoa);
+}
+
+/* The wet shine, the lit side, the middle and the shaded side of the clay. */
+.making__stop-highlight {
+  stop-color: color-mix(in srgb, var(--color-terra-soft) 85%, var(--color-terra));
+}
+
 .making__stop-lit {
   stop-color: color-mix(in srgb, var(--color-terra-soft) 55%, var(--color-terra));
 }
@@ -80,6 +93,15 @@
   stroke-width: 1.5;
 }
 
+/* The shadow along the front of the wheel head, under its rim. */
+.making__wheel-rim {
+  fill: none;
+  opacity: 0.22;
+  stroke: var(--color-terra-deep);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
 .making__shadow {
   fill: var(--color-cocoa);
   opacity: 0.2;
@@ -102,6 +124,32 @@
 
 .making__throwing-lines path {
   opacity: 0.55;
+}
+
+/* The hands, drawn like the stickers: a cocoa outline and nothing inside it. */
+.making__hands {
+  fill: none;
+  stroke: var(--color-cocoa);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+/*
+ * The throwing lines draw themselves on once they arrive — only while motion
+ * is driving the section. Without it (reduced motion, no script, a failed
+ * load) none of this applies and the lines are simply there.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .making:is([data-mode='pinned'], [data-mode='stages']) .making-line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1) 150ms;
+  }
+
+  .making [data-drawn] .making-line {
+    stroke-dashoffset: 0;
+  }
 }
 
 .making__flecks {

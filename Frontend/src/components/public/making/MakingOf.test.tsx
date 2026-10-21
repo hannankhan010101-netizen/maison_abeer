@@ -153,7 +153,8 @@ describe('MakingOf artwork', () => {
     const stage = container.querySelector('.making__stage')!;
     expect(stage.getAttribute('aria-hidden')).toBe('true');
     const targets = timeline.to.mock.calls.map((call) => (call as unknown[])[0]);
-    expect(targets.length).toBe(6);
+    // Body, rim, lines, the hands group and each hand: nothing else moves.
+    expect(new Set(targets).size).toBe(6);
     expect(targets.includes(stage.querySelector('[data-making-rim]'))).toBe(true);
     expect(targets.includes(stage.querySelector('[data-making-lines]'))).toBe(true);
   });
@@ -167,6 +168,108 @@ describe('MakingOf artwork', () => {
     for (const file of files) {
       const source = readFileSync(join(process.cwd(), 'src', file), 'utf8');
       expect(source, file).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    }
+  });
+});
+
+describe('MakingOf clay', () => {
+  /** An element's `url(#id)` reference, resolved inside its own picture. */
+  function referenced(svg: Element, value: string | null): Element | null {
+    const id = /^url\(#(.+)\)$/.exec(value ?? '')?.[1];
+    return id ? svg.querySelector(`[id="${id}"]`) : null;
+  }
+
+  it('gives every picture a grain filter and a lit radial body with a highlight', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    const svgs = container.querySelectorAll('figure svg');
+    expect(svgs).toHaveLength(4);
+    svgs.forEach((svg) => {
+      const filter = svg.querySelector('filter[id^="clay-grain"]');
+      expect(filter).not.toBeNull();
+      expect(filter!.querySelector('feTurbulence')).not.toBeNull();
+      expect(filter!.querySelector('feComposite, feColorMatrix')).not.toBeNull();
+      const body = svg.querySelector('radialGradient[id^="clay-body"]');
+      expect(body).not.toBeNull();
+      expect(body!.querySelector('stop.making__stop-highlight')).not.toBeNull();
+    });
+  });
+
+  it('textures a static rect clipped to the silhouette, never the morphing path itself', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    container.querySelectorAll('figure svg').forEach((svg) => {
+      const grain = svg.querySelector('rect[filter]')!;
+      expect(referenced(svg, grain.getAttribute('filter'))?.id).toMatch(/^clay-grain/);
+      const group = grain.closest('g[clip-path]')!;
+      const clip = referenced(svg, group.getAttribute('clip-path'))!;
+      expect(clip.tagName.toLowerCase()).toBe('clippath');
+      expect(clip.id).toMatch(/^clay-clip/);
+
+      // The clip holds the silhouette by reference, so only one path ever morphs.
+      const body = svg.querySelector('[data-making-body]')!;
+      expect(clip.querySelector('use')?.getAttribute('href')).toBe(`#${body.id}`);
+      expect(body.hasAttribute('filter')).toBe(false);
+      expect(referenced(svg, body.getAttribute('fill'))?.id).toMatch(/^clay-body/);
+    });
+  });
+
+  it('gives each picture its own ids, so every frame clips to its own shape', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    const ids = Array.from(container.querySelectorAll('[id^="clay-"]')).map((el) => el.id);
+    expect(ids.length).toBeGreaterThanOrEqual(16);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('draws the throwing lines as unit-length strokes that can draw on', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    const lines = container.querySelectorAll('[data-making-lines] path');
+    expect(lines.length).toBeGreaterThan(0);
+    lines.forEach((line) => {
+      expect(line.getAttribute('pathLength')).toBe('1');
+      expect(line.getAttribute('class')).toContain('making-line');
+    });
+  });
+
+  it('draws two outlined hands in every frame, hidden on the lump', () => {
+    media({ reduced: true, wide: true });
+    const { container } = render(<MakingOf />);
+
+    const frames = Array.from(container.querySelectorAll('figure'));
+    expect(frames).toHaveLength(4);
+    frames.forEach((frame, index) => {
+      const hands = frame.querySelector('[data-making-hands]')!;
+      expect(hands.querySelectorAll('path')).toHaveLength(2);
+      expect(hands.querySelector('[data-making-hand="left"]')?.getAttribute('d')).toBe(
+        MAKING_STAGES[index]!.hands.left,
+      );
+      expect(hands.querySelector('[data-making-hand="right"]')?.getAttribute('d')).toBe(
+        MAKING_STAGES[index]!.hands.right,
+      );
+      expect(hands.getAttribute('opacity')).toBe(String(MAKING_STAGES[index]!.hands.opacity));
+    });
+  });
+
+  it('morphs both hands through the stages on the pinned stage', async () => {
+    media({ reduced: false, wide: true });
+    const { kit, timeline } = fakeKit();
+    load.mockResolvedValue(kit as never);
+
+    const { container } = render(<MakingOf />);
+    await waitFor(() => expect(timeline.to).toHaveBeenCalled());
+
+    const stage = container.querySelector('.making__stage')!;
+    for (const side of ['left', 'right']) {
+      const hand = stage.querySelector(`[data-making-hand="${side}"]`);
+      expect(hand, side).not.toBeNull();
+      const morphs = timeline.to.mock.calls.filter((call) => (call as unknown[])[0] === hand);
+      expect(morphs, side).toHaveLength(3);
     }
   });
 });
