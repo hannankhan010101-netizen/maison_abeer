@@ -29,6 +29,19 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
 
   /**
+   * The share card's typeface, carried into the serverless bundle.
+   *
+   * `opengraph-image.tsx` reads `src/fonts/fraunces-og.woff` with `fs` at
+   * request time. The build's file tracing follows imports, not `readFile`
+   * paths, so without this line the font is left out of the deployed route
+   * and the card quietly renders in the built-in sans. Verified by grepping
+   * the route's `.nft.json` after `next build`.
+   */
+  outputFileTracingIncludes: {
+    '/book/[slug]/opengraph-image': ['./src/fonts/fraunces-og.woff'],
+  },
+
+  /**
    * Webpack's on-disk cache, in development on Windows only.
    *
    * Windows holds a lock on the pack file while another process reads it, so
