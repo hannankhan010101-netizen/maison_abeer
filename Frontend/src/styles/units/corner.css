@@ -1,7 +1,340 @@
-/* The Craft Corner. Static and complete by default; motion only under no-preference. */
+/*
+ * The Craft Corner. Static and complete by default: every step, tool and
+ * answer is readable with no motion at all. The reveals, the scroll-linked
+ * steps and the tool-card pop live only under `no-preference`, and are asked
+ * for by the component's motion tier (classes `is-reveal`, `is-scroll`).
+ * Tints come from the `--craft-<kind>` / `--craft-<kind>-ink` pairs.
+ */
 
 .corner {
   margin-inline: auto;
   max-width: 72rem;
   padding: 3rem 1rem;
+  color: var(--color-cocoa);
+}
+
+.corner-head {
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.corner-eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-rose-ink);
+}
+
+.corner-title {
+  margin-top: 0.25rem;
+  font-size: clamp(1.75rem, 4vw + 0.5rem, 2.75rem);
+  line-height: 1.1;
+}
+
+.corner-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.corner-tab {
+  min-height: 44px;
+  padding: 0.5rem 1.125rem;
+  border: 2px solid var(--corner-ink);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--corner-ink);
+  font-weight: 600;
+}
+
+.corner-tab[aria-selected='true'] {
+  background: var(--corner-tint);
+  box-shadow: var(--sticker-shadow);
+}
+
+.corner-tab:focus-visible,
+.corner-tool-button:focus-visible,
+.corner-faq-button:focus-visible,
+.corner-fact-next:focus-visible,
+.corner-check:focus-within,
+.corner-panel:focus-visible {
+  outline: 3px solid var(--corner-ink);
+  outline-offset: 2px;
+}
+
+.corner-panel {
+  border-radius: var(--radius-xl);
+  background: var(--corner-tint);
+  padding: 1.25rem 1rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.corner-panel-title {
+  font-size: clamp(1.5rem, 3vw + 0.5rem, 2.25rem);
+  color: var(--corner-ink);
+}
+
+.corner-blurb {
+  margin-top: 0.25rem;
+  max-width: 40rem;
+}
+
+.corner-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .corner-panel {
+    padding: 2rem;
+  }
+
+  .corner-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.corner-block {
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+  padding: 1rem;
+}
+
+.corner-block-title {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: var(--corner-ink);
+}
+
+.corner-hint {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.corner-makes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.corner-sticker {
+  border: 1px dashed var(--corner-ink);
+  border-radius: var(--radius-md);
+  background: var(--corner-tint);
+  padding: 0.375rem 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.corner-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem;
+}
+
+.corner-tool-button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--corner-tint);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--color-cocoa);
+  text-align: left;
+  font-weight: 600;
+}
+
+.corner-tool-button[aria-expanded='true'] {
+  border-color: var(--corner-ink);
+  background: var(--corner-tint);
+}
+
+.corner-tool-card {
+  margin-top: 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--corner-tint);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.corner-tool-card[hidden] {
+  display: none;
+}
+
+.corner-steps {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+.corner-step {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.corner-step-number {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--corner-tint);
+  color: var(--corner-ink);
+  font-weight: 700;
+}
+
+.corner-step-title {
+  font-weight: 700;
+}
+
+.corner-tips {
+  display: grid;
+  gap: 0.375rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.corner-fact {
+  margin-top: 1rem;
+  border-radius: var(--radius-lg);
+  background: var(--corner-tint);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--sticker-shadow);
+}
+
+.corner-fact-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--corner-ink);
+}
+
+.corner-fact-next {
+  margin-top: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--corner-ink);
+  font-weight: 600;
+}
+
+.corner-bring {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.corner-check {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.corner-check-box {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--corner-ink);
+}
+
+.corner-check-box:checked + span {
+  text-decoration: line-through;
+  text-decoration-color: var(--corner-ink);
+}
+
+.corner-faq {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.corner-faq-button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--corner-tint);
+  color: var(--color-cocoa);
+  text-align: left;
+  font-weight: 600;
+}
+
+.corner-faq-answer {
+  padding: 0.5rem 0.75rem 0;
+}
+
+.corner-faq-answer[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes corner-rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes corner-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .corner-steps.is-reveal .corner-step {
+    animation: corner-rise var(--dur-slow) var(--ease-out-expo) both;
+    animation-delay: calc(var(--step-index, 0) * 80ms);
+  }
+
+  @supports (animation-timeline: view()) {
+    .corner-steps.is-scroll .corner-step {
+      animation: corner-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+  }
+
+  @supports not (animation-timeline: view()) {
+    .corner-steps.is-scroll .corner-step {
+      animation: corner-rise var(--dur-slow) var(--ease-out-expo) both;
+      animation-delay: calc(var(--step-index, 0) * 80ms);
+    }
+  }
+
+  .corner:not([data-tier='0']) .corner-tool-card:not([hidden]),
+  .corner:not([data-tier='0']) .corner-faq-answer:not([hidden]),
+  .corner:not([data-tier='0']) .corner-fact-text {
+    animation: corner-pop var(--dur-base) var(--ease-spring-soft) both;
+  }
+
+  .corner-tab,
+  .corner-tool-button,
+  .corner-fact-next {
+    transition: transform var(--dur-fast) var(--ease-spring);
+  }
+
+  .corner:not([data-tier='0']) .corner-tab:active,
+  .corner:not([data-tier='0']) .corner-tool-button:active,
+  .corner:not([data-tier='0']) .corner-fact-next:active {
+    transform: scale(0.96);
+  }
 }

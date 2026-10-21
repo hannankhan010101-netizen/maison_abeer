@@ -20,10 +20,7 @@ export function StorySteps({ steps }: { steps: readonly GuideStep[] }) {
   return (
     <div className="corner-block">
       <h4 className="corner-block-title">How it goes</h4>
-      <ol
-        className={`corner-steps ${motion}`.trim()}
-        data-motion={tier === 0 ? 'none' : motion}
-      >
+      <ol className={`corner-steps ${motion}`.trim()} data-motion={tier === 0 ? 'none' : motion}>
         {steps.map((step, index) => (
           <li
             key={step.id}

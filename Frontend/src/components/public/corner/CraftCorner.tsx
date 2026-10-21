@@ -2,12 +2,15 @@
 
 import { useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 
-import { guideFor } from '@/lib/public/craftGuide';
+import { COMMON_FAQ, guideFor } from '@/lib/public/craftGuide';
 import type { CraftKind } from '@/lib/public/studioPhotos';
 import { haptic, useMotionTier } from '@/lib/motion';
 
+import { BringList } from './BringList';
+import { FaqAccordion } from './FaqAccordion';
 import { MakesStrip } from './MakesStrip';
 import { StorySteps } from './StorySteps';
+import { TipsAndFacts } from './TipsAndFacts';
 import { ToolGrid } from './ToolGrid';
 
 import '@/styles/units/corner.css';
@@ -139,6 +142,9 @@ export default function CraftCorner({ crafts }: { crafts: CraftKind[] }) {
                   <MakesStrip makes={guide.makes} />
                   <ToolGrid tools={guide.tools} />
                   <StorySteps steps={guide.steps} />
+                  <TipsAndFacts tips={guide.tips} funFacts={guide.funFacts} />
+                  <BringList items={guide.bring} />
+                  <FaqAccordion entries={[...guide.faq, ...COMMON_FAQ]} />
                 </div>
               </>
             )}
