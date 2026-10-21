@@ -278,7 +278,10 @@ async function studioPhotoCounts(page: Page): Promise<Map<string, number>> {
     );
   const counts = new Map<string, number>();
   for (const src of sources) {
-    const name = src.split('/').pop()!.replace(/-800(?=\.\w+$)/, '');
+    const name = src
+      .split('/')
+      .pop()!
+      .replace(/-800(?=\.\w+$)/, '');
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   return counts;
