@@ -17,6 +17,7 @@ import { StorySection } from '@/components/public/booking/StorySection';
 import { TicketStub } from '@/components/public/booking/TicketStub';
 import { cn } from '@/lib/cn';
 import { type PublicClass, type PublicMemory, type PublicWord } from '@/lib/public/api';
+import { craftsIn } from '@/lib/public/studioPhotos';
 
 export interface StorefrontPageProps {
   children: React.ReactNode;
@@ -56,6 +57,11 @@ export function StorefrontPage({
   words,
 }: StorefrontPageProps) {
   const brandSections = Boolean(showBrandSections && classes && classes.length > 0);
+  // "The making of" is a story about throwing a pot, so it follows the same rule as every
+  // other section that draws on the classes: never about a craft the studio does not teach.
+  const teachesPottery = craftsIn((classes ?? []).map((item) => item.color_token)).includes(
+    'pottery',
+  );
   const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
 
   return (
@@ -94,41 +100,54 @@ export function StorefrontPage({
             {story ? <StorySection story={story} /> : null}
             <CraftChapters classes={classes!} />
             <MemoryWall classes={classes!} memories={memories} words={words} />
-            <MakingOf />
+            {teachesPottery ? <MakingOf /> : null}
             <PhotoMarquee classes={classes!} />
             <BookingPostcard classes={classes!} />
           </div>
         </>
       ) : null}
 
+      {/* The key is what stops the page jumping. Until the classes arrive this is
+          all there is: a placeholder as tall as the screen, centred. When they do,
+          the hero and every section render *above* the booking card, and if the
+          card were the same element it would be shoved thousands of pixels down —
+          a layout shift of 0.5 on a phone. A different key makes React replace the
+          placeholder with the card rather than move it, and a replaced element
+          does not count as having shifted. (The step changes inside the card do
+          not touch this key, so view transitions are unaffected.) */}
       <div
-        className={cn(
-          'mx-auto w-full max-w-[600px] px-4 sm:px-6',
-          !studioName && 'py-8 sm:py-12',
-          studioName && !brandSections && 'pt-6 pb-14 sm:pt-8',
-          studioName && brandSections && 'pt-8 pb-14 sm:pt-12',
-        )}
+        key={studioName ? 'page' : 'loading'}
+        className={cn(!studioName && 'flex min-h-[100svh] items-center')}
       >
-        {/* The widget is a ticket: a stub across the top with the step
-            dots, a perforation, and the form beneath. */}
         <div
-          id="booking-widget"
           className={cn(
-            'border-line bg-paper relative scroll-mt-6 rounded-[var(--radius-xl)] border-[1.5px]',
-            studioName && 'shadow-[var(--shadow-lift)]',
+            'mx-auto w-full max-w-[600px] px-4 sm:px-6',
+            !studioName && 'py-8 sm:py-12',
+            studioName && !brandSections && 'pt-6 pb-14 sm:pt-8',
+            studioName && brandSections && 'pt-8 pb-14 sm:pt-12',
           )}
         >
-          {step ? <TicketStub current={step} /> : null}
-          <div className="p-5 sm:p-7">
-            {/* Re-keyed per step: picking a class, filling the form, and
+          {/* The widget is a ticket: a stub across the top with the step
+            dots, a perforation, and the form beneath. */}
+          <div
+            id="booking-widget"
+            className={cn(
+              'border-line bg-paper relative scroll-mt-6 rounded-[var(--radius-xl)] border-[1.5px]',
+              studioName && 'shadow-[var(--shadow-lift)]',
+            )}
+          >
+            {step ? <TicketStub current={step} /> : null}
+            <div className="p-5 sm:p-7">
+              {/* Re-keyed per step: picking a class, filling the form, and
                 landing on the confirmation are three different screens
                 wearing one card. Without this the swap between them is
                 instant and flat; the key forces React to remount the whole
                 subtree so the same rise-in used everywhere else on this page
                 plays here too, making the step change read as a deliberate
                 transition rather than a layout jump. */}
-            <div key={step} className="animate-rise-in">
-              {children}
+              <div key={step} className="animate-rise-in">
+                {children}
+              </div>
             </div>
           </div>
         </div>
