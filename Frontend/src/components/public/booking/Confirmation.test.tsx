@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +8,8 @@ const haptic = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/motion', () => ({ haptic }));
 
 import { Confirmation } from './Confirmation';
+
+const TOKEN = 'secret-portal-token-123';
 
 const result = {
   outcome: 'booked',
@@ -34,7 +36,7 @@ describe('Confirmation', () => {
     stubMotion(true);
     render(
       <StrictMode>
-        <Confirmation result={result} token="pink" />
+        <Confirmation result={result} token="pink" studioName="Maison Abeer" />
       </StrictMode>,
     );
     expect(haptic).toHaveBeenCalledTimes(1);
@@ -43,7 +45,7 @@ describe('Confirmation', () => {
 
   it('bursts 24 confetti pieces with fixed custom properties when motion is allowed', () => {
     stubMotion(true);
-    const first = render(<Confirmation result={result} token="pink" />);
+    const first = render(<Confirmation result={result} token="pink" studioName="Maison Abeer" />);
     const pieces = first.container.querySelectorAll<HTMLElement>('[data-confetti]');
     expect(pieces).toHaveLength(24);
     for (const piece of pieces) {
@@ -54,7 +56,7 @@ describe('Confirmation', () => {
     const signature = Array.from(pieces).map((p) => p.getAttribute('style'));
     first.unmount();
 
-    const second = render(<Confirmation result={result} token="pink" />);
+    const second = render(<Confirmation result={result} token="pink" studioName="Maison Abeer" />);
     expect(
       Array.from(second.container.querySelectorAll('[data-confetti]')).map((p) =>
         p.getAttribute('style'),
@@ -64,7 +66,9 @@ describe('Confirmation', () => {
 
   it('has no confetti under reduced motion, and the check is simply drawn', () => {
     stubMotion(false);
-    const { container } = render(<Confirmation result={result} token="pink" />);
+    const { container } = render(
+      <Confirmation result={result} token="pink" studioName="Maison Abeer" />,
+    );
     expect(container.querySelectorAll('[data-confetti]')).toHaveLength(0);
     expect(container.querySelector('.booking-check path')).not.toBeNull();
   });
@@ -75,8 +79,51 @@ describe('Confirmation', () => {
       <Confirmation
         result={{ ...result, outcome: 'waitlisted', waitlist_position: 2 } as BookingResult}
         token="pink"
+        studioName="Maison Abeer"
       />,
     );
     expect(container.querySelector('.booking-check')).toBeNull();
+  });
+
+  it('offers to save the ticket for a booked seat, after the stub and before the portal', () => {
+    stubMotion(false);
+    const { container } = render(
+      <Confirmation
+        result={{ ...result, portal_token: TOKEN, portal_token_type: 'magiclink' }}
+        token="pink"
+        studioName="Maison Abeer"
+      />,
+    );
+    const buttons = Array.from(container.querySelectorAll('button')).map((b) => b.textContent);
+    expect(buttons).toEqual(['Save my ticket', 'Open my portal ✨']);
+  });
+
+  it('offers no ticket for a waitlist place: it is not a seat', () => {
+    stubMotion(false);
+    render(
+      <Confirmation
+        result={{ ...result, outcome: 'waitlisted', waitlist_position: 2 } as BookingResult}
+        token="pink"
+        studioName="Maison Abeer"
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Save my ticket' })).toBeNull();
+  });
+
+  it('never puts the portal token in the page text or any attribute', () => {
+    stubMotion(false);
+    const { container } = render(
+      <Confirmation
+        result={{ ...result, portal_token: TOKEN, portal_token_type: 'magiclink' }}
+        token="pink"
+        studioName="Maison Abeer"
+      />,
+    );
+    expect(container.textContent).not.toContain(TOKEN);
+    for (const node of container.querySelectorAll('*')) {
+      for (const attribute of Array.from(node.attributes)) {
+        expect(attribute.value).not.toContain(TOKEN);
+      }
+    }
   });
 });

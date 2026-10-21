@@ -112,7 +112,11 @@ export function BookingFlow({ slug }: BookingFlowProps) {
       classes={data.classes}
     >
       {result ? (
-        <Confirmation result={result} token={chosen?.color_token ?? 'pink'} />
+        <Confirmation
+          result={result}
+          token={chosen?.color_token ?? 'pink'}
+          studioName={data.studio.name}
+        />
       ) : chosen ? (
         <DetailsStep slug={slug} item={chosen} onBack={() => goBack(chosen)} onDone={setResult} />
       ) : (

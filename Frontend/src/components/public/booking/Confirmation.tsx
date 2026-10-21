@@ -6,15 +6,25 @@ import { cn } from '@/lib/cn';
 import { haptic } from '@/lib/motion';
 import { type BookingResult } from '@/lib/public/api';
 import { formatDay, formatTime } from '@/lib/public/bookingCopy';
+import { ticketModel } from '@/lib/public/ticket';
 import { useMayAnimate } from '@/lib/public/useMayAnimate';
 import { useMountedNow } from '@/lib/public/useMountedNow';
 import '@/styles/units/booking.css';
+import { SaveTicket } from './SaveTicket';
 
 // ---------------------------------------------------------------------------
 // Step 3 — done
 // ---------------------------------------------------------------------------
 
-export function Confirmation({ result, token }: { result: BookingResult; token: string }) {
+export function Confirmation({
+  result,
+  token,
+  studioName,
+}: {
+  result: BookingResult;
+  token: string;
+  studioName: string;
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const now = useMountedNow();
 
@@ -77,6 +87,13 @@ export function Confirmation({ result, token }: { result: BookingResult; token: 
           ) : null}
         </p>
       </div>
+
+      {/* A waitlist place is not a seat, so it gets no ticket to keep. */}
+      {waitlisted ? null : (
+        <div className="animate-rise-in" style={{ animationDelay: '230ms' }}>
+          <SaveTicket model={ticketModel({ result, studioName })} />
+        </div>
+      )}
 
       {waitlisted ? (
         <p
