@@ -14,7 +14,7 @@ export const MAKING_STAGES = [
   {
     id: 'lump',
     caption: 'A lump of clay',
-    path: 'M70 206 C54 196 44 182 46 165 C48 145 56 126 70 118 C92 108 108 108 130 118 C144 126 152 145 154 165 C156 182 146 196 130 206 C110 212 90 212 70 206 Z',
+    path: 'M66 208 C50 202 40 190 42 176 C44 154 58 130 74 118 C92 106 108 106 126 118 C142 130 156 154 158 176 C160 190 150 202 134 208 C112 214 88 214 66 208 Z',
   },
   {
     id: 'centred',
@@ -24,7 +24,7 @@ export const MAKING_STAGES = [
   {
     id: 'opened',
     caption: 'Opened up',
-    path: 'M64 210 C54 200 44 178 42 150 C40 124 42 106 46 90 C80 100 120 100 154 90 C158 106 160 124 158 150 C156 178 146 200 136 210 C112 216 88 216 64 210 Z',
+    path: 'M64 210 C54 200 44 178 42 150 C40 124 42 106 46 90 C80 80 120 80 154 90 C158 106 160 124 158 150 C156 178 146 200 136 210 C112 216 88 216 64 210 Z',
   },
   {
     id: 'pulled',
@@ -36,6 +36,27 @@ export const MAKING_STAGES = [
   caption: string;
   path: string;
 }[];
+
+/** An ellipse as four cubic curves, so two of them can morph into one another. */
+function ellipse(cx: number, cy: number, rx: number, ry: number): string {
+  const k = 0.5523;
+  const n = (value: number) => Math.round(value * 10) / 10;
+  return [
+    `M${n(cx - rx)} ${cy}`,
+    `C${n(cx - rx)} ${n(cy - k * ry)} ${n(cx - k * rx)} ${n(cy - ry)} ${cx} ${n(cy - ry)}`,
+    `C${n(cx + k * rx)} ${n(cy - ry)} ${n(cx + rx)} ${n(cy - k * ry)} ${n(cx + rx)} ${cy}`,
+    `C${n(cx + rx)} ${n(cy + k * ry)} ${n(cx + k * rx)} ${n(cy + ry)} ${cx} ${n(cy + ry)}`,
+    `C${n(cx - k * rx)} ${n(cy + ry)} ${n(cx - rx)} ${n(cy + k * ry)} ${n(cx - rx)} ${cy}`,
+    'Z',
+  ].join(' ');
+}
+
+/**
+ * The dark opening seen from slightly above, sitting exactly on the top edge of
+ * the bowl and of the vase. It is a second morphing path, not a picture.
+ */
+export const RIM_OPENED = ellipse(100, 90, 54, 8);
+export const RIM_PULLED = ellipse(100, 34, 18, 4);
 
 /** Which stage a scroll position belongs to; anything unreadable is the first. */
 export function stageForProgress(progress: number): 0 | 1 | 2 | 3 {

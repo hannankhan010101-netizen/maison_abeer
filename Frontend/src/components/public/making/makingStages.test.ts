@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAKING_STAGES, stageForProgress } from './makingStages';
+import { MAKING_STAGES, RIM_OPENED, RIM_PULLED, stageForProgress } from './makingStages';
 
 describe('stageForProgress', () => {
   it.each([
@@ -33,5 +33,11 @@ describe('MAKING_STAGES', () => {
     const commands = (d: string) => d.replace(/[^A-Za-z]/g, '');
     expect(new Set(MAKING_STAGES.map((s) => commands(s.path))).size).toBe(1);
     expect(commands(MAKING_STAGES[0].path)).toBe('MCCCCCCZ');
+  });
+
+  it('draws the two rims with one command shape, so the rim can morph from bowl to vase', () => {
+    const commands = (d: string) => d.replace(/[^A-Za-z]/g, '');
+    expect(commands(RIM_OPENED)).toBe('MCCCCZ');
+    expect(commands(RIM_PULLED)).toBe(commands(RIM_OPENED));
   });
 });

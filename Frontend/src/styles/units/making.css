@@ -42,7 +42,71 @@
   fill: var(--color-terra);
   stroke: var(--color-cocoa);
   stroke-linejoin: round;
-  stroke-width: 3;
+  stroke-width: 2;
+}
+
+/* The lit side, the middle and the shaded side of the clay. */
+.making__stop-lit {
+  stop-color: color-mix(in srgb, var(--color-terra-soft) 55%, var(--color-terra));
+}
+
+.making__stop-mid {
+  stop-color: var(--color-terra);
+}
+
+.making__stop-shade {
+  stop-color: color-mix(in srgb, var(--color-terra-deep) 85%, var(--color-terra));
+}
+
+.making__wheel-top {
+  fill: var(--color-terra-soft);
+  stroke: var(--color-cocoa);
+  stroke-width: 1.5;
+}
+
+.making__wheel-side {
+  fill: var(--color-terra);
+  opacity: 0.6;
+  stroke: var(--color-cocoa);
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.making__wheel-lines {
+  fill: none;
+  opacity: 0.18;
+  stroke: var(--color-cocoa);
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.making__shadow {
+  fill: var(--color-cocoa);
+  opacity: 0.2;
+}
+
+.making__rim {
+  fill: var(--color-terra-deep);
+  stroke: var(--color-cocoa);
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.making__throwing-lines {
+  fill: none;
+  opacity: 1;
+  stroke: var(--color-terra-soft);
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.making__throwing-lines path {
+  opacity: 0.55;
+}
+
+.making__flecks {
+  fill: var(--color-terra-deep);
+  opacity: 0.55;
 }
 
 .making__caption {
