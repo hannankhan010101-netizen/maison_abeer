@@ -230,6 +230,12 @@
   --tab-bar-host: 64px; /* five tabs + "More" */
   --tab-bar-guest: 56px; /* two tabs */
   --tab-bar-border: 1.5px; /* both bars' `border-t` */
+
+  /* ---- rhythm ---------------------------------------------------------------
+     The storefront's one vertical beat. Sections are laid out with this gap
+     instead of each choosing its own margin, so the page has a rhythm rather
+     than seven opinions about spacing. */
+  --section-gap: clamp(56px, 9vw, 112px);
 }
 
 /* ==========================================================================

@@ -91,3 +91,9 @@ describe('theme colour', () => {
     expect(m.theme_color).toBe(THEME_COLOR.light);
   });
 });
+
+describe('storefront rhythm', () => {
+  it('names one vertical rhythm for the storefront', () => {
+    expect(root).toMatch(/--section-gap:\s*clamp\(56px,\s*9vw,\s*112px\)/);
+  });
+});

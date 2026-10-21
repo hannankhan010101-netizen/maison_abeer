@@ -95,7 +95,7 @@ export function StorefrontPage({
       {brandSections ? (
         <>
           <StudioRibbon crafts={crafts} />
-          <div className="space-y-14 pt-10 pb-4 sm:space-y-20 sm:pt-14">
+          <div className="flex flex-col gap-[var(--section-gap)] pt-[var(--section-gap)] pb-4">
             <HowItWorks />
             {story ? <StorySection story={story} /> : null}
             <CraftChapters classes={classes!} />

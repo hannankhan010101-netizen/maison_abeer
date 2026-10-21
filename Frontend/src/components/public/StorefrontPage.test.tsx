@@ -57,3 +57,16 @@ describe('StorefrontPage', () => {
     expect(screen.getAllByText('A lump of clay').length).toBeGreaterThan(0);
   });
 });
+
+describe('StorefrontPage rhythm', () => {
+  it('spaces its sections with the section-gap token, not per-section margins', () => {
+    page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    const wrapper = screen
+      .getByRole('heading', { name: 'How it works' })
+      .closest('section')!.parentElement!;
+
+    expect(wrapper.className).toContain('gap-[var(--section-gap)]');
+    expect(wrapper.className).not.toMatch(/space-y-/);
+  });
+});
