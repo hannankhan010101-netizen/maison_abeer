@@ -237,7 +237,11 @@ export async function saveTicket(
 
 ## Baseline
 
-_Filled in by Task B1._
+Measured 2026-10-21 at b49316b (typecheck exit 0; vitest exit 0; build exit 0):
+
+- Unit tests: 89 files, 1060 tests passed.
+- First Load JS: `/login` 181 kB (route 5.43 kB), `/enter` 110 kB (1.55 kB), `/book/[slug]` 138 kB (29.6 kB), `/portal` 207 kB (3.76 kB); shared 102 kB.
+- Budget for the gate: each of `/login`, `/enter`, `/book/[slug]` at most baseline + 4 kB.
 
 ## Self-review
 
