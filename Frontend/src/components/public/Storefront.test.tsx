@@ -42,10 +42,13 @@ describe('StudioFooter', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
 
-  it('offers no dead link when the studio has no handle', () => {
+  it('offers no dead Instagram link when the studio has no handle', () => {
     render(<StudioFooter studioName="Maison Abeer" handle={null} />);
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    // The credit and the last "Save a seat" are always there; only the
+    // studio's own channels depend on a handle.
+    expect(screen.queryByRole('link', { name: /^@/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /message us/i })).not.toBeInTheDocument();
     expect(screen.getByText(/see you at the studio/)).toBeInTheDocument();
   });
 });
