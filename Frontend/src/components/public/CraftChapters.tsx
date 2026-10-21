@@ -89,7 +89,11 @@ const STICKERS = {
 } as const;
 
 export function CraftChapters({ classes }: { classes: PublicClass[] }) {
-  const crafts = craftsFrom(classes);
+  // One chapter per craft, not per class type: two cake classes (pink and butter
+  // both read as cake) would otherwise get two chapters with the same photographs.
+  const crafts = craftsFrom(classes).filter(
+    (craft, index, all) => all.findIndex((other) => other.kind === craft.kind) === index,
+  );
   if (crafts.length === 0) return null;
 
   const budget = allocatePhotos(craftsIn(classes.map((item) => item.color_token)));

@@ -89,3 +89,18 @@ describe('CraftChapters', () => {
     }
   });
 });
+
+describe('CraftChapters — one chapter per craft', () => {
+  it('folds two class types of the same craft into one chapter, so no photo repeats', () => {
+    // pink and butter both read as cake (craftOf); two chapters would show the
+    // same large and accent photographs twice, breaking the photo budget.
+    render(
+      <CraftChapters classes={[aClass('pink', 'Bento cakes'), aClass('butter', 'Cupcakes')]} />,
+    );
+
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(
+      screen.queryByRole('heading', { name: 'Pick your kind of mess' }),
+    ).not.toBeInTheDocument();
+  });
+});
