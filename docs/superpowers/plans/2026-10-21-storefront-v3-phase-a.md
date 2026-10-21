@@ -592,7 +592,7 @@ it('spaces its sections with the section-gap token, not per-section margins', ()
 - [ ] **Step 5:** under the flock: the perf config → score ≥ baseline. If below: remove `<ParticleField />` from `BookingHero` (both branches), re-run, record.
 - [ ] **Step 6:** `node shoot.mjs` at 1440 and 375 for one craft and for three; look at every frame; page heights recorded below.
 
-**After (fill in):** perf guard —/5 · First Load JS — kB · height 1440 — px · 375 — px.
+**After (measured 2026-10-21 at 08aa69e):** perf guard `perf-scroll.spec.ts` passed 2/2 on a clean checkout (`.claude/worktrees/perf-bisect`, load ≈1.0–1.5) — it fails 3/3 in the main checkout while the dev server on 3010 watches the files the perf build writes (p95 33.3ms, a single dropped vsync at the 95th percentile; avg 17.5ms; no long tasks), so run the guard from a checkout with no dev server · `/book/[slug]` route 29.6 kB, First Load JS 138 kB (+2 kB on the baseline, budget +8) · the share-card font is traced into the image route · page height one craft 1440: 5,656 px (was 5,445 after S0, 7,479 before Phase A), 375: 4,565 px (5,150 / 5,134) · three crafts 1440: 9,212 px, 375: 8,380 px.
 
 ### Task 36: Independent review and the fix round
 
