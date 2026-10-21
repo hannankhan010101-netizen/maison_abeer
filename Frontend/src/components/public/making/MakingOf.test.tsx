@@ -279,15 +279,16 @@ describe('MakingOf layout and beats', () => {
     return Array.from(container.querySelectorAll('.making-layout ol.making-beats > li'));
   }
 
-  it('lists the four beats beside the scene, the first one current before any scroll', () => {
+  it('keeps the beats off the static strip, so each caption is read once', () => {
     media({ reduced: true, wide: true });
     const { container } = render(<MakingOf />);
 
     const layout = container.querySelector('.making-layout')!;
     expect(layout.querySelector('.making__scene .making__strip')).not.toBeNull();
-    const items = beats(container);
-    expect(items.map((li) => li.textContent?.trim())).toEqual(MAKING_STAGES.map((s) => s.caption));
-    expect(items.map((li) => li.getAttribute('aria-current'))).toEqual(['step', null, null, null]);
+    // The four captioned frames carry the story; a beats list beside them would
+    // say everything twice and leave a "current step" that never moves.
+    expect(beats(container)).toHaveLength(0);
+    expect(container.querySelector('.making-beats')).toBeNull();
   });
 
   it('puts the heading in the beats column, not alone above the scene', () => {
@@ -297,7 +298,6 @@ describe('MakingOf layout and beats', () => {
     const heading = container.querySelector('#making-heading')!;
     const column = heading.closest('.making__words')!;
     expect(column).not.toBeNull();
-    expect(column.querySelector('.making-beats')).not.toBeNull();
     expect(column.parentElement?.classList.contains('making-layout')).toBe(true);
     // Nothing of the heading sits outside the layout any more.
     expect(container.querySelector('section > .making__intro')).toBeNull();
@@ -321,6 +321,9 @@ describe('MakingOf layout and beats', () => {
       null,
       'step',
     ]);
+    // Decorative on the pinned stage: the strip's own captions are what is read,
+    // so the beats must not be read a second time.
+    expect(container.querySelector('ol.making-beats')?.getAttribute('aria-hidden')).toBe('true');
     expect(
       container.querySelector('.making__stage [data-making-lines]')?.hasAttribute('data-drawn'),
     ).toBe(true);

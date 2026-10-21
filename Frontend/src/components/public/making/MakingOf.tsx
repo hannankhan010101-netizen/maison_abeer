@@ -429,13 +429,19 @@ export function MakingOf(): JSX.Element {
             </h2>
           </Reveal>
 
-          <ol className="making-beats" style={{ '--beat': stage } as CSSProperties}>
-            {MAKING_STAGES.map((item, index) => (
-              <li key={item.id} aria-current={index === stage ? 'step' : undefined}>
-                {item.caption}
-              </li>
-            ))}
-          </ol>
+          {pinned ? (
+            <ol
+              className="making-beats"
+              aria-hidden="true"
+              style={{ '--beat': stage } as CSSProperties}
+            >
+              {MAKING_STAGES.map((item, index) => (
+                <li key={item.id} aria-current={index === stage ? 'step' : undefined}>
+                  {item.caption}
+                </li>
+              ))}
+            </ol>
+          ) : null}
         </div>
 
         <div className="making__scene">
