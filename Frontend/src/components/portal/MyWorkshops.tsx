@@ -111,12 +111,14 @@ function NothingYet() {
       </p>
 
       <p className="font-display mt-2 text-xl">Nothing here yet…</p>
-      <p className="text-latte mx-auto mt-1 max-w-[34ch] text-sm">
-        Your next era starts when you enrol ✨
-      </p>
 
-      <p className="text-latte mt-4 text-sm">
-        <HandNote>Ask your studio for the booking link ♡</HandNote>
+      {/* What to do, in words: a booking made a moment ago may still be on
+          its way, and otherwise the studio's link is the only way in. */}
+      <p className="mx-auto mt-3 max-w-[36ch]">
+        <HandNote>
+          Booked already? It can take a minute to appear. Otherwise ask your studio for the booking
+          link
+        </HandNote>
       </p>
     </Card>
   );
