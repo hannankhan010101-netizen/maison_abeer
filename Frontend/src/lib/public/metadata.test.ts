@@ -134,6 +134,16 @@ describe('seatsBlurb', () => {
     expect(seatsBlurb([klass('terra', '2026-11-03T10:00:00Z', 0)])).toBeNull();
     expect(seatsBlurb([])).toBeNull();
   });
+
+  it('ignores a class the host has marked full, even if seats_left still says otherwise', () => {
+    // The page's own seats line (bookingCopy.seatsLine) excludes is_full classes;
+    // the share card must not promise seats the page will not show.
+    const full = { ...klass('terra', '2026-11-03T10:00:00Z', 2), is_full: true };
+    expect(seatsBlurb([full])).toBeNull();
+    expect(seatsBlurb([full, klass('sage', '2026-11-05T10:00:00Z', 3)])).toBe(
+      '3 seats left in the next class',
+    );
+  });
 });
 
 describe('fetchStudioForMetadata', () => {

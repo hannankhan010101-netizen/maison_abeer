@@ -88,7 +88,9 @@ export function storefrontDescription(studio: PublicStudio | null, classes: Publ
 /** A count, never a date: the server's clock is not the guest's. */
 export function seatsBlurb(classes: PublicClass[]): string | null {
   const next = classes
-    .filter((item) => item.seats_left > 0)
+    // The same rule as the page's own seats line: a class the host marked full has
+    // no open seats, whatever its count still says.
+    .filter((item) => item.seats_left > 0 && !item.is_full)
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0];
 
   if (!next) return null;
