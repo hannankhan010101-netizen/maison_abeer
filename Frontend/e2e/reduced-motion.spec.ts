@@ -104,3 +104,37 @@ test('with motion allowed the same page does animate — so the guard above can 
 
   expect((await running(page)).length).toBeGreaterThan(0);
 });
+
+test('with reduced motion the pill, the verb and the sign-off are simply there', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await stubBookingApi(page, threeCrafts());
+  await page.goto('/book/maison-abeer');
+  await expect(page.getByRole('heading', { name: 'Pick your class' })).toBeAttached();
+
+  // The verb does not roll: one still "make".
+  await expect(page.locator('.verb-roll [data-verb]')).toHaveCount(1);
+  await expect(page.locator('.verb-roll [data-verb]')).toHaveText('make');
+
+  // Past the hero the pill is there with nothing running on it.
+  const hero = page.locator('main > header');
+  const heroBottom = await hero.evaluate(
+    (el) => el.getBoundingClientRect().bottom + window.scrollY,
+  );
+  await page.evaluate((y) => window.scrollTo(0, y), heroBottom + 200);
+  const pill = page.locator('[data-floating-pill]');
+  await expect(pill).toBeVisible();
+  const runningOnPill = await pill.evaluate(
+    (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
+  );
+  expect(runningOnPill).toBe(0);
+
+  // At the foot the sign-off is fully drawn, not drawing.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(600);
+  const stroke = page.locator('.signoff-stroke');
+  await expect(stroke).toBeAttached();
+  const offset = await stroke.evaluate((el) => getComputedStyle(el).strokeDashoffset);
+  expect(parseFloat(offset)).toBe(0);
+});

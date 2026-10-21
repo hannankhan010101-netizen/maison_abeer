@@ -16,9 +16,15 @@ function findHero(): Element | null {
   return document.querySelector('main > header');
 }
 
-export function useStorefrontPosition(): { heroVisible: boolean; widgetVisible: boolean } {
+export function useStorefrontPosition(): {
+  heroVisible: boolean;
+  widgetVisible: boolean;
+  footerVisible: boolean;
+} {
   const [heroVisible, setHeroVisible] = useState(true);
   const [widgetVisible, setWidgetVisible] = useState(false);
+  // The footer carries its own Save a seat; a pill on top of it would cover it.
+  const [footerVisible, setFooterVisible] = useState(false);
 
   useEffect(() => {
     if (typeof IntersectionObserver !== 'function') return;
@@ -58,6 +64,7 @@ export function useStorefrontPosition(): { heroVisible: boolean; widgetVisible: 
     const watchers = [
       watcher(findHero, setHeroVisible),
       watcher(() => document.getElementById('booking-widget'), setWidgetVisible),
+      watcher(() => document.querySelector('main footer'), setFooterVisible),
     ];
     const attach = () => watchers.forEach((run) => run());
 
@@ -72,5 +79,5 @@ export function useStorefrontPosition(): { heroVisible: boolean; widgetVisible: 
     };
   }, []);
 
-  return { heroVisible, widgetVisible };
+  return { heroVisible, widgetVisible, footerVisible };
 }

@@ -40,11 +40,11 @@ export function FloatingPill({
   studioName?: string;
   classes?: PublicClass[];
 }): JSX.Element | null {
-  const { heroVisible, widgetVisible } = useStorefrontPosition();
+  const { heroVisible, widgetVisible, footerVisible } = useStorefrontPosition();
   const now = useMountedNow();
   const soonest = nextClass(classes);
 
-  if (heroVisible || widgetVisible) return null;
+  if (heroVisible || widgetVisible || footerVisible) return null;
 
   return (
     <nav

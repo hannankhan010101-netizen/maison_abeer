@@ -42,7 +42,7 @@ beforeEach(() => {
   observers.length = 0;
   vi.stubGlobal('IntersectionObserver', FakeObserver);
   document.body.innerHTML =
-    '<main id="main"><header id="hero"></header><div id="booking-widget"></div><div id="mount"></div></main>';
+    '<main id="main"><header id="hero"></header><div id="booking-widget"></div><div id="mount"></div><footer id="footer"></footer></main>';
   hero = document.getElementById('hero')!;
   widget = document.getElementById('booking-widget')!;
   widget.scrollIntoView = scrollTo;
@@ -191,5 +191,19 @@ describe('FloatingPill', () => {
     setIntersecting(hero, false);
     link()!.click();
     expect(scrollTo).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+describe('FloatingPill at the end of the page', () => {
+  it('gives way to the footer, which carries its own Save a seat', () => {
+    render(<FloatingPill studioName="Maison Abeer" classes={[aClass()]} />);
+    setIntersecting(hero, false);
+    expect(screen.getByRole('navigation', { name: 'Book a seat' })).toBeInTheDocument();
+
+    setIntersecting(document.getElementById('footer')!, true);
+    expect(screen.queryByRole('navigation', { name: 'Book a seat' })).not.toBeInTheDocument();
+
+    setIntersecting(document.getElementById('footer')!, false);
+    expect(screen.getByRole('navigation', { name: 'Book a seat' })).toBeInTheDocument();
   });
 });
