@@ -3,13 +3,21 @@
 import { StudioImage } from '@/components/public/StudioImage';
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
-import { craftsIn, photosOfCrafts, type StudioPhoto } from '@/lib/public/studioPhotos';
+import { allocatePhotos } from '@/lib/public/photoBudget';
+import { craftsIn, type StudioPhoto } from '@/lib/public/studioPhotos';
 
 /**
- * "Moments from the studio" — two rows of photographs drifting past in
+ * "The crafts, up close" — two rows of photographs drifting past in
  * opposite directions, slowly enough to look at each one.
  *
- * Only photos of the crafts the studio has classes in. The second row is the
+ * The label says what they are: photographs of the crafts, not of this
+ * studio's own sessions, so they are never called the studio's moments.
+ *
+ * Only photos of the crafts the studio has classes in, and only the ones the
+ * photo budget still has uses left for once the fan, the chapters and the wall
+ * have taken theirs — in practice a studio with all three crafts. With fewer
+ * the strip would only replay what the page has already shown, so it does not
+ * render. The second row is the
  * same set started from the other end and moving the other way, so the two
  * never line up; it is `aria-hidden` outright, because a screen reader should
  * hear each picture once, not twice.
@@ -53,14 +61,15 @@ function reordered(photos: readonly StudioPhoto[]): StudioPhoto[] {
 }
 
 export function PhotoMarquee({ classes }: { classes: PublicClass[] }) {
-  const photos = photosOfCrafts(craftsIn(classes.map((item) => item.color_token)));
+  // Whatever the fan, the chapters and the wall left — empty unless there is
+  // enough for a strip worth looking at (`MARQUEE_MIN`).
+  const photos = allocatePhotos(craftsIn(classes.map((item) => item.color_token))).marquee;
 
-  // One photo is a picture, not a strip.
-  if (photos.length < 2) return null;
+  if (photos.length === 0) return null;
 
   return (
-    <section aria-label="Moments from the studio" className="overflow-hidden py-2">
-      <p className="font-hand text-rose-ink px-4 text-center text-xl">moments from the studio</p>
+    <section aria-label="The crafts, up close" className="overflow-hidden py-2">
+      <p className="font-hand text-rose-ink px-4 text-center text-xl">the crafts, up close</p>
 
       <div className="mt-5 grid gap-4">
         <Row photos={photos} direction="fwd" />
