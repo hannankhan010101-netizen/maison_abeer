@@ -21,9 +21,84 @@
   padding: 0;
 }
 
+/*
+ * Phones: the heading, then the 2×2 strip (its own captions tell the beats).
+ * From md: the scene on the left (55%), the heading and the beats on the right.
+ * The words come first in the source so a screen reader meets the heading first.
+ */
+.making-layout {
+  display: grid;
+  gap: 1.5rem 2.5rem;
+}
+
+.making-beats {
+  display: none;
+}
+
 @media (min-width: 768px) {
-  .making__strip {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .making-layout {
+    align-items: center;
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
+    width: 100%;
+  }
+
+  .making__scene {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .making__words {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: start;
+  }
+
+  .making__words .making__intro {
+    margin-inline: 0;
+  }
+
+  .making-beats {
+    display: block;
+    list-style: none;
+    margin: 1.75rem 0 0;
+    padding: 0 0 0 1.5rem;
+    position: relative;
+  }
+
+  .making-beats > li {
+    align-items: center;
+    color: var(--color-latte);
+    display: flex;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    min-height: 3rem;
+  }
+
+  .making-beats > li[aria-current='step'] {
+    color: var(--color-cocoa);
+  }
+
+  /* The terracotta dot beside the current beat, only while scroll drives it. */
+  .making[data-pinned] .making-beats::before {
+    background: var(--color-terra);
+    border-radius: 50%;
+    content: '';
+    height: 0.625rem;
+    left: 0;
+    position: absolute;
+    top: calc(1.5rem - 0.3125rem);
+    transform: translateY(calc(var(--beat, 0) * 3rem));
+    width: 0.625rem;
+  }
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .making[data-pinned] .making-beats::before {
+    transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .making[data-pinned] .making-beats > li {
+    transition: color 250ms ease;
   }
 }
 
@@ -38,14 +113,27 @@
   width: 100%;
 }
 
+/* The fill is the radial body, set on the path itself; the stroke is the sticker outline. */
 .making__shape {
-  fill: var(--color-terra);
   stroke: var(--color-cocoa);
   stroke-linejoin: round;
   stroke-width: 2;
 }
 
-/* The lit side, the middle and the shaded side of the clay. */
+/* The grain: noise rasterised once on a still rect, seen only through the silhouette. */
+.making__grain {
+  opacity: 0.22;
+}
+
+.making__grain-ink {
+  flood-color: var(--color-cocoa);
+}
+
+/* The wet shine, the lit side, the middle and the shaded side of the clay. */
+.making__stop-highlight {
+  stop-color: color-mix(in srgb, var(--color-terra-soft) 85%, var(--color-terra));
+}
+
 .making__stop-lit {
   stop-color: color-mix(in srgb, var(--color-terra-soft) 55%, var(--color-terra));
 }
@@ -80,6 +168,15 @@
   stroke-width: 1.5;
 }
 
+/* The shadow along the front of the wheel head, under its rim. */
+.making__wheel-rim {
+  fill: none;
+  opacity: 0.22;
+  stroke: var(--color-terra-deep);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
 .making__shadow {
   fill: var(--color-cocoa);
   opacity: 0.2;
@@ -102,6 +199,32 @@
 
 .making__throwing-lines path {
   opacity: 0.55;
+}
+
+/* The hands, drawn like the stickers: a cocoa outline and nothing inside it. */
+.making__hands {
+  fill: none;
+  stroke: var(--color-cocoa);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+/*
+ * The throwing lines draw themselves on once they arrive — only while motion
+ * is driving the section. Without it (reduced motion, no script, a failed
+ * load) none of this applies and the lines are simply there.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .making:is([data-mode='pinned'], [data-mode='stages']) .making-line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1) 150ms;
+  }
+
+  .making [data-drawn] .making-line {
+    stroke-dashoffset: 0;
+  }
 }
 
 .making__flecks {
@@ -138,14 +261,6 @@
 }
 
 .making__stage {
-  margin-top: 1.5rem;
-  width: min(48vh, 20rem);
-}
-
-.making__stage-caption {
-  color: var(--color-cocoa);
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  margin-top: 0.75rem;
-  min-height: 2em;
+  margin-inline: auto;
+  width: min(62vh, 24rem);
 }
