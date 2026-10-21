@@ -1,0 +1,19 @@
+/*
+ * Pop-up cards. Static and complete by default: the photo sits still in a
+ * reserved box. With motion allowed (tier 1+, `data-popups-motion` on the
+ * list), the photo leans in a touch on hover. Transform only.
+ */
+
+.popup-photo {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-popups-motion] .popup-photo {
+    transition: transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  [data-popups-motion] .popup-card:hover .popup-photo {
+    transform: scale(1.04);
+  }
+}
