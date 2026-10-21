@@ -237,12 +237,16 @@ export function BookingHero({
               own hands", its verb rolling through the crafts the classes
               teach. The rolling line is aria-hidden; a screen reader hears
               the one plain sentence in the sr-only copy and no live region.
+              Its measure is 14em, not 22ch: `ch` is the width of the face's
+              "0", so a 22ch box was 242px in the fallback and 308px in
+              Fraunces, and the line rewrapped when the font arrived. 14em is
+              Fraunces's 22ch, in a unit no face changes.
               Under reduced motion or Data Saver the verb is a still "make".
               Over a photo the verb takes the pink, as the "bestie" line
               does: the rose ink is a paper colour, not a photo one. */}
           <p
             className={cn(
-              'hero-promise font-display animate-rise-in mx-auto mt-5 max-w-[22ch]',
+              'hero-promise font-display animate-rise-in mx-auto mt-5 max-w-[14em]',
               'text-[clamp(22px,3.2vw,40px)] leading-[1.1] text-balance',
               hasPhoto ? 'text-photo-ink' : 'text-cocoa',
             )}

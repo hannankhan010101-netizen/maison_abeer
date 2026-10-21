@@ -17,7 +17,11 @@ const storefrontDisplay = localFont({
   weight: '100 900',
   variable: '--font-storefront-display-loaded',
   display: 'swap',
-  adjustFontFallback: 'Times New Roman',
+  // next/font's adjusted fallback is local("Times New Roman"), which Android and
+  // Linux Chromium never find; these two local faces (hero.css) are scaled to
+  // Fraunces instead, so the server-rendered hero does not rewrap when it swaps.
+  adjustFontFallback: false,
+  fallback: ['Fraunces Fallback Noto', 'Fraunces Fallback Times', 'Georgia', 'serif'],
 });
 
 const DISPLAY_STYLE = {

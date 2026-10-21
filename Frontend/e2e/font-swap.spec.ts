@@ -37,7 +37,7 @@ interface Shift {
 
 declare global {
   interface Window {
-    __swap?: { cls: number; shifts: Shift[] };
+    __swap?: { cls: number; shifts: Shift[]; fallback?: string; loaded?: string };
   }
 }
 
@@ -71,7 +71,10 @@ for (const width of WIDTHS) {
     });
 
     await page.addInitScript(() => {
-      const swap = { cls: 0, shifts: [] as Shift[] };
+      const swap: { cls: number; shifts: Shift[]; fallback?: string; loaded?: string } = {
+        cls: 0,
+        shifts: [],
+      };
       window.__swap = swap;
       const describe = (node: Node | null) => {
         const el = node instanceof Element ? node : (node?.parentElement ?? null);
@@ -102,6 +105,18 @@ for (const width of WIDTHS) {
           });
         }
       }).observe({ type: 'layout-shift', buffered: true });
+      // The hero's text boxes in the fallback face (first frame) and once Fraunces is in.
+      const boxes = () =>
+        ['h1', '.hero-promise']
+          .map((sel) => {
+            const r = document.querySelector(sel)?.getBoundingClientRect();
+            return r ? `${sel} ${Math.round(r.width)}x${Math.round(r.height)}` : `${sel} -`;
+          })
+          .join(', ');
+      document.addEventListener('DOMContentLoaded', () => {
+        swap.fallback = boxes();
+        void document.fonts.ready.then(() => (swap.loaded = boxes()));
+      });
     });
 
     await throttle(page);
@@ -112,6 +127,7 @@ for (const width of WIDTHS) {
     const result = await page.evaluate(() => window.__swap ?? { cls: 0, shifts: [] });
     const cls = Number(result.cls.toFixed(4));
     console.log(`font-swap ${width}px: CLS ${cls}, Fraunces requests held ${held}`);
+    console.log(`  fallback: ${result.fallback ?? '?'}; loaded: ${result.loaded ?? '?'}`);
     for (const shift of [...result.shifts].sort((a, b) => b.value - a.value).slice(0, 3)) {
       console.log(`  shift ${shift.value} at ${shift.atMs} ms: ${shift.sources.join('; ')}`);
     }
