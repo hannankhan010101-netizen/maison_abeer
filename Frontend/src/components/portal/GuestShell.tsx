@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
+import { ClaimNotice, ClaimSilently } from '@/components/portal/ClaimNotice';
 import { MochaToggle } from '@/components/ui/MochaToggle';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ApiProvider } from '@/lib/api/provider';
-import { useClaimAccount } from '@/lib/api/hooks';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 
@@ -47,7 +47,7 @@ export function GuestShell({ children }: { children: ReactNode }) {
         {/* No `offsetClassName`: an open thread renders no tab bar, so the
             toast keeps its plain 1rem inset above the composer. */}
         <ToastProvider>
-          <ClaimOnFirstVisit />
+          <ClaimSilently />
           {/* The thread owns the viewport and does its own scrolling. */}
           <main id="main">{children}</main>
         </ToastProvider>
@@ -58,8 +58,6 @@ export function GuestShell({ children }: { children: ReactNode }) {
   return (
     <ApiProvider unauthorizedRedirectTo="/enter">
       <ToastProvider offsetClassName="[--tab-bar-h:var(--tab-bar-guest)]">
-        <ClaimOnFirstVisit />
-
         {/* Derived from the guest bar's own height, not remembered as `pb-24`:
             24px of clearance above a 56px bar plus its border, with the
             home-indicator inset left to `body` (`globals.css`), which is the
@@ -82,6 +80,10 @@ export function GuestShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
+          {/* Says so when this sign-in matches no booking, or the check fails;
+              silent once matched. */}
+          <ClaimNotice />
+
           <main id="main">{children}</main>
         </div>
 
@@ -89,28 +91,6 @@ export function GuestShell({ children }: { children: ReactNode }) {
       </ToastProvider>
     </ApiProvider>
   );
-}
-
-/**
- * Match this Supabase identity to a guest record, once.
- *
- * Runs on mount rather than in the auth callback so it survives a guest who
- * bookmarks `/portal` and returns later — the callback fires once, but the
- * link between identity and booking has to exist on every visit.
- *
- * Safe to repeat: the endpoint returns the existing match rather than
- * re-pointing anything.
- */
-function ClaimOnFirstVisit() {
-  const claim = useClaimAccount();
-
-  useEffect(() => {
-    claim.mutate();
-    // Once per mount. Re-running on every render would hammer the endpoint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return null;
 }
 
 function SignOut() {
