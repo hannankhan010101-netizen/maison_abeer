@@ -113,7 +113,7 @@ function draw(ctx: CanvasRenderingContext2D, model: TicketModel, fonts: Fonts) {
   ctx.fillStyle = C.buttercream;
   for (const cx of [card.x, card.x + card.w]) {
     ctx.beginPath();
-    ctx.arc(cx, tearY, 34, 0, Math.PI * 2);
+    ctx.arc(cx, tearY, 26, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.save();
