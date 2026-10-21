@@ -56,6 +56,13 @@ describe('CraftCorner', () => {
     expect(screen.queryByText(/Potter/)).toBeNull();
   });
 
+  it('teaches the selected craft from its guide', () => {
+    render(<CraftCorner crafts={['pottery']} />);
+    expect(screen.getByRole('button', { name: 'Potter’s wheel' })).toBeInTheDocument();
+    expect(screen.getByText('Wedge')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'The idea' })).toBeInTheDocument();
+  });
+
   it('tints each panel with its craft tokens', () => {
     render(<CraftCorner crafts={['cake', 'pottery']} />);
     const panel = screen.getByRole('tabpanel');

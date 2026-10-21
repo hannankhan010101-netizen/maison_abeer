@@ -6,6 +6,10 @@ import { guideFor } from '@/lib/public/craftGuide';
 import type { CraftKind } from '@/lib/public/studioPhotos';
 import { haptic, useMotionTier } from '@/lib/motion';
 
+import { MakesStrip } from './MakesStrip';
+import { StorySteps } from './StorySteps';
+import { ToolGrid } from './ToolGrid';
+
 import '@/styles/units/corner.css';
 
 /**
@@ -131,6 +135,11 @@ export default function CraftCorner({ crafts }: { crafts: CraftKind[] }) {
                   {guide.title}
                 </h3>
                 <p className="corner-blurb">{guide.blurb}</p>
+                <div className="corner-grid">
+                  <MakesStrip makes={guide.makes} />
+                  <ToolGrid tools={guide.tools} />
+                  <StorySteps steps={guide.steps} />
+                </div>
               </>
             )}
           </div>
