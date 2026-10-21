@@ -46,13 +46,26 @@ look: a boutique that feels like a hand-made zine, not a template.
    make, the tools, how it goes, good-to-know tips, what to bring and an FAQ. Playful and tappable.
 4. **Every button works, and stays working.** A written contract and an automated tap-everything
    test, so a dead button cannot ship.
-5. **Flash fast.** Landing page LCP at or under 1.8 s at the 75th percentile on a mid-range Android
-   over 4G, CLS under 0.05, INP under 200 ms, initial JavaScript no larger than today's 139 kB.
+5. **Flash fast.** Measured in the lab on a production build: Slow 4G (1.6 Mbps, 150 ms round trip),
+   a 4x CPU slowdown and a Moto G-class viewport, for both a warm and a cold server cache. Targets:
+   LCP at or under 1.8 s, CLS under 0.05, INP under 200 ms. Initial JavaScript for `/book/[slug]` is
+   no larger than today's 139 kB **at the end of every phase**; new code beyond the first screen is
+   lazy-loaded. No field monitoring service is added (no new service or dependency), so these are lab
+   numbers recorded in each phase's plan.
 6. **Smooth everywhere.** 60 fps scrolling on a mid-range phone; animation only on the compositor.
 7. **Made for sharing.** Quiz results, tickets and class cards are made as Instagram Story images
    that carry `@maison._abeer`.
 8. **One identity across the app.** Booking, ticket, guest portal, host screens and name tags speak
    the same visual language.
+
+## Scope note: one brand first
+
+The product is multi-studio underneath (`/book/[slug]` serves any studio), but this design is for
+**Maison Abeer first**. Where it is cheap, content comes from the studio's data and not a constant:
+the Instagram handle, the venue, the craft of each class (already derived from the class type's
+colour). The Craft Corner content is keyed by craft kind, not by studio. The tap-everything test
+checks links against the studio's data. Making the characters and corner content configurable per
+studio is out of scope.
 
 ## Non-goals
 
@@ -121,14 +134,21 @@ The floating pill stays. The page length target is two phone screens to reach a 
 
 - Class sheet, details step and confirmation keep the current flow, polished: character
   celebration, a confetti burst, haptics.
-- **Bring a friend:** an optional second name on one booking.
-- **Contact:** phone stays required; an Instagram handle or WhatsApp can be added if the owner wants
-  them (decision 2).
+- **Bring a friend** is **not** in V2's core. A friend takes a seat and needs their own allergies,
+  name tag and place on the host list, which means a schema change and a rule for one seat left. It
+  becomes its own item, V2b, with a short design and its own explicit go for the migration.
+- **Contact:** the form keeps accepting a phone or an email, as today. An Instagram handle or
+  WhatsApp field can be added if the owner wants it (decision 2).
 - **Add to calendar** (an `.ics` file) on the confirmation.
 - The saveable ticket from Phase B gains a **Story-size** version (1080 by 1920) with the café, the
   date and `@maison._abeer`, still drawn in the guest's browser.
 
 ### 4. Venue first (needs a database change)
+
+**Order.** Because the café is the hero of every card, V3 is best done right after V0 and before V1
+(V0, V3, V1), if the owner gives the migration go. If she does not, V1 ships with text-only venues:
+the location line and the class photo get a properly designed card, not a fallback line, and the
+venue fields slot in later.
 
 A `venue` record (name, area, map link, Instagram handle, photo, notes) and a `venue_id` on a
 session. The host picks from places she has used, so a repeat café fills itself in; a new café is one
@@ -185,14 +205,31 @@ shows nothing for it until it is filled, and nothing is guessed.
 
 ### 8. Fast, and coded with care
 
-- **Server-render the schedule.** The public classes are fetched on the server, cached for 60
-  seconds, and passed to the page as initial data, so the first paint contains the pop-ups and no
-  browser round trip to the API gates it. A CDN cache header (stale while revalidate) keeps the
-  cold API off the critical path. The metadata fetch already uses the same cache.
+- **Server-render the schedule, with a stale-while-revalidate cache of 15 seconds.** That is the
+  API's own rule for seat counts (`max-age=15`, `stale-while-revalidate=60`), so the page never
+  claims more freshness than the API does. The server fetch uses a 1.2 s timeout: on a cache hit
+  the pop-ups are in the first HTML; on a miss with a cold API the page serves the last cached copy
+  or, with none, renders the shell and fetches in the browser, as today. It never blocks the HTML on
+  a cold API. This makes `/book/[slug]` a revalidating cached page, not just a header change. The
+  metadata fetch moves to the same cache so the two cannot disagree.
+- **Seats-left reconciles in place.** If the browser's fresh fetch disagrees with the cached copy,
+  only the seats text swaps (the line's height is reserved, so there is no layout shift) and a
+  class that has since filled flips its button to the waitlist. Nothing is promised that the API did
+  not say.
+- **No new data library on the page.** The client does not pull TanStack Query into `/book` (today
+  it ships only with the signed-in area). The server passes initial data as props and the existing
+  small fetch-on-mount revalidates it.
+- **The middleware** currently runs a Supabase session check on `/book` for any visitor carrying a
+  session cookie. Skipping that check on `/book` removes a round trip from returning guests. It is an
+  **auth change, so it is asked for at V0's plan, not assumed here.**
 - **Islands.** Everything below the first screen (Craft Corner, quiz, vibe wall, FAQ) loads lazily
   when it nears the viewport; the Craft Corner's three corners load separately.
-- **Images.** Optimised formats with fixed dimensions and blur placeholders; the first photo is
-  preloaded; nothing shifts the layout.
+- **Images.** Photos that we host are served optimised, with fixed dimensions and blur placeholders,
+  and the first one is preloaded. Today's photos are plain `<img>` because their hosts were arbitrary.
+  Venue and studio photos will be **uploaded to the existing Supabase Storage** (one known host, one
+  image-host entry in the Next config) and not pasted as links. That is an infrastructure change,
+  asked for at V3's plan. Until then the existing images stay as they are, and stock photos that ship
+  with the app are optimised now.
 - **Rendering.** `content-visibility: auto` on long sections; animate only `transform`, `opacity`,
   `clip-path` and registered properties; one shared animation scheduler; effects run only while
   visible and pause when the tab is hidden; `will-change` only during an effect.
@@ -203,13 +240,21 @@ shows nothing for it until it is filled, and nothing is guessed.
   WebView behaviour (viewport units, no install prompt, link handling) as far as can be emulated,
   and the owner checks on a real phone from her own bio link.
 
+## Interplay with the offline plan
+
+The offline worker's page cache is an allowlist of host screens only. `/book`, `/portal`, `/login`
+and `/enter` are outside it, so the public page's HTML (which will now contain seat counts) is never
+cached by the worker. Offline, the booking page shows a short "you're offline" message and keeps
+anything typed. Both designs touch the root layout; their plans edit it one after the other, never in
+parallel.
+
 ## Phases
 
 | Phase | Scope                                                                                          | Gate                          |
 | ----- | ---------------------------------------------------------------------------------------------- | ----------------------------- |
 | V0    | Foundations: handle fix, tokens, tier system, server-rendered schedule, tap-everything harness | This document                 |
 | V1    | The landing page: hero, pop-up cards, Craft Corner, quiz, FAQ, footer                          | Review of V0                  |
-| V2    | Booking polish, bring a friend, calendar file, Story ticket                                    | Review of V1                  |
+| V2    | Booking polish, calendar file, Story ticket (V2b: bring a friend, own design and migration go) | Review of V1                  |
 | V3    | Venue model: migration, API, host picker, public use                                           | **Explicit go for migration** |
 | V4    | Guest passport                                                                                 | Review of V2                  |
 | V5    | Host app redesign, name-tag art packs, message voice                                           | Review of V4                  |
@@ -241,9 +286,9 @@ The PWA and offline plan runs beside these and is not blocked by them.
 
 1. **Characters:** yes to a small cast of cute craft characters? If yes, are their looks and names
    mine to propose, or do you have ideas?
-2. **Contact on the booking form:** phone only, or also an Instagram handle or WhatsApp?
+2. **Contact on the booking form:** keep phone or email as today, or also add an Instagram handle or WhatsApp?
 3. **Teen guests:** what should the page say about age and parents? I will not invent a policy.
-4. **Venue records:** go ahead with the database change in phase V3 (additive, reversible)?
+4. **Venue records:** go ahead with the database change in phase V3 (additive, reversible), and do it before the landing page (V0, V3, V1)?
 5. **"Tell me about the next pop-up" sign-up:** yes or no? It stores a contact with consent.
 6. **Name tags:** drawn art packs per craft (my recommendation), or AI-made pictures later?
 7. **Studio facts for the FAQ:** prices, how payment works, cancellations, when pottery is ready.
@@ -256,7 +301,7 @@ The PWA and offline plan runs beside these and is not blocked by them.
 - The page leads with the next pop-up and the café, not the studio's story.
 - Quiz and share images are drawn in the guest's browser, like the ticket.
 - Server rendering with a 60-second cache for the schedule, with the client query taking over.
-- Add-to-calendar and bring-a-friend are in V2; they are small and loved by this audience.
+- Add-to-calendar is in V2. Bring a friend moves to V2b with its own design and migration go.
 - The Instagram handle is fixed in the studio's settings data and the page also refuses to render a
   handle that fails a basic format check.
 
