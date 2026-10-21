@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:perf": "playwright test --config playwright.perf.config.ts",
-    "test:e2e:ssr": "playwright test --config playwright.ssr.config.ts"
+    "test:e2e:ssr": "playwright test --config playwright.ssr.config.ts",
+    "test:e2e:lab": "playwright test --config playwright.lab.config.ts",
+    "check:first-load": "node scripts/check-first-load.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",
