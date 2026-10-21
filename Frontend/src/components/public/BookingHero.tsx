@@ -2,6 +2,10 @@
 
 import type { CSSProperties } from 'react';
 
+import '@/styles/units/hero.css';
+
+import { SplitHeading } from '@/components/motion/SplitHeading';
+import { Tilt } from '@/components/motion/Tilt';
 import {
   StickerCake,
   StickerHeart,
@@ -66,6 +70,9 @@ export interface BookingHeroProps {
   classes?: PublicClass[];
 }
 
+/** Gap between one headline letter and the next, in ms. */
+const LETTER_STAGGER_MS = 28;
+
 const FOCUS = 'focus-visible:outline-[3px] focus-visible:outline-offset-2';
 
 export function BookingHero({
@@ -95,9 +102,8 @@ export function BookingHero({
     ...(accentColor ? { '--color-pink': accentColor } : {}),
   } as CSSProperties;
 
-  const words = studioName.split(' ');
-  // Everything under the name enters after its last word has landed.
-  const afterName = 80 + words.length * 110;
+  // Everything under the name enters after its last letter has landed.
+  const afterName = 80 + Array.from(studioName.replace(/\s/g, '')).length * LETTER_STAGGER_MS;
 
   return (
     <header
@@ -204,28 +210,16 @@ export function BookingHero({
               cocoa-on-paper — the scrim above guarantees the contrast,
               not the photo's own content, which this app has no control
               over once a host pastes a link to one. */}
-          <h1
+          <SplitHeading
+            as="h1"
+            text={studioName}
+            startDelayMs={80}
+            staggerMs={LETTER_STAGGER_MS}
             className={cn(
-              'font-display mt-2 text-[clamp(46px,14vw,112px)] leading-[0.96] text-balance',
+              'hero-title font-display mt-2 text-[clamp(46px,14vw,112px)] leading-[0.96] text-balance',
               hasPhoto && 'text-photo-ink',
             )}
-          >
-            <span className="sr-only">{studioName}</span>
-            <span
-              aria-hidden="true"
-              className="flex flex-wrap items-baseline justify-center gap-x-4"
-            >
-              {words.map((word, index) => (
-                <span
-                  key={`${word}-${index}`}
-                  className="animate-rise-in inline-block"
-                  style={{ animationDelay: `${80 + index * 110}ms` }}
-                >
-                  {word}
-                </span>
-              ))}
-            </span>
-          </h1>
+          />
 
           <p
             className={cn(
@@ -251,16 +245,15 @@ export function BookingHero({
             <a
               ref={ctaRef}
               href="#booking-widget"
+              style={{ '--clay-glow': 'var(--color-rose)' } as CSSProperties}
               onClick={(event) => {
                 event.preventDefault();
                 scrollToId('booking-widget');
               }}
               className={cn(
-                'sheen-on-hover group relative inline-flex min-h-[52px] items-center gap-2 overflow-hidden',
+                'clay sheen-on-hover group relative inline-flex min-h-[52px] items-center gap-2 overflow-hidden',
                 'rounded-[var(--radius-pill)] px-7 text-[15px] font-extrabold',
-                hasPhoto
-                  ? 'bg-photo-ink text-cocoa'
-                  : 'bg-rose text-on-rose shadow-[0_16px_32px_-14px_var(--color-rose)]',
+                hasPhoto ? 'bg-photo-ink text-cocoa' : 'bg-rose text-on-rose',
                 'transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0',
                 'motion-reduce:transform-none',
                 'focus-visible:outline-cocoa',
@@ -391,20 +384,28 @@ function NextClassChip({
       : `${soonest.seats_left} seats left`;
 
   return (
-    <p
-      className={cn(
-        'animate-rise-in mx-auto mt-5 inline-flex min-h-[40px] max-w-full items-center gap-2',
-        'rounded-[var(--radius-pill)] border-[1.5px] border-dashed px-4 py-1.5 text-sm font-extrabold',
-        light
-          ? 'border-photo-ink/60 text-photo-ink'
-          : 'border-rose-deep/40 bg-paper/80 text-cocoa backdrop-blur',
-      )}
-      style={{ animationDelay: delay }}
+    // The chip's own rounding is repeated on the Tilt's inner layer, so the glare is clipped to
+    // the pill's shape rather than lighting a rectangle around it.
+    <Tilt
+      maxDeg={6}
+      glare
+      className="mt-5 inline-flex max-w-full [&>div]:rounded-[var(--radius-pill)]"
     >
-      <span aria-hidden="true">🎟️</span>
-      <span suppressHydrationWarning>
-        {now ? `Next class ${whenCopy(soonest.starts_at, now)} · ${seats}` : ' '}
-      </span>
-    </p>
+      <p
+        className={cn(
+          'animate-rise-in inline-flex min-h-[40px] max-w-full items-center gap-2',
+          'rounded-[var(--radius-pill)] border-[1.5px] border-dashed px-4 py-1.5 text-sm font-extrabold',
+          light
+            ? 'border-photo-ink/60 text-photo-ink'
+            : 'border-rose-deep/40 bg-paper/80 text-cocoa backdrop-blur',
+        )}
+        style={{ animationDelay: delay }}
+      >
+        <span aria-hidden="true">🎟️</span>
+        <span suppressHydrationWarning>
+          {now ? `Next class ${whenCopy(soonest.starts_at, now)} · ${seats}` : ' '}
+        </span>
+      </p>
+    </Tilt>
   );
 }
