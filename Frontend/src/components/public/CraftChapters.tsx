@@ -1,7 +1,8 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, type CSSProperties } from 'react';
 
+import { StickerMorph } from '@/components/public/atmosphere/StickerMorph';
 import { StickerCake, StickerPalette, StickerPot } from '@/components/public/CraftStickers';
 import { StudioImage } from '@/components/public/StudioImage';
 import { cn } from '@/lib/cn';
@@ -16,6 +17,7 @@ import {
 } from '@/lib/public/studioPhotos';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 import { useScrollParallax } from '@/lib/public/useScrollParallax';
+import '@/styles/units/atmosphere.css';
 
 /**
  * "Pick your kind of mess" — one chapter for each craft the studio actually
@@ -86,6 +88,7 @@ export function CraftChapters({ classes }: { classes: PublicClass[] }) {
   return (
     <section aria-labelledby="chapters-heading" className="px-4 sm:px-6">
       <header className="mx-auto max-w-[680px] text-center">
+        <StickerMorph className="mx-auto mb-2 w-14" />
         <p className="font-hand text-rose-ink text-xl">all of it is welcome</p>
         <h2
           id="chapters-heading"
@@ -95,16 +98,24 @@ export function CraftChapters({ classes }: { classes: PublicClass[] }) {
         </h2>
       </header>
 
-      <div className="mx-auto mt-14 grid max-w-[1040px] gap-20 sm:gap-28">
+      <div
+        className="chapter-stack mx-auto mt-14 grid max-w-[1040px] gap-20 sm:gap-28"
+        style={{ '--tl-scope': crafts.map((_, i) => `--chapter-${i}`).join(', ') } as CSSProperties}
+      >
         {crafts.map((craft, index) => (
-          <Chapter key={craft.token} craft={craft} index={index} />
+          <Chapter
+            key={craft.token}
+            craft={craft}
+            index={index}
+            hasNext={index < crafts.length - 1}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function Chapter({ craft, index }: { craft: Craft; index: number }) {
+function Chapter({ craft, index, hasNext }: { craft: Craft; index: number; hasNext: boolean }) {
   const [ref, visible] = useRevealOnScroll<HTMLElement>();
   const parallaxRef = useScrollParallax<HTMLDivElement>(7);
   const headingId = useId();
@@ -119,7 +130,15 @@ function Chapter({ craft, index }: { craft: Craft; index: number }) {
     <article
       ref={ref}
       aria-labelledby={headingId}
-      className="grid items-center gap-12 md:grid-cols-2 md:gap-16"
+      data-craft-chapter={craft.kind}
+      data-has-next={hasNext ? '' : undefined}
+      className="chapter grid items-center gap-12 md:grid-cols-2 md:gap-16"
+      style={
+        {
+          '--tl-self': `--chapter-${index}`,
+          '--tl-next': `--chapter-${index + 1}`,
+        } as CSSProperties
+      }
     >
       <div className={cn('relative px-2 md:px-0', flip && 'md:order-2')}>
         {/* The shadow is a `drop-shadow` on a parent, not a `box-shadow` on the
@@ -198,11 +217,14 @@ function Chapter({ craft, index }: { craft: Craft; index: number }) {
         />
       </div>
 
+      {/* Opacity and rise belong to atmosphere.css: `data-shown` is the JS
+          reveal's switch, and where the browser can tie the reveal to the
+          scroll itself the stylesheet lets go of it. */}
       <div
+        data-shown={visible}
         className={cn(
-          'text-center transition-[opacity,transform] delay-300 duration-700 motion-reduce:transition-none',
+          'chapter-text text-center',
           flip ? 'md:pr-4 md:text-right' : 'md:pl-4 md:text-left',
-          visible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0',
         )}
       >
         <p className="font-hand text-rose-ink text-xl">{copy.eyebrow}</p>

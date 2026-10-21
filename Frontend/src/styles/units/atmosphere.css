@@ -1,0 +1,152 @@
+/* The storefront's atmosphere: a slow aurora, text that reveals with the
+   scroll, and chapters that stack over one another.
+
+   Everything that moves here is inside `prefers-reduced-motion: no-preference`,
+   not left to the global rule that collapses animations to 0.01ms: a
+   scroll-driven animation has no clock to collapse, so it would still be
+   "running" and still move with the scroll. A guest who asked for less motion
+   gets the resting state and nothing is ever started. */
+
+/* ---- aurora ---------------------------------------------------------------
+   A registered custom property, so the browser can interpolate it: an
+   unregistered one would flip between its two values at the halfway point.
+   It moves the stops of the top wash's gradient, so the glow breathes in and
+   out without anything being resized or blurred. */
+
+@property --aurora-shift {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+@keyframes aurora-shift {
+  from {
+    --aurora-shift: 0%;
+  }
+  to {
+    --aurora-shift: 14%;
+  }
+}
+
+.aurora-wash {
+  background: radial-gradient(
+    closest-side,
+    var(--color-blush) var(--aurora-shift),
+    transparent calc(72% - var(--aurora-shift))
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aurora-wash {
+    animation: aurora-shift 28s ease-in-out infinite alternate;
+  }
+}
+
+/* ---- chapter text ---------------------------------------------------------
+   One mechanism drives the text at a time. By default that is the JS reveal:
+   `data-shown` flips to `true` when the chapter scrolls into view, and the
+   transition below does the rest. Where the browser can tie an animation to
+   the scroll itself, the rule inside `@supports` takes the text out of the
+   JS path completely (no transition, both `data-shown` states look alike) and
+   an animation on `view()` owns opacity and transform. The selectors carry the
+   same specificity and the later one wins, so nothing has to be forced. */
+
+.chapter-text {
+  transition:
+    opacity 700ms 300ms,
+    transform 700ms 300ms;
+}
+
+.chapter-text[data-shown='false'] {
+  opacity: 0;
+  transform: translateY(1.5rem);
+}
+
+@keyframes chapter-text-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .chapter-text,
+    .chapter-text[data-shown='false'] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+      animation: chapter-text-in linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 70%;
+    }
+  }
+}
+
+/* Reduced motion: the words are simply there, whatever the JS has decided. */
+@media (prefers-reduced-motion: reduce) {
+  .chapter-text,
+  .chapter-text[data-shown='false'] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---- stacking chapters ----------------------------------------------------
+   From `md`, and only where a chapter fits in the window (a taller one would
+   stick with its bottom off-screen and trap its own button), each chapter
+   sticks near the top and the next scrolls over it. A chapter has a solid
+   paper-coloured back so what is underneath never shows through its text. The
+   previous chapter settles a little smaller; where the browser has scroll
+   timelines that is driven by the next chapter coming up (`--tl-next`, set
+   inline), otherwise the chapters simply stack without scaling. */
+
+.chapter {
+  position: relative;
+}
+
+@media (min-width: 768px) and (min-height: 780px) {
+  .chapter {
+    position: sticky;
+    top: 4rem;
+    transform-origin: 50% 0;
+    background: var(--color-buttercream);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem 2rem;
+    box-shadow: 0 -18px 40px -24px rgb(64 48 42 / 28%);
+  }
+}
+
+@supports (animation-timeline: view()) and (timeline-scope: --a) {
+  @media (prefers-reduced-motion: no-preference) {
+    .chapter-stack {
+      timeline-scope: var(--tl-scope, --chapter-none);
+    }
+
+    .chapter {
+      view-timeline: var(--tl-self, --chapter-none) block;
+    }
+
+    @media (min-width: 768px) and (min-height: 780px) {
+      .chapter[data-has-next] {
+        animation: chapter-settle linear both;
+        animation-timeline: var(--tl-next);
+        animation-range: entry 0% entry 100%;
+      }
+    }
+  }
+}
+
+@keyframes chapter-settle {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.94);
+  }
+}
