@@ -87,4 +87,19 @@ describe('StudioFooter', () => {
     expect(cta.className).toContain('clay');
     expect(cta.className).toContain('min-h-[44px]');
   });
+
+  it('draws the sign-off as one stroke, hidden from assistive tech, with the words still there', () => {
+    const { container } = render(<StudioFooter studioName="Maison Abeer" />);
+    const path = container.querySelector('svg path.signoff-stroke');
+    expect(path).not.toBeNull();
+    expect(path?.getAttribute('pathLength')).toBe('1');
+    expect(path?.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.getByText(/see you at the studio/)).toBeInTheDocument();
+  });
+
+  it('marks the footer visible once it has scrolled into view', () => {
+    const { container } = render(<StudioFooter studioName="Maison Abeer" />);
+    // jsdom has no IntersectionObserver, so the hook reports visible at once.
+    expect(container.querySelector('footer')?.hasAttribute('data-visible')).toBe(true);
+  });
 });

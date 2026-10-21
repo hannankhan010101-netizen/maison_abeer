@@ -1,0 +1,25 @@
+/*
+ * The footer's sign-off: "see you at the studio" with a handwritten stroke
+ * under it that draws itself once the footer scrolls into view. The path is
+ * normalised with pathLength="1", so a dash of 1 covers it exactly and the
+ * offset runs from 1 (nothing drawn) to 0 (all of it).
+ *
+ * Outside the motion block the line is simply there: no hidden state, no
+ * transition. Only a guest who has not asked for less motion, on a footer
+ * not yet seen, ever gets the undrawn line.
+ */
+.signoff-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  footer:not([data-visible]) .signoff-stroke {
+    stroke-dashoffset: 1;
+  }
+
+  [data-visible] .signoff-stroke {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1.6s var(--ease-out-expo) 0.2s;
+  }
+}

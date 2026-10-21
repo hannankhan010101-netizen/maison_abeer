@@ -4,6 +4,9 @@ import type { MouseEvent, ReactNode } from 'react';
 
 import type { PublicClass } from '@/lib/public/api';
 import { scrollToId } from '@/lib/public/lenisBridge';
+import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
+
+import '@/styles/units/footer.css';
 
 const LINK =
   'text-cocoa decoration-pink hover:decoration-rose inline-flex min-h-[44px] items-center font-extrabold underline decoration-2 underline-offset-4';
@@ -19,6 +22,35 @@ function Column({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="text-latte text-xs font-extrabold tracking-[0.14em] uppercase">{title}</h2>
       <ul className="mt-2 flex flex-col items-center sm:items-start">{children}</ul>
     </div>
+  );
+}
+
+/**
+ * "see you at the studio", in the hand face, with a pen stroke under it.
+ * The words are real text, so assistive tech reads them; the stroke is
+ * decoration and hidden. footer.css draws it on once the footer is seen.
+ */
+function SignOff() {
+  return (
+    <p className="font-hand text-rose-ink inline-flex flex-col items-center text-2xl">
+      <span>see you at the studio ♡</span>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 240 16"
+        className="-mt-1 h-4 w-60 max-w-full"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path
+          className="signoff-stroke"
+          pathLength="1"
+          d="M6 10 C 40 4, 70 14, 104 8 S 168 4, 196 9 C 210 11, 222 6, 234 5"
+        />
+      </svg>
+    </p>
   );
 }
 
@@ -40,10 +72,15 @@ export function StudioFooter({
   classes?: PublicClass[];
 }) {
   const crafts = [...new Set(classes.map((item) => item.name))];
+  const [ref, visible] = useRevealOnScroll<HTMLElement>();
 
   return (
-    <footer className="border-line mt-6 border-t-[1.5px] border-dashed px-4 py-12 text-center sm:px-6">
-      <p className="font-hand text-rose-ink text-2xl">see you at the studio ♡</p>
+    <footer
+      ref={ref}
+      data-visible={visible ? '' : undefined}
+      className="border-line mt-6 border-t-[1.5px] border-dashed px-4 py-12 text-center sm:px-6"
+    >
+      <SignOff />
       <p className="font-display mt-2 text-4xl tracking-tight sm:text-5xl">
         {studioName}
         <span className="text-rose-ink">.</span>
