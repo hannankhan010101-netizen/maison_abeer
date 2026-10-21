@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/cn';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
+import '@/styles/units/receipt.css';
 
 /**
  * "Easy as one, two, three" — the whole booking in three sentences, before
@@ -12,6 +13,10 @@ import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
  * up front that step two is a name and a phone number is worth more than
  * any amount of polish on the form itself. Each line is the truth about the
  * form below it; the third repeats the confirmation's own promises.
+ *
+ * Set as a receipt: one paper slip, three numbered lines between dashed
+ * rules and a torn foot (`receipt.css`), so it reads as one short thing
+ * rather than three cards.
  *
  * Also the target of the hero's secondary link (`#how-it-works`).
  */
@@ -31,14 +36,6 @@ export const STEPS = [
   },
 ] as const;
 
-// Washi tape across the top of each card, each strip stuck on a little
-// differently — three identical strips would read as a UI pattern, not tape.
-const TAPES = [
-  'bg-butter left-6 -rotate-3',
-  'bg-pink right-6 rotate-2',
-  'bg-sage left-8 -rotate-2',
-];
-
 export function HowItWorks() {
   const [ref, visible] = useRevealOnScroll<HTMLElement>();
 
@@ -47,9 +44,9 @@ export function HowItWorks() {
       ref={ref}
       id="how-it-works"
       aria-labelledby="how-heading"
-      className="scroll-mt-6 px-4 sm:px-6"
+      className="mx-auto scroll-mt-6 px-4 sm:max-w-[640px] sm:px-6"
     >
-      <div className="mx-auto max-w-[880px] text-center">
+      <div className="text-center">
         <p className="font-hand text-rose-ink text-xl">easy as one, two, three</p>
         <h2
           id="how-heading"
@@ -57,36 +54,37 @@ export function HowItWorks() {
         >
           How it works
         </h2>
+      </div>
 
-        <ol className="mt-9 grid gap-5 sm:grid-cols-3">
+      {/* The shadow is a `drop-shadow` on the wrapper so it follows the torn
+          teeth too; a box-shadow would draw a straight line under them. */}
+      <div
+        className={cn(
+          'mt-7 drop-shadow-[0_12px_18px_rgb(64_48_42_/14%)]',
+          'transition-[opacity,transform] duration-700 motion-reduce:transition-none',
+          visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0',
+        )}
+      >
+        <ol className="receipt bg-paper rounded-t-[var(--radius-lg)] px-5 pt-2 sm:px-7">
           {STEPS.map((step, index) => (
             <li
               key={step.title}
               className={cn(
-                'border-line bg-paper relative rounded-[var(--radius-lg)] border-[1.5px] p-5 pt-6 text-left',
-                'shadow-[var(--shadow-card)] transition-[opacity,transform] duration-700 motion-reduce:transition-none',
-                visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0',
+                'receipt__line grid grid-cols-[2.25rem_1fr] items-baseline gap-x-3 py-4 text-left',
+                index > 0 && 'border-line border-t border-dashed',
               )}
-              style={{ transitionDelay: `${index * 110}ms` }}
             >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'absolute -top-3 h-[22px] w-[72px] rounded-[3px] opacity-80',
-                  TAPES[index],
-                )}
-              />
-              <span
-                aria-hidden="true"
-                className="font-display bg-blush text-rose-ink inline-flex size-11 items-center justify-center rounded-full text-xl"
-              >
+              <span aria-hidden="true" className="font-display text-rose-ink text-2xl leading-none">
                 {index + 1}
               </span>
-              <h3 className="font-display mt-3 text-lg">{step.title}</h3>
-              <p className="text-latte mt-1 text-sm leading-relaxed">{step.copy}</p>
+              <div>
+                <h3 className="font-display text-lg leading-snug">{step.title}</h3>
+                <p className="text-latte mt-0.5 text-sm leading-relaxed">{step.copy}</p>
+              </div>
             </li>
           ))}
         </ol>
+        <div aria-hidden="true" className="receipt__edge" />
       </div>
     </section>
   );
