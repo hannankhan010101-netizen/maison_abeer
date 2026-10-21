@@ -276,7 +276,7 @@ function LoginForm() {
                 onClick={() => setShowPassword((shown) => !shown)}
                 aria-pressed={showPassword}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="text-latte hover:text-cocoa grid size-9 place-items-center rounded-full transition-colors"
+                className="text-latte hover:text-cocoa grid size-11 place-items-center rounded-full transition-colors"
               >
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
@@ -291,7 +291,7 @@ function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={cn(FIELD_CLASSES, 'pr-11')}
+              className={cn(FIELD_CLASSES, 'pr-[3.25rem]')}
             />
           </AuthField>
 
