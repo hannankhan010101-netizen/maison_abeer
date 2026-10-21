@@ -9,10 +9,20 @@ import { cn } from '@/lib/cn';
  * inside the card (`clip-path`), so the card's own border reads as a punched
  * edge rather than a circle stuck on it.
  */
-export function TicketStub({ current }: { current: 1 | 2 | 3 }) {
+export function TicketStub({
+  current,
+  seatsLine,
+}: {
+  current: 1 | 2 | 3;
+  /** "8 seats left this Friday" — shown on step 1 only, where the guest is choosing. */
+  seatsLine?: string | null;
+}) {
   return (
     <div className="border-line relative border-b-[1.5px] border-dashed px-5 pt-5 pb-4 text-center sm:px-7">
       <p className="font-hand text-rose-ink text-xl leading-none">save your seat</p>
+      {current === 1 && seatsLine ? (
+        <p className="text-cocoa mt-1.5 text-sm font-extrabold">{seatsLine}</p>
+      ) : null}
       <StepDots current={current} className="mt-3" />
       <span
         aria-hidden="true"

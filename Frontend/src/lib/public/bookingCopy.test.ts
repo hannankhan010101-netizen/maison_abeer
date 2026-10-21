@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PublicClass } from './api';
-import { ACCENT, accentFor, formatDay, formatTime, seatCopy } from './bookingCopy';
+import { ACCENT, accentFor, formatDay, formatTime, seatCopy, seatsLine } from './bookingCopy';
 
 function aClass(overrides: Partial<PublicClass> = {}): PublicClass {
   return {
@@ -68,5 +68,41 @@ describe('accentFor', () => {
 
   it('falls back to pink for a colour it does not know', () => {
     expect(accentFor('mauve')).toBe(ACCENT.pink);
+  });
+});
+
+describe('seatsLine', () => {
+  // Tuesday 20 October 2026, noon: Friday the 23rd is "this Friday".
+  const now = new Date(2026, 9, 20, 12, 0);
+
+  it('is null when no class has a seat open', () => {
+    expect(seatsLine([], now)).toBeNull();
+    expect(seatsLine([aClass({ seats_left: 0, is_full: true })], now)).toBeNull();
+    expect(seatsLine([aClass({ seats_left: 3, is_full: true })], now)).toBeNull();
+  });
+
+  it('names the seats and the day when one class is open', () => {
+    expect(seatsLine([aClass({ seats_left: 8 })], now)).toBe('8 seats left this Friday');
+  });
+
+  it('says "last seat" for a single seat', () => {
+    const tomorrow = aClass({
+      seats_left: 1,
+      starts_at: new Date(2026, 9, 21, 15, 0).toISOString(),
+      ends_at: new Date(2026, 9, 21, 17, 0).toISOString(),
+    });
+    expect(seatsLine([tomorrow, aClass({ id: 'full', seats_left: 0, is_full: true })], now)).toBe(
+      'last seat tomorrow',
+    );
+  });
+
+  it('sums the seats across several open classes', () => {
+    const classes = [
+      aClass({ id: 'a', seats_left: 8 }),
+      aClass({ id: 'b', seats_left: 4 }),
+      aClass({ id: 'c', seats_left: 2 }),
+      aClass({ id: 'd', seats_left: 0, is_full: true }),
+    ];
+    expect(seatsLine(classes, now)).toBe('14 seats across 3 classes');
   });
 });

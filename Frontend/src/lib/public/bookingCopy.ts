@@ -1,4 +1,5 @@
 import type { PublicClass } from '@/lib/public/api';
+import { nextClass, whenCopy } from '@/lib/public/format';
 
 /**
  * The words and colours on the booking page that come straight from a class.
@@ -25,6 +26,26 @@ export function seatCopy(item: PublicClass): { text: string; urgent: boolean } {
   if (item.seats_left === 1) return { text: 'Last seat!', urgent: true };
   if (item.seats_left <= 3) return { text: `Only ${item.seats_left} seats left`, urgent: true };
   return { text: `${item.seats_left} seats left`, urgent: false };
+}
+
+/**
+ * The one honest number on the ticket stub: "8 seats left this Friday",
+ * "last seat tomorrow", or "14 seats across 3 classes". Counted from open
+ * classes only (a seat left and not full); null when there are none, so the
+ * stub says nothing rather than "0 seats".
+ */
+export function seatsLine(classes: readonly PublicClass[], now: Date): string | null {
+  const open = classes.filter((item) => item.seats_left > 0 && !item.is_full);
+  const only = open.length === 1 ? nextClass(open) : null;
+
+  if (open.length === 0) return null;
+  if (only) {
+    const when = whenCopy(only.starts_at, now);
+    return only.seats_left === 1 ? `last seat ${when}` : `${only.seats_left} seats left ${when}`;
+  }
+
+  const seats = open.reduce((sum, item) => sum + item.seats_left, 0);
+  return `${seats} seats across ${open.length} classes`;
 }
 
 /**

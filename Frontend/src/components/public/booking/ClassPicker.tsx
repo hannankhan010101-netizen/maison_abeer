@@ -5,8 +5,8 @@ import { flushSync } from 'react-dom';
 import { DateLeaf } from '@/components/public/DateLeaf';
 import { cn } from '@/lib/cn';
 import { type PublicClass } from '@/lib/public/api';
-import { accentFor, formatDay, formatTime, seatCopy } from '@/lib/public/bookingCopy';
-import { durationCopy } from '@/lib/public/format';
+import { accentFor, seatCopy } from '@/lib/public/bookingCopy';
+import { whenLine } from '@/lib/public/format';
 import { useMountedNow } from '@/lib/public/useMountedNow';
 import { withViewTransition } from '@/lib/motion';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
@@ -77,7 +77,6 @@ export function ClassPicker({
         {classes.map((item, index) => {
           const seats = seatCopy(item);
           const accent = accentFor(item.color_token);
-          const duration = durationCopy(item.starts_at, item.ends_at);
 
           return (
             <li
@@ -122,11 +121,7 @@ export function ClassPicker({
                   {/* suppressHydrationWarning: the date is formatted in the
                       visitor's locale, which the server cannot know. */}
                   <span className="text-cocoa mt-1 block text-sm" suppressHydrationWarning>
-                    {now
-                      ? [`${formatDay(item.starts_at)} · ${formatTime(item.starts_at)}`, duration]
-                          .filter(Boolean)
-                          .join(' · ')
-                      : ' '}
+                    {now ? whenLine(item) : ' '}
                   </span>
 
                   {item.location ? (

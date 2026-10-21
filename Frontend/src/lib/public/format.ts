@@ -49,6 +49,53 @@ export function durationCopy(startsAt: string, endsAt: string): string | null {
 }
 
 /**
+ * "7:54 pm" — a clock time the way a guest says it: no leading zero, a
+ * lowercase am/pm after one space, and 12 (never 0) at midnight and noon.
+ */
+export function timeCopy(iso: string, locale?: string): string {
+  const parts = new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hourCycle: 'h12',
+  }).formatToParts(new Date(iso));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+
+  return `${part('hour')}:${part('minute')} ${part('dayPeriod').toLowerCase()}`;
+}
+
+/**
+ * "2½ h" — the short length for a one-line class row: "45 min", "1 h",
+ * "1½ h", "2 h 10 min". Null when the payload cannot say, as `durationCopy`.
+ */
+export function durationShort(startsAt: string, endsAt: string): string | null {
+  const minutes = Math.round((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000);
+
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+
+  if (hours === 0) return `${rest} min`;
+  if (rest === 0) return `${hours} h`;
+  if (rest === 30) return `${hours}½ h`;
+  return `${hours} h ${rest} min`;
+}
+
+/** "Fri 23 Oct · 7:54 pm · 2½ h" — one class, read at a glance. */
+export function whenLine(item: { starts_at: string; ends_at: string }, locale?: string): string {
+  const day = new Date(item.starts_at).toLocaleDateString(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+
+  return [day, timeCopy(item.starts_at, locale), durationShort(item.starts_at, item.ends_at)]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
  * The soonest class on offer — what the hero's ticket chip points at.
  *
  * A full class still counts: the waitlist is a real way in, and "next class

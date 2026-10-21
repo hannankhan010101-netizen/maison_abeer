@@ -96,6 +96,24 @@ test.describe('booking a class', () => {
     expect(Math.abs((geometry.oy ?? NaN) - geometry.cy)).toBeLessThan(1);
   });
 
+  test('each class reads on one short line: day, time, length', async ({ page }) => {
+    const start = new Date(Date.now() + 3 * 86_400_000);
+    start.setHours(19, 54, 0, 0);
+    const end = new Date(start.getTime() + 150 * 60_000);
+    await stubApi(
+      page,
+      classPayload({ starts_at: start.toISOString(), ends_at: end.toISOString() }),
+    );
+
+    await page.goto(`/book/${SLUG}`);
+
+    const row = page.getByRole('button', { name: /Bento cake decorating/ });
+    await expect(row).toContainText('· 7:54 pm · 2½ h');
+    // The long form ("Friday, October 23 · 7:54 PM · 2 hrs 30 min") is gone.
+    await expect(row).not.toContainText('hrs');
+    await expect(row).not.toContainText(/PM|AM/);
+  });
+
   test('the page is reachable without signing in', async ({ page }) => {
     await stubApi(page, classPayload());
 

@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type PublicClass } from '@/lib/public/api';
+import { formatDay } from '@/lib/public/bookingCopy';
+import { whenLine } from '@/lib/public/format';
 
 const withViewTransition = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/motion', () => ({ withViewTransition }));
@@ -93,5 +95,19 @@ describe('ClassPicker', () => {
 
     expect(named()).toHaveLength(1);
     expect(named()[0]?.closest('button')).toHaveAccessibleName(/Bento cake/);
+  });
+
+  it('reads each class on one short line, not the long date', () => {
+    const timed = {
+      ...item('t', 'Wheel throwing'),
+      starts_at: new Date(2026, 9, 23, 19, 54).toISOString(),
+      ends_at: new Date(2026, 9, 23, 22, 24).toISOString(),
+    };
+    render(<ClassPicker classes={[timed]} onPick={() => {}} />);
+
+    const button = screen.getByRole('button', { name: /Wheel throwing/ });
+    expect(button).toHaveTextContent(whenLine(timed));
+    expect(button).toHaveTextContent(/2½ h/);
+    expect(button).not.toHaveTextContent(formatDay(timed.starts_at));
   });
 });

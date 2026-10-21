@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { dateLeaf, durationCopy, nextClass, whenCopy } from './format';
+import {
+  dateLeaf,
+  durationCopy,
+  durationShort,
+  nextClass,
+  timeCopy,
+  whenCopy,
+  whenLine,
+} from './format';
 
 // Local-time constructors, not ISO strings with a zone: every helper here
 // formats in the visitor's own timezone, and a fixed-offset string would make
@@ -86,5 +94,58 @@ describe('whenCopy', () => {
 
   it('falls back to the date a week or more out', () => {
     expect(whenCopy(at(2026, 10, 28), now, 'en-US')).toBe('Wed, Oct 28');
+  });
+});
+
+describe('timeCopy', () => {
+  it('reads h:mm with a lowercase am/pm after one space', () => {
+    expect(timeCopy(at(2026, 10, 23, 19, 54), 'en-GB')).toBe('7:54 pm');
+    expect(timeCopy(at(2026, 10, 23, 9, 5), 'en-GB')).toBe('9:05 am');
+  });
+
+  it('calls midnight 12:00 am and noon 12:00 pm', () => {
+    expect(timeCopy(at(2026, 10, 23, 0, 0), 'en-GB')).toBe('12:00 am');
+    expect(timeCopy(at(2026, 10, 23, 12, 0), 'en-GB')).toBe('12:00 pm');
+  });
+});
+
+describe('durationShort', () => {
+  const start = at(2026, 10, 23, 10);
+
+  it('reads under an hour as minutes', () => {
+    expect(durationShort(start, at(2026, 10, 23, 10, 45))).toBe('45 min');
+  });
+
+  it('reads whole hours as "h"', () => {
+    expect(durationShort(start, at(2026, 10, 23, 11))).toBe('1 h');
+  });
+
+  it('reads a half hour as ½', () => {
+    expect(durationShort(start, at(2026, 10, 23, 11, 30))).toBe('1½ h');
+    expect(durationShort(start, at(2026, 10, 23, 12, 30))).toBe('2½ h');
+  });
+
+  it('spells out any other minutes', () => {
+    expect(durationShort(start, at(2026, 10, 23, 12, 10))).toBe('2 h 10 min');
+  });
+
+  it('is null when the payload cannot say', () => {
+    expect(durationShort(start, start)).toBeNull();
+    expect(durationShort(at(2026, 10, 23, 12), start)).toBeNull();
+    expect(durationShort(start, 'not a date')).toBeNull();
+  });
+});
+
+describe('whenLine', () => {
+  it('reads day, time and length on one line', () => {
+    expect(
+      whenLine({ starts_at: at(2026, 10, 23, 19, 54), ends_at: at(2026, 10, 23, 22, 24) }, 'en-GB'),
+    ).toBe('Fri 23 Oct · 7:54 pm · 2½ h');
+  });
+
+  it('drops the length when it is unknown', () => {
+    expect(
+      whenLine({ starts_at: at(2026, 10, 23, 19, 54), ends_at: at(2026, 10, 23, 19, 54) }, 'en-GB'),
+    ).toBe('Fri 23 Oct · 7:54 pm');
   });
 });
