@@ -18,6 +18,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
  * * `different-seats` — 8 seats to the Next server, 2 to the browser. The two
  *   are told apart by `Origin`, which only the browser's cross-origin fetch
  *   sends; so the first HTML is stale and the browser's refresh corrects it.
+ *
+ * `POST /__seats/<n>` sets the count `ok` mode answers with (default 8), and
+ * `GET /__hits/<slug>` says how many server-side (no `Origin`) requests a slug
+ * has had: how the spec proves a page came from the cache.
  */
 
 const FAKE_API_PORT = 54398;
@@ -57,6 +61,8 @@ function classList(seatsLeft: number) {
 }
 
 let mode: Mode = 'ok';
+let seats = 8;
+const serverHits = new Map<string, number>();
 
 function send(req: IncomingMessage, res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, {
@@ -77,11 +83,20 @@ const server = createServer((req, res) => {
     return send(req, res, 200, { mode });
   }
 
+  const setSeats = /^\/__seats\/(\d+)$/.exec(url.pathname)?.[1];
+  if (setSeats !== undefined) {
+    seats = Number(setSeats);
+    return send(req, res, 200, { seats });
+  }
+
+  const hitsFor = /^\/__hits\/([^/]+)$/.exec(url.pathname)?.[1];
+  if (hitsFor !== undefined) return send(req, res, 200, { hits: serverHits.get(hitsFor) ?? 0 });
+
   if (url.pathname === '/__health') return send(req, res, 200, { mode });
 
-  if (!/^\/api\/v1\/public\/[^/]+\/classes$/.test(url.pathname)) {
-    return send(req, res, 404, { message: 'Not found' });
-  }
+  const slug = /^\/api\/v1\/public\/([^/]+)\/classes$/.exec(url.pathname)?.[1];
+  if (slug === undefined) return send(req, res, 404, { message: 'Not found' });
+  if (!req.headers.origin) serverHits.set(slug, (serverHits.get(slug) ?? 0) + 1);
 
   if (mode === 'error') return send(req, res, 500, { message: 'Something went wrong' });
   if (mode === 'slow') {
@@ -91,7 +106,7 @@ const server = createServer((req, res) => {
   if (mode === 'different-seats') {
     return send(req, res, 200, classList(req.headers.origin ? 2 : 8));
   }
-  return send(req, res, 200, classList(8));
+  return send(req, res, 200, classList(seats));
 });
 
 server.listen(FAKE_API_PORT, '127.0.0.1');
