@@ -42,7 +42,7 @@ Airplane mode, phone on a studio table:
    silently lost.
 4. Reconnecting refreshes everything and sends the waiting changes, in order, once each.
 5. The app is a complete PWA: service worker, offline page, version updates that never pull a screen
-   out from under her, a richer manifest (id, scope, shortcuts to Today, Prep and Calendar).
+   out from under her, a richer manifest (id, lang, categories).
 6. Nothing gets slower or heavier: initial-route JavaScript grows by no more than 3 KB gzipped, and
    the perf, contrast, axe and reduced-motion guards stay green.
 
@@ -98,7 +98,10 @@ before first paint:
   roster and checklist, so a workshop she never opened is still there offline.
 - Restored data shows as stale: queries stay "offline" instead of erroring, and the strip says so.
 
-Signing out, or the API answering 401, clears the store, the waiting changes and the page cache.
+Signing out, or a **different person** signing in, clears the saved data, the saved role, the waiting
+changes and the page cache. A 401 alone clears the saved data and page cache but **never the waiting
+changes**: after a long offline stretch the access token has expired, and the `online` event can fire
+before the session has refreshed.
 
 ### 3. Waiting changes (checklist only)
 
@@ -113,7 +116,10 @@ an IndexedDB queue and applied to the screen at once (optimistically, marked "wa
 - **Failures are visible.** If the server refuses a change (for example the class or the step is
   gone), it moves to a "couldn't send" list with the reason and a Dismiss, and is never silently
   dropped.
-- Replay starts on the browser's `online` event, on the app regaining focus, and on launch.
+- Replay starts on the browser's `online` event, on the app regaining focus, and on launch. It first
+  waits for the session to refresh and retries a 401 once. If it still fails with 401, the changes
+  stay queued, the chip says "Sign in again to send", and they send after she signs in as the same
+  person.
 
 ### 4. What she sees
 
@@ -122,13 +128,26 @@ an IndexedDB queue and applied to the screen at once (optimistically, marked "wa
 - **"Waiting to send (n)"** chip with a list, shown whenever the queue is not empty, online or not.
 - Screens that need the server show "Needs a connection" instead of an error, and keep any
   unsaved text. Guests' booking form is the same: it keeps what was typed and says so.
-- **"New since you were away"** on Today after reconnecting: bookings and cancellations that arrived
-  while she was offline, built from the data refetch, with no invented counts.
+- **"New since you were away"** on Today, only after a stretch in which the app was offline and then
+  reconnected in the same app session: the bookings and cancellations that differ between the saved
+  data and the refresh, with no invented counts. A normal launch while online shows nothing, and no
+  extra snapshot of guest data is stored for it.
 
 ### 5. The manifest, completed
 
-Add `id`, `scope`, `lang`, `categories`, and `shortcuts` to Today, Prep and Calendar. Existing rules
-stay: `start_url` `/`, no `orientation`, the three icons.
+Add `id`, `lang` and `categories`. **No shortcuts and no host-only `scope`:** one manifest serves
+both hosts and guests, and a shortcut straight into a host screen is the launch `HostOnly` exists to
+stop. Existing rules stay: `start_url` `/`, no `orientation`, the three icons.
+
+### 6. Opening offline
+
+The home-screen launch opens `/`, which today asks the server who she is (`RoleRouter` calling
+`whoami`). Offline that fails. So the app saves the last known role on the device whenever the server
+answers, and **offline only** uses it to choose the screen: a saved `host` goes to Today from cached
+data. The saved role grants nothing: every data request still carries her token and the server decides
+what she gets. Online behaviour is unchanged. The saved role is wiped with the rest on sign-out.
+A caller with no saved role who opens `/` offline sees the existing "couldn't work out where to send
+you" page, now with the offline strip. If the session itself is gone, she is sent to sign in, as today.
 
 ## Architecture
 
@@ -136,7 +155,8 @@ stay: `start_url` `/`, no `orientation`, the three icons.
   `src/lib/pwa/offlineStore.ts` (IndexedDB wrapper), `src/lib/pwa/persistQueries.ts`,
   `src/lib/pwa/changeQueue.ts`, `src/lib/pwa/useOnline.ts`, `src/components/pwa/OfflineStrip.tsx`,
   `src/components/pwa/PendingChanges.tsx`, `src/app/offline/page.tsx`.
-- **Touched:** `src/lib/api/provider.tsx` (restore and persist hooks), the two checklist hooks in
+- **Touched:** `src/lib/api/provider.tsx` (restore and persist hooks, 401 handling),
+  `src/components/RoleRouter.tsx` and `src/lib/auth/role.ts` (saved role), the two checklist hooks in
   `src/lib/api/hooks.ts`, the host layout (strip and chip), `src/app/manifest.ts`.
 - **No new dependencies.** IndexedDB and the service worker are used directly.
 - **No backend change.** Every endpoint used exists. Add-step is not idempotent, so replay checks
@@ -159,14 +179,14 @@ stay: `start_url` `/`, no `orientation`, the three icons.
 
 ## Risks
 
-| Risk                                                      | Handling                                                                                       |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| A bad worker traps users on an old version                | `no-cache` worker file, update on next launch, a self-unregistering kill-switch release        |
-| Guest data left on the device                             | Whitelist, 14-day expiry, wiped on sign-out and on 401                                         |
-| The session ends while offline (token refresh cannot run) | Verify Supabase keeps the session on a network error; the middleware already lets that through |
-| Demo mode's in-process fake API hides the network         | The offline browser tests use stubbed network responses on a production build, not demo mode   |
-| Browsers that evict IndexedDB under storage pressure      | Treat the store as a cache: an empty store falls back to the online-only behaviour             |
-| A replayed add-step creates a duplicate                   | Read-then-skip before replay; one pending-add per text per workshop                            |
+| Risk                                                      | Handling                                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A bad worker traps users on an old version                | `no-cache` worker file, update on next launch, a self-unregistering kill-switch release                          |
+| Guest data left on the device                             | Whitelist, 14-day expiry, wiped on sign-out and on 401                                                           |
+| The session ends while offline (token refresh cannot run) | Verify Supabase keeps the session on a network error; the saved role (section 6) launches her offline either way |
+| Demo mode's in-process fake API hides the network         | The offline browser tests use stubbed network responses on a production build, not demo mode                     |
+| Browsers that evict IndexedDB under storage pressure      | Treat the store as a cache: an empty store falls back to the online-only behaviour                               |
+| A replayed add-step creates a duplicate                   | Read-then-skip before replay; one pending-add per text per workshop                                              |
 
 ## Decisions and my calls (mark any you disagree with)
 
@@ -176,11 +196,12 @@ stay: `start_url` `/`, no `orientation`, the three icons.
 - Updates apply on the next launch, never mid-session.
 - Replay on `online`, focus and launch rather than the Background Sync API (not available everywhere).
 - The "new since you were away" note on Today.
-- Shortcuts in the manifest.
+- No manifest shortcuts, because guests install the same manifest.
 - Push notifications for new bookings stay out of this and are the natural next step.
 
 ## Left to the builder
 
-The IndexedDB schema and migration; the exact worker cache names and eviction; the strip's and
+The IndexedDB schema and migration; offline states for the Today cards outside the whitelist
+(birthdays, failed messages) and for date-range queries when the day changes; the exact worker cache names and eviction; the strip's and
 chip's visual design within the existing tokens and motion rules; how `/offline` looks; copy beyond
 the lines above; how the production-build browser tests are launched.
