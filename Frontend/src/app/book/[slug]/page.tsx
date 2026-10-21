@@ -7,6 +7,7 @@ import {
   storefrontDescription,
   storefrontTitle,
 } from '@/lib/public/metadata';
+import { fetchClassesServer } from '@/lib/public/serverClasses';
 
 /**
  * The public booking page — the link that goes in an ad.
@@ -16,7 +17,17 @@ import {
  * offering them one would be a dead end.
  *
  * `middleware.ts` lists `/book` as public, so this never redirects to login.
+ *
+ * The schedule is in the first HTML: each slug is rendered on demand and kept
+ * for 15 s (the API's own `max-age`). If the server fetch fails or is slow,
+ * the page ships the shell that fetches in the browser instead — and since
+ * that render is cached for 15 s too, a blip never sticks for long.
  */
+export const revalidate = 15;
+
+export function generateStaticParams(): { slug: string }[] {
+  return [];
+}
 
 /**
  * What the link says when it is pasted into a DM: the studio's name, a line
@@ -54,6 +65,7 @@ export async function generateMetadata({
 
 export default async function BookPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const data = await fetchClassesServer(slug);
 
-  return <BookingFlow slug={slug} />;
+  return <BookingFlow slug={slug} initialData={data} />;
 }

@@ -8,6 +8,7 @@
  */
 
 import type { PublicClass, PublicClassList, PublicStudio } from './api';
+import { fetchClassesServer } from './serverClasses';
 import { craftsIn, type CraftKind } from './studioPhotos';
 
 const DESCRIPTION_LIMIT = 160;
@@ -35,21 +36,11 @@ export function siteBase(): URL {
 }
 
 /**
- * The studio and its classes, or null. Never throws and never waits long:
- * a slow API must not hold up the page or the card.
+ * The studio and its classes, or null. Never throws and never waits long.
+ * The same request the page makes, so one render shares one cached fetch.
  */
-export async function fetchStudioForMetadata(slug: string): Promise<PublicClassList | null> {
-  try {
-    const base = serverApiBase().replace(/\/+$/, '');
-    const response = await fetch(`${base}/api/v1/public/${encodeURIComponent(slug)}/classes`, {
-      signal: AbortSignal.timeout(1500),
-      next: { revalidate: 300 },
-    } as RequestInit);
-    if (!response.ok) return null;
-    return (await response.json()) as PublicClassList;
-  } catch {
-    return null;
-  }
+export function fetchStudioForMetadata(slug: string): Promise<PublicClassList | null> {
+  return fetchClassesServer(slug);
 }
 
 export function storefrontTitle(name: string | null): string {

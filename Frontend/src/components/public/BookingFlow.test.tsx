@@ -549,4 +549,49 @@ describe('BookingFlow', () => {
     // styles/storefront.test.ts; this is the one place it has to be applied.
     expect(container.querySelector('main')).toHaveClass('storefront');
   });
+
+  // -------------------------------------------------------------------------
+  // Server-rendered schedule
+  // -------------------------------------------------------------------------
+
+  it('renders the server schedule on the first render, with no loading skeleton', () => {
+    fetchMock.mockReturnValue(new Promise(() => {}));
+
+    render(<BookingFlow slug="maison-abeer" initialData={classList() as never} />);
+
+    expect(screen.getAllByText('Bento cake decorating').length).toBeGreaterThan(0);
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    // The browser still asks for fresh seats.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).cache).toBe('no-store');
+  });
+
+  it('keeps the server schedule, and shows no alert, when the refresh fails', async () => {
+    fetchMock.mockImplementation(json({ message: 'Nope' }, 500));
+
+    render(<BookingFlow slug="maison-abeer" initialData={classList() as never} />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.getAllByText('Bento cake decorating').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('shows the error alert when there is no server schedule and the fetch fails', async () => {
+    fetchMock.mockImplementation(json({ message: 'Nope' }, 500));
+
+    render(<BookingFlow slug="maison-abeer" initialData={null} />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('corrects a stale seat count in place when the refresh says the class is full', async () => {
+    fetchMock.mockImplementation(json(classList({ seats_left: 0, is_full: true })));
+
+    render(<BookingFlow slug="maison-abeer" initialData={classList() as never} />);
+
+    expect(screen.getByText('4 seats left')).toBeInTheDocument();
+    expect(await screen.findByText(/join the waitlist/i)).toBeInTheDocument();
+    expect(screen.queryByText('4 seats left')).toBeNull();
+  });
 });

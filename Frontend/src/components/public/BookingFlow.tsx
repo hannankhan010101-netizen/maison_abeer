@@ -38,10 +38,12 @@ import { withViewTransition } from '@/lib/motion';
 
 export interface BookingFlowProps {
   slug: string;
+  /** The schedule the server already fetched, or null when it could not. */
+  initialData?: PublicClassList | null;
 }
 
-export function BookingFlow({ slug }: BookingFlowProps) {
-  const [data, setData] = useState<PublicClassList | null>(null);
+export function BookingFlow({ slug, initialData = null }: BookingFlowProps) {
+  const [data, setData] = useState<PublicClassList | null>(initialData);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<PublicClass | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
@@ -62,13 +64,19 @@ export function BookingFlow({ slug }: BookingFlowProps) {
     });
   }
 
+  const hasInitialData = initialData !== null;
+
   useEffect(() => {
     const controller = new AbortController();
 
+    // Always asked for, even with the server's schedule in hand: that copy may
+    // be up to 15 s old, and seat counts are the one thing that must be true.
+    // A fresh answer replaces it in place; a failed one leaves it alone — the
+    // guest already has a working page, and an alert would take it away.
     fetchClasses(slug, controller.signal)
       .then(setData)
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || hasInitialData) return;
         setLoadError(
           error instanceof BookingError
             ? error.message
@@ -77,7 +85,7 @@ export function BookingFlow({ slug }: BookingFlowProps) {
       });
 
     return () => controller.abort();
-  }, [slug]);
+  }, [slug, hasInitialData]);
 
   if (loadError) {
     return (

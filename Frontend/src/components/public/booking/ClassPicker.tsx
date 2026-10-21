@@ -128,18 +128,22 @@ export function ClassPicker({
                     <span className="text-latte block text-sm">{item.location}</span>
                   ) : null}
 
-                  <span
-                    className={cn(
-                      'mt-2 inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
-                      item.is_full
-                        ? 'bg-butter-soft text-butter-ink'
-                        : seats.urgent
-                          ? 'bg-blush text-rose-ink animate-pulse motion-reduce:animate-none'
-                          : 'bg-sage-soft text-sage-ink',
-                    )}
-                  >
-                    {seats.urgent && !item.is_full ? <span aria-hidden="true">🔥</span> : null}
-                    {seats.text}
+                  {/* The line keeps its height whatever it says, so a seat
+                      count corrected after load changes text, not layout. */}
+                  <span data-seats-line className="mt-2 block min-h-7">
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
+                        item.is_full
+                          ? 'bg-butter-soft text-butter-ink'
+                          : seats.urgent
+                            ? 'bg-blush text-rose-ink animate-pulse motion-reduce:animate-none'
+                            : 'bg-sage-soft text-sage-ink',
+                      )}
+                    >
+                      {seats.urgent && !item.is_full ? <span aria-hidden="true">🔥</span> : null}
+                      {seats.text}
+                    </span>
                   </span>
                 </span>
 

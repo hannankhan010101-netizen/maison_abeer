@@ -111,3 +111,16 @@ describe('ClassPicker', () => {
     expect(button).not.toHaveTextContent(formatDay(timed.starts_at));
   });
 });
+
+describe('ClassPicker seats line', () => {
+  it('reserves its height whatever the count says, so a corrected count moves nothing', () => {
+    const full = { ...item('c', 'Wheel'), seats_left: 0, is_full: true } as PublicClass;
+    render(<ClassPicker classes={[item('a', 'Bento cake'), full]} onPick={() => {}} />);
+
+    const lines = document.querySelectorAll<HTMLElement>('[data-seats-line]');
+    expect(lines).toHaveLength(2);
+    for (const line of lines) expect(line).toHaveClass('block', 'min-h-7');
+    expect(lines[0]).toHaveTextContent('4 seats left');
+    expect(lines[1]).toHaveTextContent(/join the waitlist/i);
+  });
+});

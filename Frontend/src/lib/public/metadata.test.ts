@@ -157,7 +157,7 @@ describe('fetchStudioForMetadata', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit & { next?: unknown }];
     expect(url).toBe('https://api.example/api/v1/public/maison%20abeer/classes');
     expect(init.signal).toBeInstanceOf(AbortSignal);
-    expect(init.next).toEqual({ revalidate: 300 });
+    expect(init.next).toEqual({ revalidate: 15 });
   });
 
   it('returns null on a non-2xx and the body on a 2xx', async () => {
