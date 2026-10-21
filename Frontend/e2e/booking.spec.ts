@@ -65,6 +65,37 @@ test.describe('booking a class', () => {
     await expect(page.getByRole('heading', { name: /You’re in/ })).toBeVisible();
   });
 
+  test('the confirmation check pops from its own centre', async ({ page }) => {
+    await stubApi(page, classPayload(), {
+      outcome: 'booked',
+      class_name: 'Bento cake decorating',
+      starts_at: SOON,
+      location: 'Studio A',
+      waitlist_position: null,
+    });
+
+    await page.goto(`/book/${SLUG}`);
+    await page.getByRole('button', { name: /Bento cake decorating/ }).click();
+    await page.getByLabel(/Your name/).fill('Sana R.');
+    await page.getByLabel(/Phone/).fill('03001234567');
+    await page.getByRole('button', { name: 'Book my spot' }).click();
+    await expect(page.getByRole('heading', { name: /You’re in/ })).toBeVisible();
+
+    // An SVG child scales about the viewport's corner unless told otherwise, so
+    // the circle would slide into place. Its origin must be its own middle.
+    const geometry = await page.locator('.booking-check circle').evaluate((node) => {
+      const circle = node as unknown as SVGGraphicsElement;
+      const box = circle.getBBox();
+      const style = getComputedStyle(circle);
+      const [ox, oy] = style.transformOrigin.split(' ').map(parseFloat);
+      return { transformBox: style.transformBox, ox, oy, cx: box.width / 2, cy: box.height / 2 };
+    });
+
+    expect(geometry.transformBox).toBe('fill-box');
+    expect(Math.abs((geometry.ox ?? NaN) - geometry.cx)).toBeLessThan(1);
+    expect(Math.abs((geometry.oy ?? NaN) - geometry.cy)).toBeLessThan(1);
+  });
+
   test('the page is reachable without signing in', async ({ page }) => {
     await stubApi(page, classPayload());
 

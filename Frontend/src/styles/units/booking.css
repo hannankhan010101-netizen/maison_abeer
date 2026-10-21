@@ -40,6 +40,10 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .booking-check circle {
+    /* An SVG child scales about the viewport's top-left by default, so without
+       these two the circle would slide into place instead of popping from its middle. */
+    transform-box: fill-box;
+    transform-origin: center;
     animation: booking-pop var(--dur-base, 300ms) var(--ease-spring-soft, ease-out) both;
   }
 
