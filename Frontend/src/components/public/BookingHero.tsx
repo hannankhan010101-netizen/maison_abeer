@@ -13,12 +13,15 @@ import {
   StickerPot,
   StickerSpark,
 } from '@/components/public/CraftStickers';
+import { VerbRoll } from '@/components/public/hero/VerbRoll';
 import { ParticleField } from '@/components/public/ParticleField';
 import { PhotoFan } from '@/components/public/PhotoFan';
 import { cn } from '@/lib/cn';
 import type { PublicClass } from '@/lib/public/api';
+import { FALLBACK_VERB, verbsFor } from '@/lib/public/craftVerbs';
 import { nextClass, whenCopy } from '@/lib/public/format';
 import { scrollToId } from '@/lib/public/lenisBridge';
+import { craftsIn } from '@/lib/public/studioPhotos';
 import { useHeroParallax } from '@/lib/public/useHeroParallax';
 import { useMagnetic } from '@/lib/public/useMagnetic';
 import { useMayAnimate } from '@/lib/public/useMayAnimate';
@@ -87,6 +90,11 @@ export function BookingHero({
   const hasPhoto = Boolean(heroPhotoUrl);
   const parallaxRef = useHeroParallax<HTMLDivElement>();
   const ctaRef = useMagnetic<HTMLAnchorElement>();
+  // Derived from the class list exactly as the chapters are. Still "make"
+  // whenever the roll may not run, so the static line claims no one craft.
+  const verbs = mayAnimate
+    ? verbsFor(craftsIn(classes.map((item) => item.color_token)))
+    : [FALLBACK_VERB];
 
   // The whole design system already routes colour through CSS custom
   // properties (see tokens.css and how `.mocha` retheming works the same
@@ -221,19 +229,26 @@ export function BookingHero({
             )}
           />
 
+          {/* The promise, in display type: "come throw something with your
+              own hands", its verb rolling through the crafts the classes
+              teach. The rolling line is aria-hidden; a screen reader hears
+              the one plain sentence in the sr-only copy and no live region.
+              Under reduced motion or Data Saver the verb is a still "make".
+              Over a photo the verb takes the pink, as the "bestie" line
+              does: the rose ink is a paper colour, not a photo one. */}
           <p
             className={cn(
-              'animate-rise-in mx-auto mt-5 max-w-[36ch] text-[15px] text-balance sm:text-[17px]',
-              // No `/90`. This block is vertically centred, i.e. mid-ramp, and
-              // the suffix is what put it out of reach even over a mid-grey
-              // photo; the photo/no-photo branch already carries the whole
-              // hierarchy this was buying.
+              'hero-promise font-display animate-rise-in mx-auto mt-5 max-w-[22ch]',
+              'text-[clamp(22px,3.2vw,40px)] leading-[1.1] text-balance',
               hasPhoto ? 'text-photo-ink' : 'text-cocoa',
             )}
             style={{ animationDelay: `${afterName + 100}ms` }}
           >
-            Come make something with your own hands — pick a class below and we&rsquo;ll keep you a
-            seat ♡
+            <span className="sr-only">come {FALLBACK_VERB} something with your own hands</span>
+            <span aria-hidden="true">
+              come <VerbRoll verbs={verbs} className={hasPhoto ? 'text-pink' : 'text-rose-ink'} />{' '}
+              something with your own hands
+            </span>
           </p>
 
           <NextClassChip classes={classes} light={hasPhoto} delay={`${afterName + 160}ms`} />

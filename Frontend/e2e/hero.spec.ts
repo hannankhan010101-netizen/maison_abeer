@@ -184,6 +184,35 @@ test('with reduced motion a polaroid is a still photograph: it does not move', a
   expect(after.y).toBeCloseTo(before.y, 0);
 });
 
+test('the promise line never moves while its verb rolls', async ({ page }) => {
+  await openStorefront(page);
+  const promise = page.locator('.hero-promise');
+  // The roll is running: more than one verb is in the box.
+  await expect
+    .poll(() => promise.locator('[data-verb]').count(), { timeout: 10_000 })
+    .toBeGreaterThan(1);
+  // Past the rise-in entrance, so only the roll could move it.
+  await page.waitForTimeout(1500);
+
+  const before = (await promise.boundingBox())!;
+  await page.waitForTimeout(3000);
+  const after = (await promise.boundingBox())!;
+
+  for (const key of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(after[key] - before[key]), `${key} moved`).toBeLessThanOrEqual(0.5);
+  }
+});
+
+test('under reduced motion the verb is static', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openStorefront(page);
+  await page.waitForTimeout(3000);
+
+  const verbs = page.locator('.hero-promise [data-verb]');
+  await expect(verbs).toHaveCount(1);
+  await expect(verbs).toHaveText('make');
+});
+
 /** The family a page's own `@font-face` rules declare, and the file each one fetches. */
 async function fontFaces(page: Page) {
   return page.evaluate(() => {
