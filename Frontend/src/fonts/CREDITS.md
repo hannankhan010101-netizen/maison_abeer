@@ -10,6 +10,7 @@ so the app neither depends on Google at build time nor sends a guest to a third 
 | `nunito-variable.woff2`   | [Nunito](https://fonts.google.com/specimen/Nunito) (`wght` 200–1000)                  | Body text                                       |
 | `caveat-variable.woff2`   | [Caveat](https://fonts.google.com/specimen/Caveat) (`wght` 400–700)                   | The handwritten asides                          |
 | `fraunces-variable.woff2` | [Fraunces](https://fonts.google.com/specimen/Fraunces) (`wght` 100–900, `SOFT` 0–100) | Storefront display headings                     |
+| `fraunces-og.woff`        | [Fraunces](https://fonts.google.com/specimen/Fraunces) (static, `opsz` 144, `wght` 600)  | The share card only (`next/og` reads no WOFF2)  |
 
 Fraunces is requested with only the two axes the design uses; its `opsz` and `WONK` axes are left
 out to keep the file at about 62 KB. Of its axes only `SOFT` may be animated — `wght` changes glyph
