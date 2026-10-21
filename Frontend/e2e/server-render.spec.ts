@@ -42,7 +42,24 @@ async function watchLayoutShift(page: Page) {
   });
 }
 
-test.afterEach(async ({ request }) => mode(request, 'ok'));
+async function seats(request: APIRequestContext, count: number) {
+  expect((await request.post(`${API}/__seats/${count}`)).ok()).toBe(true);
+}
+
+async function serverHits(request: APIRequestContext, slug: string): Promise<number> {
+  return ((await (await request.get(`${API}/__hits/${slug}`)).json()) as { hits: number }).hits;
+}
+
+async function html(request: APIRequestContext, slug: string): Promise<string> {
+  const response = await request.get(`/book/${slug}`);
+  expect(response.status()).toBe(200);
+  return response.text();
+}
+
+test.afterEach(async ({ request }) => {
+  await mode(request, 'ok');
+  await seats(request, 8);
+});
 
 test('the first HTML carries the schedule, with JavaScript off', async ({ browser, request }) => {
   await mode(request, 'ok');
@@ -102,4 +119,50 @@ test('a stale seat count is corrected in place, with no layout shift', async ({
 
   const cls = await page.evaluate(() => (window as unknown as { __cls: number }).__cls);
   expect(cls).toBeLessThan(0.05);
+});
+
+test('the page is cached for 15 s, then refreshed; a failed render does not stick', async ({
+  request,
+}) => {
+  test.setTimeout(60_000);
+  const failed = freshSlug();
+  const cached = freshSlug();
+
+  // A first render while the API is down: the shell, with no class.
+  await mode(request, 'error');
+  expect(await html(request, failed)).not.toContain(CLASS);
+
+  // A first render with 8 seats, then the API changes to 3.
+  await mode(request, 'ok');
+  await seats(request, 8);
+  const renderedAt = Date.now();
+  expect(await html(request, cached)).toContain('8 seats left');
+  const hitsAfterRender = await serverHits(request, cached);
+  expect(hitsAfterRender).toBeGreaterThan(0);
+  await seats(request, 3);
+
+  // Inside 15 s: the cached HTML, and no new server-side request to the API.
+  expect(await html(request, cached)).toContain('8 seats left');
+  expect(await serverHits(request, cached)).toBe(hitsAfterRender);
+  expect(await html(request, failed)).not.toContain(CLASS);
+  expect(Date.now() - renderedAt).toBeLessThan(15_000);
+
+  await new Promise((resolve) => setTimeout(resolve, 16_000));
+
+  // Past 15 s the first request may still get the stale page while Next
+  // re-renders behind it; a later one must carry the fresh answer.
+  const deadline = Date.now() + 14_000;
+  let fresh = '';
+  let recovered = '';
+  let attempts = 0;
+  while (Date.now() < deadline) {
+    attempts += 1;
+    fresh = await html(request, cached);
+    recovered = await html(request, failed);
+    if (fresh.includes('Only 3 seats left') && recovered.includes(CLASS)) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  console.log(`fresh after ${attempts} request(s), ${Date.now() - renderedAt} ms after render`);
+  expect(fresh).toContain('Only 3 seats left');
+  expect(recovered).toContain(CLASS);
 });
