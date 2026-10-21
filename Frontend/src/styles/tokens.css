@@ -236,6 +236,26 @@
      instead of each choosing its own margin, so the page has a rhythm rather
      than seven opinions about spacing. */
   --section-gap: clamp(56px, 9vw, 112px);
+
+  /* ---- craft tints ----------------------------------------------------------
+     One soft surface and one text ink per craft: bento in blush and cherry,
+     pottery in terracotta and butter, painting in lilac. Each ink holds AA
+     (4.5:1) on its own tint and on `--color-paper` (contrast.test.ts). Light
+     theme only for now; nothing renders them under `.mocha` yet. */
+  --craft-bento: #fce4ea;
+  --craft-bento-ink: #a3304f; /* @a11y 5.63:1 on tint, 6.69:1 on paper */
+  --craft-pottery: #f9e3cf;
+  --craft-pottery-ink: #8f4521; /* @a11y 5.56:1 on tint, 6.80:1 on paper */
+  --craft-painting: #e8e9f6;
+  --craft-painting-ink: #55497a; /* @a11y 6.65:1 on tint, 7.89:1 on paper */
+
+  /* ---- springs and stickers -------------------------------------------------
+     `squish` is the press: a short dip that overshoots back a little. `pop` is
+     the landing: a bigger overshoot for a sticker or chip arriving. Both are
+     for `transform` only, under `prefers-reduced-motion: no-preference`. */
+  --spring-squish: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --spring-pop: cubic-bezier(0.34, 1.8, 0.64, 1);
+  --sticker-shadow: 0 1px 0 rgb(64 48 42 / 12%), 0 6px 14px -6px rgb(64 48 42 / 30%);
 }
 
 /* ==========================================================================
