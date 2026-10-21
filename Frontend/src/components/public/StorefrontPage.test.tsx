@@ -66,7 +66,11 @@ describe('StorefrontPage rhythm', () => {
       .getByRole('heading', { name: 'How it works' })
       .closest('section')!.parentElement!;
 
-    expect(wrapper.className).toContain('gap-[var(--section-gap)]');
-    expect(wrapper.className).not.toMatch(/space-y-/);
+    // One rhythm token — and as block margins, not a flex gap. GSAP's
+    // ScrollTrigger turns pin spacing off inside a flex parent, so a flex
+    // column let the booking card scroll straight over the pinned clay scene.
+    expect(wrapper.className).toContain('space-y-[var(--section-gap)]');
+    expect(wrapper.className).not.toMatch(/space-y-\d/);
+    expect(wrapper.className).not.toMatch(/\bflex\b|gap-\[/);
   });
 });

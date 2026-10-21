@@ -86,6 +86,40 @@ test('desktop: the story takes at most two screens of scroll', async ({ page }, 
   expect(height).toBeLessThanOrEqual(2.1 * viewport);
 });
 
+test('desktop: the story reserves its scroll, so the next section never slides over it', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'pinning only happens from 768px up');
+  await open(page);
+
+  await expect(page.locator('section.making')).toHaveAttribute('data-pinned', '', {
+    timeout: 20_000,
+  });
+  const spacer = page.locator('.pin-spacer:has(> section.making)');
+  await expect(spacer).toHaveCount(1);
+
+  const box = await spacer.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const section = el.querySelector('section.making')!.getBoundingClientRect();
+    const card = document.getElementById('booking-widget')!.getBoundingClientRect();
+    return {
+      spacerTop: rect.top + window.scrollY,
+      spacerBottom: rect.bottom + window.scrollY,
+      sectionHeight: section.height,
+      cardTop: card.top + window.scrollY,
+    };
+  });
+  const viewport = page.viewportSize()!.height;
+
+  // GSAP pads the spacer by the pin distance (one viewport) so what follows is
+  // pushed down. Inside a flex parent it silently stops doing that, and the
+  // booking card scrolled straight over the clay — this is the guard for it.
+  expect(box.spacerBottom - box.spacerTop).toBeGreaterThanOrEqual(
+    box.sectionHeight + 0.9 * viewport,
+  );
+  expect(box.cardTop).toBeGreaterThanOrEqual(box.spacerBottom);
+});
+
 test('hands are present in every frame', async ({ page }) => {
   await open(page);
   const frames = page.locator('section.making figure');
