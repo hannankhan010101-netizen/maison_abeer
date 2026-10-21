@@ -35,3 +35,16 @@ describe('atmosphere.css', () => {
     expect(css).not.toContain('!important');
   });
 });
+
+describe('the chapter behind', () => {
+  it('shrinks, lifts and dims as the next chapter arrives', () => {
+    // The block's last `}` closes the `to` frame and the keyframes together, so the
+    // lazy match ends inside `to`: what it captures is both frames, which is all
+    // this needs to read.
+    const keyframes = /@keyframes\s+chapter-settle\s*{([\s\S]*?)}\s*}/.exec(css)?.[1] ?? '';
+
+    expect(keyframes).toMatch(/from\s*{[^}]*opacity:\s*1\b/);
+    expect(keyframes).toMatch(/scale\(0\.94\)\s+translateY\(-8px\)/);
+    expect(keyframes).toMatch(/opacity:\s*0\.5\b/);
+  });
+});

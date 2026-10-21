@@ -141,8 +141,12 @@
 @keyframes chapter-settle {
   from {
     transform: scale(1);
+    opacity: 1;
   }
   to {
-    transform: scale(0.94);
+    /* Smaller alone was too quiet to read as "behind"; dimmed and lifted a
+       touch, the chapter underneath clearly recedes as the next one lands. */
+    transform: scale(0.94) translateY(-8px);
+    opacity: 0.5;
   }
 }
