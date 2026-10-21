@@ -1,14 +1,13 @@
 'use client';
 
 import { BookingHero } from '@/components/public/BookingHero';
-import { BookingPostcard } from '@/components/public/BookingPostcard';
 import { CraftChapters } from '@/components/public/CraftChapters';
 import { CustomCursor } from '@/components/public/CustomCursor';
 import { HowItWorks } from '@/components/public/HowItWorks';
 import { PhotoMarquee } from '@/components/public/PhotoMarquee';
 import { MakingOf } from '@/components/public/making/MakingOf';
 import { MemoryWall } from '@/components/public/memories/MemoryWall';
-import { StickyCta } from '@/components/public/atmosphere/StickyCta';
+import { FloatingPill } from '@/components/public/nav/FloatingPill';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
 import { StorefrontBackdrop } from '@/components/public/StorefrontBackdrop';
 import { StudioFooter } from '@/components/public/StudioFooter';
@@ -16,6 +15,8 @@ import { StudioRibbon } from '@/components/public/StudioRibbon';
 import { StorySection } from '@/components/public/booking/StorySection';
 import { TicketStub } from '@/components/public/booking/TicketStub';
 import { cn } from '@/lib/cn';
+import { seatsLine } from '@/lib/public/bookingCopy';
+import { useMountedNow } from '@/lib/public/useMountedNow';
 import { type PublicClass, type PublicMemory, type PublicWord } from '@/lib/public/api';
 import { craftsIn } from '@/lib/public/studioPhotos';
 
@@ -57,6 +58,9 @@ export function StorefrontPage({
   words,
 }: StorefrontPageProps) {
   const brandSections = Boolean(showBrandSections && classes && classes.length > 0);
+  // The stub's seats line needs the browser clock ("this Friday" is relative), so it
+  // stays blank until mount — the same rule as the hero's chip.
+  const now = useMountedNow();
   // "The making of" is a story about throwing a pot, so it follows the same rule as every
   // other section that draws on the classes: never about a craft the studio does not teach.
   const teachesPottery = craftsIn((classes ?? []).map((item) => item.color_token)).includes(
@@ -102,7 +106,6 @@ export function StorefrontPage({
             <MemoryWall classes={classes!} memories={memories} words={words} />
             {teachesPottery ? <MakingOf /> : null}
             <PhotoMarquee classes={classes!} />
-            <BookingPostcard classes={classes!} />
           </div>
         </>
       ) : null}
@@ -136,7 +139,12 @@ export function StorefrontPage({
               studioName && 'shadow-[var(--shadow-lift)]',
             )}
           >
-            {step ? <TicketStub current={step} /> : null}
+            {step ? (
+              <TicketStub
+                current={step}
+                seatsLine={now && classes ? seatsLine(classes, now) : null}
+              />
+            ) : null}
             <div className="p-5 sm:p-7">
               {/* Re-keyed per step: picking a class, filling the form, and
                 landing on the confirmation are three different screens
@@ -153,8 +161,10 @@ export function StorefrontPage({
         </div>
       </div>
 
-      {studioName ? <StudioFooter studioName={studioName} handle={handle} /> : null}
-      <StickyCta />
+      {studioName ? (
+        <StudioFooter studioName={studioName} handle={handle} classes={classes} />
+      ) : null}
+      <FloatingPill studioName={studioName} classes={classes} />
     </main>
   );
 }

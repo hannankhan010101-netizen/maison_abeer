@@ -287,7 +287,7 @@ describe('BookingFlow', () => {
     expect(screen.getAllByText('Pottery & wheel throwing').length).toBeGreaterThan(0);
   });
 
-  it('the postcard states the real, honest number of open seats', async () => {
+  it('the ticket stub states the real, honest number of open seats', async () => {
     fetchMock.mockImplementation(
       json({
         studio: { name: 'Maison Abeer', instagram_handle: 'maisonabeer' },
@@ -302,10 +302,9 @@ describe('BookingFlow', () => {
 
     render(<BookingFlow slug="maison-abeer" />);
 
-    // `selector`: the class cards' date leaves also show bare numbers (the
-    // day of the month), and on the right day one of them is a 7 too.
-    expect(await screen.findByText('7', { selector: 'p' })).toBeInTheDocument();
-    expect(screen.getByText(/seats open across 2 classes right now/)).toBeInTheDocument();
+    // Summed from the same payload the picker renders — never a number
+    // invented to persuade. (The postcard that used to carry it is gone.)
+    expect(await screen.findByText(/^7 seats across 2 classes$/)).toBeInTheDocument();
   });
 
   it('the brand strip steps aside once a guest has picked a class', async () => {

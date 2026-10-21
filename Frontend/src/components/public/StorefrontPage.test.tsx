@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { PublicClass } from '@/lib/public/api';
 
@@ -72,5 +72,42 @@ describe('StorefrontPage rhythm', () => {
     expect(wrapper.className).toContain('space-y-[var(--section-gap)]');
     expect(wrapper.className).not.toMatch(/space-y-\d/);
     expect(wrapper.className).not.toMatch(/\bflex\b|gap-\[/);
+  });
+});
+
+vi.mock('@/lib/public/useStorefrontPosition', () => ({
+  useStorefrontPosition: () => ({ heroVisible: false, widgetVisible: false }),
+}));
+
+describe('StorefrontPage wiring (v3)', () => {
+  it('gives the floating pill the studio name and the classes', () => {
+    page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    const pill = screen.getByRole('navigation', { name: 'Book a seat' });
+    expect(pill).toHaveTextContent('Maison Abeer');
+    expect(pill).toHaveTextContent(/seats? left|fully booked/);
+  });
+
+  it('no longer tells the seat count a third time on a postcard', () => {
+    page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    expect(screen.queryByText(/seats open across/)).not.toBeInTheDocument();
+  });
+
+  it('puts the one honest number on the ticket stub', async () => {
+    page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    expect(await screen.findByText(/^4 seats left /)).toBeInTheDocument();
+  });
+
+  it('lists the classes in the footer, each a way back to the card', () => {
+    page([aClass('terra', 'Pottery & wheel throwing'), aClass('pink', 'Bento cakes')]);
+
+    const footer = screen.getByRole('contentinfo');
+    expect(within(footer).getByRole('link', { name: 'Pottery & wheel throwing' })).toHaveAttribute(
+      'href',
+      '#booking-widget',
+    );
+    expect(within(footer).getByRole('link', { name: 'Bento cakes' })).toBeInTheDocument();
   });
 });
