@@ -478,7 +478,7 @@ describe('BookingFlow', () => {
 
     render(<BookingFlow slug="maison-abeer" />);
 
-    expect((await screen.findAllByText(/2 hrs 30 min/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/2½ h/)).length).toBeGreaterThan(0);
   });
 
   it("links the studio's Instagram from the footer", async () => {
