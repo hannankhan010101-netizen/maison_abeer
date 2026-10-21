@@ -23,29 +23,29 @@ describe('CraftCorner', () => {
     render(<CraftCorner crafts={['cake', 'pottery', 'painting']} />);
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Bento cakes', 'Pottery', 'Painting']);
-    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[0]!).toHaveAttribute('aria-selected', 'true');
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Bento cakes');
-    fireEvent.click(tabs[2]);
+    fireEvent.click(tabs[2]!);
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Painting');
   });
 
   it('moves focus and selection with arrows, Home and End', () => {
     render(<CraftCorner crafts={['cake', 'pottery', 'painting']} />);
     const tabs = screen.getAllByRole('tab');
-    tabs[0].focus();
-    fireEvent.keyDown(tabs[0], { key: 'ArrowRight' });
-    expect(tabs[1]).toHaveFocus();
-    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
-    expect(tabs[0]).toHaveAttribute('tabindex', '-1');
-    fireEvent.keyDown(tabs[1], { key: 'End' });
-    expect(tabs[2]).toHaveFocus();
-    fireEvent.keyDown(tabs[2], { key: 'ArrowRight' });
-    expect(tabs[0]).toHaveFocus();
-    fireEvent.keyDown(tabs[0], { key: 'ArrowLeft' });
-    expect(tabs[2]).toHaveFocus();
-    fireEvent.keyDown(tabs[2], { key: 'Home' });
-    expect(tabs[0]).toHaveFocus();
+    tabs[0]!.focus();
+    fireEvent.keyDown(tabs[0]!, { key: 'ArrowRight' });
+    expect(tabs[1]!).toHaveFocus();
+    expect(tabs[1]!).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[0]!).toHaveAttribute('tabindex', '-1');
+    fireEvent.keyDown(tabs[1]!, { key: 'End' });
+    expect(tabs[2]!).toHaveFocus();
+    fireEvent.keyDown(tabs[2]!, { key: 'ArrowRight' });
+    expect(tabs[0]!).toHaveFocus();
+    fireEvent.keyDown(tabs[0]!, { key: 'ArrowLeft' });
+    expect(tabs[2]!).toHaveFocus();
+    fireEvent.keyDown(tabs[2]!, { key: 'Home' });
+    expect(tabs[0]!).toHaveFocus();
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Bento cakes');
   });
 

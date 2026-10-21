@@ -20,14 +20,14 @@ describe('BringList', () => {
     expect(boxes).toHaveLength(bring.length);
     boxes.forEach((box, index) => {
       expect(box).not.toBeChecked();
-      expect(box).toHaveAccessibleName(bring[index]);
+      expect(box).toHaveAccessibleName(bring[index]!);
     });
   });
 
   it('ticks by tap and by keyboard', () => {
     render(<BringList items={bring} />);
-    const first = screen.getByRole('checkbox', { name: bring[0] });
-    fireEvent.click(screen.getByText(bring[0]));
+    const first = screen.getByRole('checkbox', { name: bring[0]! });
+    fireEvent.click(screen.getByText(bring[0]!));
     expect(first).toBeChecked();
     // A native checkbox: Space reaches it as a click.
     first.focus();
@@ -38,7 +38,7 @@ describe('BringList', () => {
   it('never stores anything', () => {
     const local = vi.spyOn(Storage.prototype, 'setItem');
     render(<BringList items={bring} />);
-    fireEvent.click(screen.getByRole('checkbox', { name: bring[1] }));
+    fireEvent.click(screen.getByRole('checkbox', { name: bring[1]! }));
     expect(local).not.toHaveBeenCalled();
   });
 });

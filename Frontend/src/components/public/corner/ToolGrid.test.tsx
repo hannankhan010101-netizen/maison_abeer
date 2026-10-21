@@ -21,30 +21,30 @@ describe('ToolGrid', () => {
 
   it('toggles a tool card open and closed', () => {
     render(<ToolGrid tools={tools} />);
-    const button = screen.getByRole('button', { name: tools[0].name });
+    const button = screen.getByRole('button', { name: tools[0]!.name });
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText(tools[0].does)).toBeVisible();
+    expect(screen.getByText(tools[0]!.does)).toBeVisible();
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText(tools[0].does)).toBeNull();
+    expect(screen.queryByText(tools[0]!.does)).toBeNull();
   });
 
   it('opens one card at a time', () => {
     render(<ToolGrid tools={tools} />);
-    fireEvent.click(screen.getByRole('button', { name: tools[0].name }));
-    fireEvent.click(screen.getByRole('button', { name: tools[1].name }));
-    expect(screen.queryByText(tools[0].does)).toBeNull();
-    expect(screen.getByText(tools[1].does)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: tools[0]!.name }));
+    fireEvent.click(screen.getByRole('button', { name: tools[1]!.name }));
+    expect(screen.queryByText(tools[0]!.does)).toBeNull();
+    expect(screen.getByText(tools[1]!.does)).toBeVisible();
   });
 
   it('closes on Escape and returns focus to the tool', () => {
     render(<ToolGrid tools={tools} />);
-    const button = screen.getByRole('button', { name: tools[2].name });
+    const button = screen.getByRole('button', { name: tools[2]!.name });
     fireEvent.click(button);
     fireEvent.keyDown(button, { key: 'Escape' });
     expect(button).toHaveAttribute('aria-expanded', 'false');
     expect(button).toHaveFocus();
-    expect(screen.queryByText(tools[2].does)).toBeNull();
+    expect(screen.queryByText(tools[2]!.does)).toBeNull();
   });
 });

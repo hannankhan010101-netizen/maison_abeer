@@ -21,8 +21,8 @@ describe('StorySteps', () => {
     expect(items).toHaveLength(steps.length);
     items.forEach((item, index) => {
       expect(item).toHaveTextContent(String(index + 1));
-      expect(item).toHaveTextContent(steps[index].title);
-      expect(item).toHaveTextContent(steps[index].text);
+      expect(item).toHaveTextContent(steps[index]!.title);
+      expect(item).toHaveTextContent(steps[index]!.text);
     });
   });
 

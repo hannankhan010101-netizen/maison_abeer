@@ -21,12 +21,12 @@ describe('FaqAccordion', () => {
 
   it('opens and closes an answer with aria-expanded', () => {
     render(<FaqAccordion entries={COMMON_FAQ} />);
-    const button = screen.getByRole('button', { name: COMMON_FAQ[0].q });
+    const button = screen.getByRole('button', { name: COMMON_FAQ[0]!.q });
     expect(button).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText(COMMON_FAQ[0].a!)).toBeNull();
+    expect(screen.queryByText(COMMON_FAQ[0]!.a!)).toBeNull();
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText(COMMON_FAQ[0].a!)).toBeVisible();
+    expect(screen.getByText(COMMON_FAQ[0]!.a!)).toBeVisible();
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'false');
   });

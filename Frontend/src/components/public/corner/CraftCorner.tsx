@@ -54,6 +54,7 @@ export default function CraftCorner({ crafts }: { crafts: CraftKind[] }) {
 
   const select = (index: number) => {
     const kind = kinds[index];
+    if (!kind) return;
     if (kind !== selected) haptic('tap');
     setChosen(kind);
     tabRefs.current[index]?.focus();
