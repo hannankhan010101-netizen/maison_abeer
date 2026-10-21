@@ -207,25 +207,38 @@ function LoginForm() {
   }
 
   return (
+    // The booking card's language: paper, a soft shadow, the storefront's panel
+    // radius, and a perforation between the stub (who you are signing in to)
+    // and the form (what you hand over).
     <div
       className={cn(
-        'animate-rise-in w-full max-w-[420px]',
-        'border-line bg-paper/95 relative rounded-[var(--radius-lg)] border-[1.5px]',
-        'p-6 shadow-[0_28px_60px_-24px_rgb(64_48_42_/22%)] backdrop-blur-xl sm:p-8',
+        'animate-rise-in w-full max-w-[420px] overflow-hidden',
+        'border-line bg-paper relative rounded-[var(--radius-xl)] border-[1.5px]',
+        'shadow-[var(--shadow-soft)]',
       )}
     >
-      {/* A wordmark badge — this is the sign-in door for the whole product,
+      <div className="px-6 pt-6 pb-5 sm:px-8 sm:pt-8">
+        {/* A wordmark badge — this is the sign-in door for the whole product,
           so it gets to say who it belongs to even before the heading does. */}
-      <div className="border-line bg-blush mb-5 inline-flex size-11 items-center justify-center rounded-full border-[1.5px] text-xl">
-        <span aria-hidden="true">🌷</span>
+        <div className="border-line bg-blush mb-5 inline-flex size-11 items-center justify-center rounded-full border-[1.5px] text-xl">
+          <span aria-hidden="true">🌷</span>
+        </div>
+
+        <h1 className="font-display text-[26px] leading-tight sm:text-[28px]">Welcome back ✨</h1>
+        <p className="mt-1.5">
+          <HandNote>Let&rsquo;s get you into the studio</HandNote>
+        </p>
       </div>
 
-      <h1 className="font-display text-[26px] leading-tight sm:text-[28px]">Welcome back ✨</h1>
-      <p className="mt-1.5 mb-6">
-        <HandNote>Let&rsquo;s get you into the studio</HandNote>
-      </p>
+      {/* The tear line: dashed, with a notch bitten out of each edge. */}
+      <div aria-hidden="true" className="relative">
+        <span className="border-line block border-t-[1.5px] border-dashed" />
+        <span className="border-line bg-buttercream absolute -top-[10px] -left-[10px] size-5 rounded-full border-[1.5px]" />
+        <span className="border-line bg-buttercream absolute -top-[10px] -right-[10px] size-5 rounded-full border-[1.5px]" />
+      </div>
 
-      {/*
+      <div className="px-6 pt-6 pb-6 sm:px-8 sm:pb-8">
+        {/*
         `method="post"` matters even though the submit is handled in JS.
         Until this component hydrates there is no `onSubmit`, so tapping the
         button falls back to a native submit — and a form with no method
@@ -234,79 +247,80 @@ function LoginForm() {
         put in a URL. The disabled button below makes that path unreachable
         in the first place; this is the belt to its braces.
       */}
-      <form onSubmit={handleSubmit} method="post" noValidate className="space-y-4">
-        <AuthField id="email" label="Email" icon={<MailIcon />}>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="you@yourstudio.com"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={FIELD_CLASSES}
-          />
-        </AuthField>
+        <form onSubmit={handleSubmit} method="post" noValidate className="space-y-4">
+          <AuthField id="email" label="Email" icon={<MailIcon />}>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="you@yourstudio.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={FIELD_CLASSES}
+            />
+          </AuthField>
 
-        <AuthField
-          id="password"
-          label="Password"
-          icon={<LockIcon />}
-          trailing={
-            <button
-              type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
-              aria-pressed={showPassword}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="text-latte hover:text-cocoa grid size-9 place-items-center rounded-full transition-colors"
-            >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          }
-        >
-          <input
+          <AuthField
             id="password"
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="current-password"
-            placeholder="••••••••"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={cn(FIELD_CLASSES, 'pr-11')}
-          />
-        </AuthField>
-
-        {error ? (
-          // role=alert so the failure is announced, not just recoloured.
-          <p
-            role="alert"
-            className="border-danger-line bg-danger-soft text-danger animate-rise-in flex items-start gap-2 rounded-[var(--radius-md)] border-[1.5px] px-3.5 py-3 text-sm font-bold"
+            label="Password"
+            icon={<LockIcon />}
+            trailing={
+              <button
+                type="button"
+                onClick={() => setShowPassword((shown) => !shown)}
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="text-latte hover:text-cocoa grid size-11 place-items-center rounded-full transition-colors"
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            }
           >
-            <AlertIcon />
-            <span>{error}</span>
-          </p>
-        ) : null}
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={cn(FIELD_CLASSES, 'pr-[3.25rem]')}
+            />
+          </AuthField>
 
-        <Button
-          type="submit"
-          disabled={!ready}
-          loading={pending}
-          loadingLabel="Signing you in…"
-          className="w-full"
-        >
-          Sign in
-        </Button>
-      </form>
+          {error ? (
+            // role=alert so the failure is announced, not just recoloured.
+            <p
+              role="alert"
+              className="border-danger-line bg-danger-soft text-danger animate-rise-in flex items-start gap-2 rounded-[var(--radius-md)] border-[1.5px] px-3.5 py-3 text-sm font-bold"
+            >
+              <AlertIcon />
+              <span>{error}</span>
+            </p>
+          ) : null}
 
-      <p className="text-latte mt-6 text-center text-[13px]">
-        Trouble signing in? Ask your studio for help.
-      </p>
+          <Button
+            type="submit"
+            disabled={!ready}
+            loading={pending}
+            loadingLabel="Signing you in…"
+            className="w-full"
+          >
+            Sign in
+          </Button>
+        </form>
+
+        <p className="text-latte mt-6 text-center text-[13px]">
+          Trouble signing in? Ask your studio for help.
+        </p>
+      </div>
     </div>
   );
 }

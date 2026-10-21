@@ -1,0 +1,51 @@
+/* The sign-in door: a ticket on the brand panel, two paper cards fanned behind it. */
+
+/* The fan's resting place. Everything here is the end state, so reduced motion
+   simply gets the finished picture. */
+.login-fan {
+  transform: translate(var(--fan-x, 0), var(--fan-y, 0)) rotate(var(--fan-turn, 0deg));
+}
+
+.login-fan--back {
+  --fan-x: -16px;
+  --fan-y: 12px;
+  --fan-turn: -7deg;
+}
+
+.login-fan--mid {
+  --fan-x: 14px;
+  --fan-y: 8px;
+  --fan-turn: 5deg;
+}
+
+/* The seat ring, fully drawn unless motion is allowed (circumference of r=18). */
+.login-ring {
+  stroke-dasharray: 113.1;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .login-fan {
+    animation: login-fan-out 700ms var(--ease-spring-soft, ease-out) 250ms both;
+  }
+
+  .login-fan--mid {
+    animation-delay: 330ms;
+  }
+
+  .login-ring {
+    animation: login-ring-draw 900ms var(--ease-out-expo, ease-out) 600ms both;
+  }
+
+  @keyframes login-fan-out {
+    from {
+      transform: translate(0, 0) rotate(0deg);
+    }
+  }
+
+  @keyframes login-ring-draw {
+    from {
+      stroke-dashoffset: 113.1;
+    }
+  }
+}

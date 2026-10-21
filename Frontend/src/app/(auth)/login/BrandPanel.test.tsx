@@ -19,4 +19,11 @@ describe('BrandPanel', () => {
     // accessibility tree.
     expect(container.textContent).toContain('for example');
   });
+
+  it('shows a ticket, not invented numbers', () => {
+    const { container } = render(<BrandPanel />);
+
+    expect(container.querySelector('[data-leaf]'), 'the example ticket is missing').not.toBeNull();
+    expect(container.textContent).not.toMatch(/seats|nearly full/i);
+  });
 });
