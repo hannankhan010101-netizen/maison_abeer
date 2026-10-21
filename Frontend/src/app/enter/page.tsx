@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import { Card } from '@/components/ui/Card';
+import { EnterFailed, EnterWaiting } from '@/components/public/doors/EnterStates';
 
 /**
  * Sign in from a link the host sent.
@@ -28,20 +28,9 @@ import { Card } from '@/components/ui/Card';
  */
 export default function EnterPage() {
   return (
-    <Suspense fallback={<Waiting />}>
+    <Suspense fallback={<EnterWaiting />}>
       <Enter />
     </Suspense>
-  );
-}
-
-function Waiting() {
-  return (
-    <main id="main" className="grid min-h-[70vh] place-items-center px-4">
-      <p role="status" aria-live="polite" className="text-latte">
-        <span className="sr-only">Signing you in</span>
-        <span aria-hidden="true">…</span>
-      </p>
-    </main>
   );
 }
 
@@ -110,37 +99,7 @@ function Enter() {
     void enter();
   }, [token, type]);
 
-  if (failed === null) return <Waiting />;
+  if (failed === null) return <EnterWaiting />;
 
-  return (
-    <main id="main" className="grid min-h-[70vh] place-items-center px-4">
-      <Card className="max-w-[38ch] text-center">
-        <p className="text-4xl" aria-hidden="true">
-          🌷
-        </p>
-
-        {failed === 'spent' ? (
-          <>
-            <p role="alert" className="font-display mt-2 text-xl">
-              That link has already been used
-            </p>
-            <p className="text-latte mt-2 text-sm">
-              They only work once, and not for long. Ask your studio for a fresh one and
-              you&rsquo;ll be straight back in.
-            </p>
-          </>
-        ) : (
-          <>
-            <p role="alert" className="font-display mt-2 text-xl">
-              We couldn&rsquo;t sign you in just now
-            </p>
-            <p className="text-latte mt-2 text-sm">
-              Something went wrong on our side, not yours — your link may still work. Check your
-              connection and try it again.
-            </p>
-          </>
-        )}
-      </Card>
-    </main>
-  );
+  return <EnterFailed kind={failed} />;
 }

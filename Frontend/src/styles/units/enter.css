@@ -1,0 +1,48 @@
+/*
+ * The recovery link (`/enter`): a key-and-ticket sticker that draws itself on,
+ * slowly, while the guest waits. Layout and colour are Tailwind utilities on
+ * the component; this file holds only the draw.
+ *
+ * The resting state is the finished drawing. Nothing here moves unless the
+ * guest has said motion is fine, and even then it draws once and stops: no
+ * pulse, no loop, nothing that reads as "still working" for longer than the
+ * work itself.
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+  /*
+   * Each stroke carries `pathLength="1"`, so one dash the length of the whole
+   * path, offset by that length, hides it; easing the offset to zero draws it.
+   */
+  .enter-sticker__line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: enter-draw 1.8s cubic-bezier(0.45, 0, 0.2, 1) both;
+  }
+
+  .enter-sticker__line--late {
+    animation-delay: 0.5s;
+  }
+
+  .enter-sticker__fill {
+    animation: enter-fill 0.9s ease-out 0.9s both;
+  }
+
+  @keyframes enter-draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes enter-fill {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
