@@ -103,7 +103,12 @@ export function ClassPicker({
   if (classes.length === 0) return <ComingSoon handle={handle} />;
 
   const crafts = craftsIn(classes.map((item) => item.color_token));
-  const shown = craft ? classes.filter((item) => craftOf(item.color_token) === craft) : classes;
+  // A chosen craft only applies while the studio still teaches it: a refresh that removes
+  // its classes must not leave the guest on an empty list with no filter to undo it.
+  const activeCraft = craft && crafts.includes(craft) ? craft : null;
+  const shown = activeCraft
+    ? classes.filter((item) => craftOf(item.color_token) === activeCraft)
+    : classes;
 
   return (
     <section aria-labelledby="pick-heading">
@@ -114,7 +119,7 @@ export function ClassPicker({
         Tap one to save your seat — it takes about a minute.
       </p>
 
-      <CraftFilter crafts={crafts} value={craft} onChange={setCraft} />
+      <CraftFilter crafts={crafts} value={activeCraft} onChange={setCraft} />
 
       <ul ref={listRef} className="grid gap-3" data-popups-motion={tier >= 1 ? '' : undefined}>
         {shown.map((item, index) => (

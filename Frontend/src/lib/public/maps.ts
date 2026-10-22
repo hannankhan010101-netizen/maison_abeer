@@ -13,6 +13,8 @@ const MAX = 120;
 
 export function mapsUrl(location: string | null | undefined): string | null {
   if (typeof location !== 'string') return null;
-  const query = location.trim().slice(0, MAX).trim();
+  // Cut by characters a person sees, not UTF-16 halves: slicing through an emoji leaves a lone
+  // surrogate, and `encodeURIComponent` throws on it, which would take the whole card down.
+  const query = Array.from(location.trim()).slice(0, MAX).join('').trim();
   return query ? `${BASE}${encodeURIComponent(query)}` : null;
 }

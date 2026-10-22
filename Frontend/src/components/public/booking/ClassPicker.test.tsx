@@ -192,6 +192,19 @@ describe('ClassPicker asked for a craft from elsewhere on the page', () => {
     expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(2);
   });
 
+  it('never strands the guest on an empty list when the classes change under a chosen craft', () => {
+    const { rerender } = render(<ClassPicker classes={mixed} onPick={() => {}} />);
+    act(() => requestCraftFilter('cake'));
+    expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(1);
+
+    // A refresh removes every cake class and leaves one craft: the filter row disappears,
+    // so the chosen craft must stop applying instead of hiding everything.
+    rerender(<ClassPicker classes={[mixed[1]!, mixed[2]!].slice(0, 1)} onPick={() => {}} />);
+
+    expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Clay pots/ })).toBeInTheDocument();
+  });
+
   it('stops listening when it goes away', () => {
     const { unmount } = render(<ClassPicker classes={mixed} onPick={() => {}} />);
     unmount();

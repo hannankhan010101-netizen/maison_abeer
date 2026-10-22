@@ -22,4 +22,21 @@ describe('mapsUrl', () => {
   it('cuts a long line to 120 characters', () => {
     expect(mapsUrl('x'.repeat(300))).toBe(`${BASE}${'x'.repeat(120)}`);
   });
+
+  it('never splits an emoji when it cuts a long location, so the URL always encodes', () => {
+    // 119 plain characters, then an emoji whose two UTF-16 halves straddle the cut.
+    const location = `${'a'.repeat(119)}🌸 park`;
+
+    expect(() => mapsUrl(location)).not.toThrow();
+    const url = mapsUrl(location)!;
+    expect(url).toContain(encodeURIComponent('🌸'));
+    expect(() => decodeURIComponent(url.split('query=')[1]!)).not.toThrow();
+  });
+
+  it('counts characters the way a person does, not UTF-16 halves', () => {
+    const url = mapsUrl('🌸'.repeat(200))!;
+    const decoded = decodeURIComponent(url.split('query=')[1]!);
+
+    expect(Array.from(decoded)).toHaveLength(120);
+  });
 });

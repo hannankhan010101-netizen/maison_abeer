@@ -91,7 +91,7 @@ export const RESULT_COPY: Record<CraftKind, { vibe: string; line: string }> = {
   },
   pottery: {
     vibe: 'Calm hands, muddy heart',
-    line: 'Slow, steady and happy with clay up to the elbows. The wheel is calling.',
+    line: 'Slow, steady and happy with clay up to the elbows. Clay is calling.',
   },
   painting: {
     vibe: 'Colour-everywhere dreamer',

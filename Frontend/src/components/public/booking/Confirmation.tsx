@@ -100,8 +100,8 @@ export function Confirmation({
           className="text-latte animate-rise-in mx-auto mt-4 max-w-[38ch] text-sm"
           style={{ animationDelay: '260ms' }}
         >
-          You&rsquo;re number <b>{result.waitlist_position}</b> in the queue. If a seat opens up
-          we&rsquo;ll message you straight away — no need to check back.
+          You&rsquo;re number <b>{result.waitlist_position}</b> in the queue. If a seat opens up,
+          the studio can offer it to you.
         </p>
       ) : (
         <p

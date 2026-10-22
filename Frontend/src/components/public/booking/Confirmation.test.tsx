@@ -98,6 +98,19 @@ describe('Confirmation', () => {
     expect(buttons).toEqual(['Save my ticket', 'Open my portal ✨']);
   });
 
+  it('does not promise a message for a waitlist place: the studio decides when to offer a seat', () => {
+    const { container } = render(
+      <Confirmation
+        result={{ ...result, outcome: 'waitlisted', waitlist_position: 2 } as BookingResult}
+        token="pink"
+        studioName="Maison Abeer"
+      />,
+    );
+
+    expect(container.textContent).not.toMatch(/straight away|message you/i);
+    expect(container.textContent).toMatch(/studio can offer it to you/i);
+  });
+
   it('offers no ticket for a waitlist place: it is not a seat', () => {
     stubMotion(false);
     render(

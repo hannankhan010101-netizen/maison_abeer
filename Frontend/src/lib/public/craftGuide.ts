@@ -104,8 +104,8 @@ const cake: CraftGuide = {
     },
     {
       id: 'write',
-      title: 'Write and box',
-      text: 'Write a tiny message slowly and steadily, then carry the box level.',
+      title: 'Write on top',
+      text: 'Write a tiny message slowly and steadily, keeping the cake level as you work.',
     },
   ],
   tips: [
@@ -123,7 +123,6 @@ const cake: CraftGuide = {
     'Hair tied back if it is long',
     'Short nails, or nails you do not mind',
     'Comfy clothes you can lean over a table in',
-    'A way to carry your cake home',
     'Your phone for photos',
   ],
   faq: [
@@ -148,7 +147,7 @@ const pottery: CraftGuide = {
   blurb: 'Shaping clay by hand or on the wheel, from a lump to a little vessel.',
   makes: [
     'Bowls, cups and small vases',
-    'Thrown on a wheel or built by hand',
+    'Pottery can be thrown on a wheel or built by hand',
     'Pieces that are fired and glazed after they dry',
   ],
   tools: [
@@ -252,11 +251,11 @@ const pottery: CraftGuide = {
 const painting: CraftGuide = {
   kind: 'painting',
   title: 'Painting',
-  blurb: 'Colour and brushwork on ceramic or canvas, depending on the class.',
+  blurb: 'Colour and brushwork, from soft washes to tiny details.',
   makes: [
     'A painted piece in your own colours',
     'Soft washes, bold dots and tiny details',
-    'Ceramic or canvas, depending on the class',
+    'Brushwork on ceramic, canvas and more',
   ],
   tools: [
     {
@@ -352,7 +351,7 @@ export const COMMON_FAQ: GuideFaq[] = [
   {
     id: 'full',
     q: 'What if the class is full?',
-    a: 'You can join the waitlist. If a seat opens up, you are messaged straight away.',
+    a: 'You can join the waitlist. If a seat opens up, the studio can offer it to the next person on the list.',
   },
   { id: 'pay', q: 'How do I pay?', a: null, owner: true },
   { id: 'cancel', q: 'Can I cancel or move my seat?', a: null, owner: true },
