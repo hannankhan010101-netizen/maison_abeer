@@ -26,8 +26,13 @@ guests without ever being able to read a password.
 
 - Booking creates a guest and quietly makes a Supabase account for them with a **placeholder email**
   `guest-<id>@maison-abeer.invalid` and no usable password. The one-time token returned with the booking
-  signs them in once. That placeholder is deliberate: **who you are is the guest row, not an email you
-  typed**, so booking with someone else's email can never hand you their portal.
+  signs them in once. The placeholder was meant to mean that **who you are is the guest row, not an email
+  you typed**.
+- **An existing hole (found by the review of this design, in `public.py`):** a booking that matches an
+  existing guest by the phone or email typed into the form is handed a one-time token for **that
+  guest's** account. So today, anyone who knows a guest's phone number can open that guest's portal by
+  booking with it. With saved passwords this would get worse (they could replace the login and lock the
+  real guest out), so it is fixed first, in section 0.
 - `guest.email` is contact information as typed (or null). It is separate from the login identity.
 - `/login` already signs in any Supabase user by email and password and `RoleRouter` sends a guest to
   `/portal`; guests simply have no password to use.
@@ -65,6 +70,19 @@ guests without ever being able to read a password.
 
 ## The design
 
+### 0. Close the existing hole first
+
+- **A booking only returns a portal token for a guest it has just created.** When the booking matches
+  an existing guest by phone or email, no token is returned. The confirmation says "Welcome back: sign
+  in to see your classes" with a link to `/login` when that guest has a saved login, or "Ask the studio
+  for a sign-in link" when they have not (the existing `/enter` recovery). **This changes the booking
+  experience for returning guests** (no one-tap portal on a repeat booking), and is flagged for the
+  owner's decision.
+- **Saving a login is only possible once:** `POST /portal/account` is accepted only while the
+  account's email is still the placeholder. After that, the guest changes their password themselves
+  through their signed-in session, and the owner can change the login email or reset the password.
+  No endpoint overwrites an existing login.
+
 ### 1. The popup
 
 Tapping "Open my portal" opens a dialog: "Save your login so you can come back." Fields: email and
@@ -80,7 +98,7 @@ Buttons: **Save and open my portal**, and **Skip for now**.
 - The dialog is focus-trapped, closes with Escape (equivalent to Skip), is announced politely, keeps what
   was typed on an error, and uses no animation beyond the existing tokens.
 
-### 2. Saving a login (backend)
+### 2. Saving a login (backend, first save only)
 
 `POST /portal/account` (guest-authenticated). It validates, then updates the guest's Supabase user through
 the admin API: new email, new password, and the email marked confirmed. The email is normalised to
@@ -88,6 +106,10 @@ lower case and must look like an email (at most 254 characters). The password mu
 and not equal to the email. A duplicate email returns `409` with `email_taken`; the dialog says "That
 email already has an account. Sign in instead" with a link to `/login`. The guest row, its bookings and
 `guest.email` (the contact email) are untouched. Rate limited per caller and per IP.
+
+**Enumeration, accepted with limits:** a taken email answers `409`, so a signed-in guest session could
+probe whether an address has an account. That reply is what makes the friendly message possible, the
+studio is small, and every attempt is counted and limited (section 5). It is a recorded, accepted risk.
 
 **Honest limit:** the app cannot send email, so a login email is **not verified**. The first person to
 register an address owns that address as a login. That is acceptable because the login only opens the
@@ -112,9 +134,13 @@ A new `/accounts` route, linked from Guests, with a "needs you" card on Today wh
 - **Add:** pick a guest who has no login, set a login email and a temporary password (typed or generated),
   or just send them a sign-in link.
 - **Edit:** the login email and the display name. A taken email is refused with the same friendly message.
-- **Disable and enable:** a disabled account cannot sign in; nothing is deleted.
-- **Delete:** removes the login only. The guest record and bookings stay, and the guest goes back to a
-  placeholder identity.
+- **Disable and enable:** a disabled account cannot sign in **and its current session stops working
+  at once** (the guest row carries a `disabled_at`, checked on every guest request, because the signed
+  token alone would stay valid for about an hour). Nothing is deleted.
+- **Delete:** removes the login only. The guest record and bookings stay, and the account is reset to the
+  placeholder email with a random password and the **same id** (the link to the guest is never cleared,
+  so nobody can re-claim it through the contact email). A booking from that guest then behaves as in
+  section 0.
 - **Set a new password:** the owner types one or generates one. It is shown **once** with a copy button,
   never stored or logged, and the guest can change it themselves after signing in.
 - **Send sign-in link:** the existing portal link for the guest, shown for copying.
@@ -123,10 +149,18 @@ A new `/accounts` route, linked from Guests, with a "needs you" card on Today wh
 
 ### 5. Data and services
 
-- A **migration** (needs the owner's explicit go): table `password_reset_request` with `id`, `studio_id`,
-  `guest_id`, `requested_at`, `resolved_at`, `resolved_by`, `resolution` (`password_set`, `link_sent`,
-  `dismissed`), a unique index allowing one open request per guest, and the same row-level policy pattern as
-  the other tables.
+- A **migration** (needs the owner's explicit go) with three additions: table `password_reset_request`
+  (`id`, `studio_id`, `guest_id`, `requested_at`, `resolved_at`, `resolved_by`, `resolution` of
+  `password_set`, `link_sent` or `dismissed`; a unique index allowing one open request per guest; the same
+  row-level policy pattern as the other tables); a nullable `guest.disabled_at`; and a small
+  `auth_attempt` table (`key_hash`, `kind`, `at`) so the limits on saving a login, checking an email and
+  asking for a reset hold across serverless instances, where the existing in-memory limiter resets on
+  every cold start. Old attempt rows are deleted as they are read. The existing limiter stays as a second,
+  coarse layer.
+- The reset-request endpoint finds the studio the only clean way: the email's Supabase account, then
+  `guest.auth_user_id`, then `guest.studio_id`. It matches **saved login emails only** (never the contact
+  email). Hit and miss both do the Supabase lookup, so their timing is close; the remaining difference is
+  accepted.
 - An `AccountService` with a small protocol, a Supabase implementation (the admin API) and a null
   implementation for tests, in the style of `portal_tokens.py`. All Supabase calls live there.
 - Endpoints: `POST /portal/account`; host-only `GET /accounts`, `POST /accounts`, `PATCH
@@ -157,13 +191,14 @@ A new `/accounts` route, linked from Guests, with a "needs you" card on Today wh
 
 ## Risks
 
-| Risk                                                       | Handling                                                                            |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Someone registers another person's email first             | Unverified label, owner can edit or disable, verification later with email sending  |
-| A reset request used to harass the owner or probe accounts | Same reply always, rate limits, one open request per guest, requests change nothing |
-| The token is spent but saving the login fails              | The guest is already signed in; the dialog retries only the save                    |
-| A guest locks themselves out                               | Owner sets a new password or sends a link; the existing `/enter` path still works   |
-| An admin action deletes the wrong account                  | Delete removes the login only, with confirmation; the guest and bookings stay       |
+| Risk                                                           | Handling                                                                            |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Anyone with a guest's phone number can open their portal today | Section 0: tokens only for newly created guests; first-save-only for logins         |
+| Someone registers another person's email first                 | Unverified label, owner can edit or disable, verification later with email sending  |
+| A reset request used to harass the owner or probe accounts     | Same reply always, rate limits, one open request per guest, requests change nothing |
+| The token is spent but saving the login fails                  | The guest is already signed in; the dialog retries only the save                    |
+| A guest locks themselves out                                   | Owner sets a new password or sends a link; the existing `/enter` path still works   |
+| An admin action deletes the wrong account                      | Delete removes the login only, with confirmation; the guest and bookings stay       |
 
 ## Decisions and my calls (mark any you disagree with)
 
@@ -172,6 +207,10 @@ A new `/accounts` route, linked from Guests, with a "needs you" card on Today wh
 - Login emails are lower-cased and unverified, labelled as such.
 - "Delete" removes the login, not the guest.
 - No notification email is sent when the owner changes a password (there is no email sending yet).
+- The booking-token change in section 0 (returning guests sign in instead of getting a one-tap portal).
+- Limits are stored in the database (`auth_attempt`), not Redis, so no new service or dependency.
+- The app is single-studio in practice (Maison Abeer), so cross-studio email collisions are treated as
+  out of scope and a login email is unique across the whole project, as Supabase already enforces.
 
 ## Left to the builder
 
