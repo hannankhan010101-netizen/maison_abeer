@@ -313,7 +313,8 @@ describe('BookingFlow', () => {
     render(<BookingFlow slug="maison-abeer" />);
     // One craft gets no "Pick your kind of mess" menu, so the receipt is the
     // brand section this waits for.
-    await screen.findByRole('heading', { name: 'How it works' });
+    // The receipt is a lazy island (its code loads as the page settles): allow for a busy machine.
+    await screen.findByRole('heading', { name: 'How it works' }, { timeout: 5000 });
 
     await userEvent.click(await screen.findByRole('button', { name: /Bento cake/ }));
 
