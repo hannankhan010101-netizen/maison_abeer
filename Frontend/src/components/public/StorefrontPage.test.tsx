@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicClass } from '@/lib/public/api';
+import { scrollToId } from '@/lib/public/lenisBridge';
+import { onCraftFilterRequest } from '@/lib/public/pickCraft';
 
 import { StorefrontPage } from './StorefrontPage';
 
@@ -78,6 +81,8 @@ describe('StorefrontPage rhythm', () => {
     expect(wrapper.className).not.toMatch(/\bflex\b|gap-\[/);
   });
 });
+
+vi.mock('@/lib/public/lenisBridge', () => ({ scrollToId: vi.fn() }));
 
 vi.mock('@/lib/public/useStorefrontPosition', () => ({
   useStorefrontPosition: () => ({ heroVisible: false, widgetVisible: false }),
@@ -185,5 +190,40 @@ describe('StorefrontPage order (v4)', () => {
     const { container } = page([]);
 
     expect(container.querySelector('[data-lazy-section="Craft corner"]')).toBeNull();
+  });
+});
+
+describe('StorefrontPage quiz (v4)', () => {
+  it('offers the quiz as an island below the corner, only with two or more crafts', async () => {
+    const one = page([aClass('terra', 'Pottery & wheel throwing')]);
+    expect(one.container.querySelector('[data-lazy-section="Which workshop are you"]')).toBeNull();
+    one.unmount();
+
+    const { container } = page([aClass('pink', 'Bento cakes'), aClass('terra', 'Pottery')]);
+    expect(container.querySelector('[data-lazy-section="Which workshop are you"]')).toBeTruthy();
+    expect(
+      await screen.findByRole('heading', { name: /Which workshop are you/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('"Book this one" asks the class list for that craft and takes the guest to it', async () => {
+    const requested = vi.fn();
+    const stop = onCraftFilterRequest(requested);
+    page([aClass('pink', 'Bento cakes'), aClass('terra', 'Pottery')]);
+    await screen.findByRole('heading', { name: /Which workshop are you/i });
+
+    // Five questions: take the first answer of each.
+    for (let i = 0; i < 5; i += 1) {
+      const answer = screen
+        .getAllByRole('button')
+        .find((button) => button.getAttribute('aria-pressed') === 'false');
+      await userEvent.click(answer!);
+    }
+    await userEvent.click(await screen.findByRole('button', { name: /Book this one/ }));
+
+    expect(requested).toHaveBeenCalledTimes(1);
+    expect(['cake', 'pottery']).toContain(requested.mock.calls[0]![0]);
+    expect(scrollToId).toHaveBeenCalledWith('booking-widget');
+    stop();
   });
 });

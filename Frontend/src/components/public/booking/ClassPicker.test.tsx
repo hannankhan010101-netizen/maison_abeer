@@ -1,10 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type PublicClass } from '@/lib/public/api';
 import { formatDay } from '@/lib/public/bookingCopy';
 import { whenLine } from '@/lib/public/format';
+import { requestCraftFilter } from '@/lib/public/pickCraft';
 
 const withViewTransition = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/motion', () => ({ withViewTransition, useMotionTier: () => 1 }));
@@ -163,6 +164,39 @@ describe('ClassPicker craft filter', () => {
 
     await userEvent.click(within(group).getByRole('button', { name: 'All' }));
     expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(3);
+  });
+});
+
+describe('ClassPicker asked for a craft from elsewhere on the page', () => {
+  const mixed = [
+    { ...item('a', 'Bento cake'), color_token: 'pink' },
+    { ...item('b', 'Clay pots'), color_token: 'terra' },
+    { ...item('c', 'Watercolour'), color_token: 'sage' },
+  ] as PublicClass[];
+
+  it('narrows to that craft and shows its chip as pressed', () => {
+    render(<ClassPicker classes={mixed} onPick={() => {}} />);
+
+    act(() => requestCraftFilter('pottery'));
+
+    expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Clay pots/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pottery' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('ignores a craft the studio does not teach', () => {
+    render(<ClassPicker classes={[mixed[0]!, mixed[1]!]} onPick={() => {}} />);
+
+    act(() => requestCraftFilter('painting'));
+
+    expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(2);
+  });
+
+  it('stops listening when it goes away', () => {
+    const { unmount } = render(<ClassPicker classes={mixed} onPick={() => {}} />);
+    unmount();
+
+    expect(() => act(() => requestCraftFilter('cake'))).not.toThrow();
   });
 });
 

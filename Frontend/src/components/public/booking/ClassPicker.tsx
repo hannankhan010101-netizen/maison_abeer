@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { type PublicClass } from '@/lib/public/api';
 import { instagramUrl } from '@/lib/public/instagram';
@@ -8,6 +8,7 @@ import { useMountedNow } from '@/lib/public/useMountedNow';
 import { useMotionTier, withViewTransition } from '@/lib/motion';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
 import { craftOf, craftsIn, type CraftKind } from '@/lib/public/studioPhotos';
+import { onCraftFilterRequest } from '@/lib/public/pickCraft';
 import '@/styles/units/booking.css';
 
 import { CraftFilter } from './CraftFilter';
@@ -68,6 +69,19 @@ export function ClassPicker({
   // One id, not one flag per card, so two cards can never carry the name together.
   const [namedId, setNamedId] = useState<string | null>(returnedFromId);
   const [craft, setCraft] = useState<CraftKind | null>(null);
+
+  // Asked for a craft from elsewhere on the page (the quiz's "Book this one"): only
+  // one the studio teaches, so a stale request can never empty the list.
+  const taught = new Set(classes.map((item) => craftOf(item.color_token)));
+  const taughtRef = useRef(taught);
+  taughtRef.current = taught;
+  useEffect(
+    () =>
+      onCraftFilterRequest((kind) => {
+        if (taughtRef.current.has(kind)) setCraft(kind);
+      }),
+    [],
+  );
   const inFlight = useRef(false);
   const [listRef, listVisible] = useRevealOnScroll<HTMLUListElement>();
 

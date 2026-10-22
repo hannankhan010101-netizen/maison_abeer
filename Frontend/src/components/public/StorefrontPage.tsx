@@ -1,5 +1,7 @@
 'use client';
 
+import { useCallback } from 'react';
+
 import { BookingHero } from '@/components/public/BookingHero';
 import { CustomCursor } from '@/components/public/CustomCursor';
 import { LazySection } from '@/components/public/LazySection';
@@ -12,9 +14,11 @@ import { StorySection } from '@/components/public/booking/StorySection';
 import { TicketStub } from '@/components/public/booking/TicketStub';
 import { cn } from '@/lib/cn';
 import { seatsLine } from '@/lib/public/bookingCopy';
+import { scrollToId } from '@/lib/public/lenisBridge';
+import { requestCraftFilter } from '@/lib/public/pickCraft';
 import { useMountedNow } from '@/lib/public/useMountedNow';
 import { type PublicClass, type PublicMemory, type PublicWord } from '@/lib/public/api';
-import { craftsIn } from '@/lib/public/studioPhotos';
+import { craftsIn, type CraftKind } from '@/lib/public/studioPhotos';
 
 /**
  * Everything below the first screen loads as an island: its code is fetched
@@ -38,6 +42,7 @@ const loadMemoryWall = () =>
 const loadMakingOf = () =>
   import('@/components/public/making/MakingOf').then((module) => ({ default: module.MakingOf }));
 const loadCorner = () => import('@/components/public/corner/CraftCorner');
+const loadQuiz = () => import('@/components/public/quiz/WhichWorkshop');
 const loadMarquee = () =>
   import('@/components/public/PhotoMarquee').then((module) => ({
     default: module.PhotoMarquee,
@@ -94,6 +99,12 @@ export function StorefrontPage({
   const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
   const taught = craftsIn((classes ?? []).map((item) => item.color_token));
   const teachesSeveral = taught.length > 1;
+
+  /** The quiz's "Book this one": show that craft's classes, then take the guest to them. */
+  const bookCraft = useCallback((kind: CraftKind) => {
+    requestCraftFilter(kind);
+    scrollToId('booking-widget');
+  }, []);
 
   return (
     // `storefront` pins this page to the light palette whatever the visitor's
@@ -188,6 +199,16 @@ export function StorefrontPage({
               minHeight="2500px"
               minHeightLg="1300px"
             />
+            {/* A quiz is a choice: with one craft there is nothing to choose between. */}
+            {teachesSeveral ? (
+              <LazySection
+                label="Which workshop are you"
+                load={loadQuiz}
+                props={{ crafts: taught, handle, onBook: bookCraft }}
+                minHeight="640px"
+                minHeightLg="560px"
+              />
+            ) : null}
             <LazySection
               label="How it works"
               load={loadHowItWorks}
