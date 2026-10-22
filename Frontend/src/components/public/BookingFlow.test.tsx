@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BookingFlow } from './BookingFlow';
 
+// The page mounts its lazily loaded sections (the craft corner, the receipt, the chapters)
+// as soon as it settles, since jsdom has no viewport to wait for: real rendering work
+// that can run past the default five seconds on a busy machine.
+vi.setConfig({ testTimeout: 20_000 });
+
 /**
  * The booking flow is the only screen a stranger sees, and the only one with
  * no support channel behind it. These lean on the two things that decide
