@@ -151,6 +151,17 @@ function title(entry: InventoryEntry): string {
 const SCOPES = [...new Set(INVENTORY.flatMap((entry) => (entry.within ? [entry.within] : [])))];
 
 test.describe('tap everything on the storefront', () => {
+  // The first visit to a page makes the dev server compile it, which can take longer than a
+  // test's whole budget on a busy machine. Pay that once, up front, with room to spare.
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(180_000);
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await stubApi(page);
+    await page.goto(PAGE, { timeout: 170_000 });
+    await context.close();
+  });
+
   test('every visible control is in the inventory, and every entry is on the page', async ({
     page,
   }, info) => {
@@ -182,7 +193,8 @@ test.describe('tap everything on the storefront', () => {
       if (entry.reveal) await entry.reveal(page);
 
       const scope = entry.within ? page.locator(entry.within) : page;
-      const role = entry.kind === 'anchor' || entry.kind === 'external' ? 'link' : 'button';
+      const role =
+        entry.role ?? (entry.kind === 'anchor' || entry.kind === 'external' ? 'link' : 'button');
       const all = scope.getByRole(role, { name: entry.name });
       await expect(all.first()).toBeAttached();
       const count = await all.count();

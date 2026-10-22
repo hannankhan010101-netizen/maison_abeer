@@ -1,6 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 
+import { COMMON_FAQ, CRAFT_GUIDES } from '../../src/lib/public/craftGuide';
 import { instagramDmUrl, instagramUrl } from '../../src/lib/public/instagram';
+import { mapsUrl } from '../../src/lib/public/maps';
 
 /**
  * Every tappable thing on the public pages, and what tapping it must do.
@@ -23,6 +25,8 @@ export interface InventoryEntry {
   /** Matched against the element's accessible name. */
   name: RegExp;
   kind: Kind;
+  /** The ARIA role to look it up by, when it is not a plain button or link (the corner's tabs). */
+  role?: 'tab';
   /** Only where the element is (a CSS selector the element sits inside). */
   within?: string;
   /** The projects the element is on; both when absent. */
@@ -47,15 +51,32 @@ const BOOK = '/book/maison-abeer';
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** The pill shows once the hero has gone and while the card and footer are off screen. */
+/** Names built from the craft guide itself, so a new tool or question is covered the moment it exists. */
+const TOOL_NAMES = Object.values(CRAFT_GUIDES).flatMap((guide) =>
+  guide.tools.map((tool) => tool.name),
+);
+const QUESTIONS = [...COMMON_FAQ, ...Object.values(CRAFT_GUIDES).flatMap((guide) => guide.faq)].map(
+  (entry) => entry.q,
+);
+const anyOf = (names: readonly string[]) => new RegExp(`^(${names.map(escape).join('|')})$`);
+
+/** After a tap on a disclosure button (a tool, a question) something in the corner is open. */
+async function cornerHasOpen(page: Page) {
+  await expect(page.locator('section.corner [aria-expanded="true"]').first()).toBeVisible();
+}
+
+/**
+ * The pill shows once the hero has gone and while the booking card and the
+ * footer are off screen. The card now sits right under the hero, so the place
+ * the pill appears is just below the card (as e2e/atmosphere.spec.ts finds it).
+ */
 async function midPage(page: Page) {
-  // As e2e/atmosphere.spec.ts does: just past the hero, retried while the page settles.
   await expect
     .poll(async () => {
       await page.evaluate(() => {
-        const hero = document.querySelector('main > header');
-        const bottom = (hero?.getBoundingClientRect().bottom ?? 0) + window.scrollY;
-        window.scrollTo(0, Math.max(window.innerHeight, bottom + 120));
+        const widget = document.querySelector('#booking-widget');
+        const bottom = (widget?.getBoundingClientRect().bottom ?? 0) + window.scrollY;
+        window.scrollTo(0, bottom + 200);
       });
       await page.waitForTimeout(300);
       return page.locator('[data-floating-pill]').count();
@@ -133,6 +154,81 @@ export const INVENTORY: readonly InventoryEntry[] = [
     within: '#booking-widget',
     outcome: async (page) => {
       await expect(page.getByLabel(/Your name/)).toBeVisible();
+    },
+  },
+
+  // The characters in the hero: a tap pops a craft fact.
+  {
+    page: BOOK,
+    name: /^(Bento|Pip|Dot), tap for a (cake|clay|painting) fact$/,
+    kind: 'button',
+    within: 'main > header',
+    outcome: async (page) => {
+      await expect(page.locator('.character-speech[data-open]').first()).toBeVisible();
+    },
+  },
+
+  // The pop-up cards: a craft filter (only with two or more crafts) and a Maps link on each card.
+  {
+    page: BOOK,
+    name: /^(All|Cake|Pottery|Painting)$/,
+    kind: 'toggle',
+    within: '[role="group"][aria-label="Filter by craft"]',
+  },
+  {
+    page: BOOK,
+    name: /Maps\s*: .+, opens in a new tab$/,
+    kind: 'external',
+    within: '#booking-widget',
+    // The stub's classes are all at "Studio A".
+    href: () => mapsUrl('Studio A'),
+  },
+
+  // The craft corner: tabs per craft, tools, another fun fact and the questions.
+  {
+    page: BOOK,
+    name: /^(Bento cakes|Pottery|Painting)$/,
+    kind: 'button',
+    role: 'tab',
+    within: 'section.corner',
+    outcome: async (page) => {
+      await expect(page.locator('section.corner [role="tab"][aria-selected="true"]')).toHaveCount(
+        1,
+      );
+    },
+  },
+  {
+    page: BOOK,
+    name: anyOf(TOOL_NAMES),
+    kind: 'button',
+    within: 'section.corner',
+    outcome: cornerHasOpen,
+  },
+  {
+    page: BOOK,
+    name: /^Another fun fact$/,
+    kind: 'button',
+    within: 'section.corner',
+    outcome: async (page) => {
+      await expect(page.locator('section.corner [aria-live="polite"]').first()).toBeVisible();
+    },
+  },
+  {
+    page: BOOK,
+    name: anyOf(QUESTIONS),
+    kind: 'button',
+    within: 'section.corner',
+    outcome: cornerHasOpen,
+  },
+
+  // The quiz: each answer moves on (the Back button then appears).
+  {
+    page: BOOK,
+    name: /.+/,
+    kind: 'button',
+    within: 'section.quiz',
+    outcome: async (page) => {
+      await expect(page.getByRole('button', { name: 'Back' })).toBeVisible();
     },
   },
 
