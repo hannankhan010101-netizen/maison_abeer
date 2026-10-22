@@ -7,6 +7,23 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { stubClass, threeCrafts, type StubClass } from './helpers/booking';
 import { loadAllSections } from './helpers/lazy';
 
+/** Wait for every finite, clock-driven animation to end, so a scan never reads a block mid-fade. */
+async function settled(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            // Only clock-driven animations end by themselves; a scroll-linked one finishes as you scroll.
+            animation.timeline === document.timeline &&
+            animation.effect?.getComputedTiming().iterations !== Infinity,
+        )
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
+
 /**
  * "Which workshop are you?", in a real browser: done by keyboard alone, it ends
  * in a craft the studio teaches, saves a Story-size PNG (jsdom has no canvas,
@@ -15,7 +32,6 @@ import { loadAllSections } from './helpers/lazy';
  * spec is skipped.
  */
 
-test.skip(!process.env.QUIZ_MOUNTED, 'mounted by the integrator in I2');
 test.describe.configure({ timeout: 120_000 });
 
 const POTTERY_ONLY = [
@@ -130,10 +146,11 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await page.emulateMedia({ reducedMotion });
     const quiz = await openQuiz(page);
     await quiz.scrollIntoViewIfNeeded();
+    await settled(page);
     const question = await new AxeBuilder({ page }).include('section.quiz').analyze();
     expect(question.violations).toEqual([]);
     await completeByKeyboard(page, quiz);
-    await page.waitForTimeout(400);
+    await settled(page);
     const result = await new AxeBuilder({ page }).include('section.quiz').analyze();
     expect(result.violations).toEqual([]);
   });

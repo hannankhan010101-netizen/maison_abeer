@@ -4,13 +4,29 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { COMMON_FAQ, CRAFT_GUIDES } from '../src/lib/public/craftGuide';
 import { stubBookingApi, stubClass, threeCrafts } from './helpers/booking';
 
+/** Wait for every finite, clock-driven animation to end, so a scan never reads a block mid-fade. */
+async function settled(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            // Only clock-driven animations end by themselves; a scroll-linked one finishes as you scroll.
+            animation.timeline === document.timeline &&
+            animation.effect?.getComputedTiming().iterations !== Infinity,
+        )
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
+
 /**
  * The Craft Corner, in a real browser: it appears once scrolled to, teaches
  * only the crafts the studio runs, and every tap in it works by touch and by
  * keyboard. The integrator mounts it (I2); until then this spec is skipped.
  */
 
-test.skip(!process.env.CORNER_MOUNTED, 'mounted by the integrator in I2');
 test.describe.configure({ timeout: 120_000 });
 
 const POTTERY_ONLY = [
@@ -91,7 +107,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     for (const name of ['Bento cakes', 'Pottery', 'Painting']) {
       await corner.getByRole('tab', { name }).click();
       await corner.getByRole('tabpanel').getByRole('button').first().click();
-      await page.waitForTimeout(400);
+      await settled(page);
       const results = await new AxeBuilder({ page }).include('section.corner').analyze();
       expect(results.violations, name).toEqual([]);
     }

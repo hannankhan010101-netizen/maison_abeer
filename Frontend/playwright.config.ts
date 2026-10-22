@@ -25,6 +25,9 @@ const PORT = Number(process.env['E2E_PORT'] ?? 3100);
 export default defineConfig({
   testDir: './e2e',
 
+  // Compiles the storefront once so no test's first navigation races the dev server's first compile.
+  globalSetup: './e2e/warm-up.ts',
+
   /*
    * The performance specs live in this directory but are not part of this
    * suite.
