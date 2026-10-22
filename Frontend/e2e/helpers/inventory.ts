@@ -73,6 +73,20 @@ async function finishQuiz(page: Page) {
     const button = quiz.getByRole('button', { name: QUIZ[i]!.answers[0]!.label });
     if (await button.count()) await button.first().click();
   }
+  await settleQuizStep(page);
+}
+
+/** Waits for the quiz step's own entrance animation, so a snapshot taken right after never
+ *  catches a control mid-fade (opacity 0 reads as "not visible" to the completeness scan). */
+async function settleQuizStep(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .querySelectorAll('.quiz-card')[0]
+        ?.getAnimations({ subtree: true })
+        .map((a) => a.finished.catch(() => undefined)) ?? [],
+    ),
+  );
 }
 
 /** Answers the first question only, so the Back button comes up without finishing the quiz. */
@@ -82,6 +96,7 @@ async function startQuiz(page: Page) {
 
   const button = quiz.getByRole('button', { name: QUIZ[0]!.answers[0]!.label });
   if (await button.count()) await button.first().click();
+  await settleQuizStep(page);
 }
 
 /** After a tap on a disclosure button (a tool, a question) something in the corner is open. */
