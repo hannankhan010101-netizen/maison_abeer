@@ -117,12 +117,13 @@ test('with reduced motion the pill, the verb and the sign-off are simply there',
   await expect(page.locator('.verb-roll [data-verb]')).toHaveCount(1);
   await expect(page.locator('.verb-roll [data-verb]')).toHaveText('make');
 
-  // Past the hero the pill is there with nothing running on it.
-  const hero = page.locator('main > header');
-  const heroBottom = await hero.evaluate(
+  // Past the booking card (which now sits right under the hero) the pill is there with nothing
+  // running on it.
+  const widget = page.locator('#booking-widget');
+  const widgetBottom = await widget.evaluate(
     (el) => el.getBoundingClientRect().bottom + window.scrollY,
   );
-  await page.evaluate((y) => window.scrollTo(0, y), heroBottom + 200);
+  await page.evaluate((y) => window.scrollTo(0, y), widgetBottom + 200);
   const pill = page.locator('[data-floating-pill]');
   await expect(pill).toBeVisible();
   const runningOnPill = await pill.evaluate(

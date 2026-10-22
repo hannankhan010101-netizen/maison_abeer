@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 
 import { stubBookingApi, threeCrafts } from './helpers/booking';
 import { CHAT_ENABLED } from './helpers/features';
+import { loadAllSections } from './helpers/lazy';
 
 /**
  * Accessibility.
@@ -130,6 +131,8 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await stubBookingApi(page, threeCrafts());
 
     await page.goto('/book/maison-abeer');
+    // The strip is a lazy island: bring it into range before looking for it.
+    await loadAllSections(page);
     await expect(page.getByRole('region', { name: 'The crafts, up close' })).toBeAttached();
 
     const results = await new AxeBuilder({ page })
@@ -146,6 +149,7 @@ test('with reduced motion the photo strip is a still gallery, each photograph on
   await stubBookingApi(page, threeCrafts());
 
   await page.goto('/book/maison-abeer');
+  await loadAllSections(page);
   const strip = page.getByRole('region', { name: 'The crafts, up close' });
   await expect(strip).toBeAttached();
 

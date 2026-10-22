@@ -103,23 +103,27 @@ test('desktop: the story reserves its scroll, so the next section never slides o
   const box = await spacer.evaluate((el) => {
     const rect = el.getBoundingClientRect();
     const section = el.querySelector('section.making')!.getBoundingClientRect();
-    const card = document.getElementById('booking-widget')!.getBoundingClientRect();
+    // What follows the pinned scene: the next island, or the footer. (The booking card
+    // now sits above it, under the hero, so it is no longer what could slide over it.)
+    const island = el.closest('[data-lazy-section]') ?? el;
+    const next = island.nextElementSibling ?? document.querySelector('footer')!;
+    const nextRect = next.getBoundingClientRect();
     return {
       spacerTop: rect.top + window.scrollY,
       spacerBottom: rect.bottom + window.scrollY,
       sectionHeight: section.height,
-      cardTop: card.top + window.scrollY,
+      nextTop: nextRect.top + window.scrollY,
     };
   });
   const viewport = page.viewportSize()!.height;
 
   // GSAP pads the spacer by the pin distance (one viewport) so what follows is
   // pushed down. Inside a flex parent it silently stops doing that, and the
-  // booking card scrolled straight over the clay — this is the guard for it.
+  // next section scrolled straight over the clay — this is the guard for it.
   expect(box.spacerBottom - box.spacerTop).toBeGreaterThanOrEqual(
     box.sectionHeight + 0.9 * viewport,
   );
-  expect(box.cardTop).toBeGreaterThanOrEqual(box.spacerBottom);
+  expect(box.nextTop).toBeGreaterThanOrEqual(box.spacerBottom);
 });
 
 test('hands are present in every frame', async ({ page }) => {

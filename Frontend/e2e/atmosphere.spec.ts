@@ -23,18 +23,19 @@ async function open(page: Page, size: { width: number; height: number }) {
 }
 
 /**
- * Scrolls until the hero has fully left the view and the pill has come in.
- * The hero is taller than the window on desktop (about 1040px at 1280×900),
- * so "one viewport down" is not enough; and Lenis can still be easing towards
- * an older target, so the scroll is repeated on every poll.
+ * Scrolls until the booking card has left the view and the pill has come in.
+ * The card sits right under the hero now, so the pill (a way back to it) only
+ * has a job once the card is behind you; with the card on screen it stays away.
+ * Lenis can still be easing towards an older target, so the scroll is repeated
+ * on every poll.
  */
-async function scrollPastHero(page: Page) {
+async function scrollPastCard(page: Page) {
   await expect
     .poll(async () => {
       await page.evaluate(() => {
-        const hero = document.querySelector('main > header')!;
-        const bottom = hero.getBoundingClientRect().bottom + window.scrollY;
-        window.scrollTo(0, Math.max(window.innerHeight, bottom + 120));
+        const widget = document.getElementById('booking-widget')!;
+        const bottom = widget.getBoundingClientRect().bottom + window.scrollY;
+        window.scrollTo(0, bottom + 200);
       });
       await page.waitForTimeout(300);
       return page.locator('[data-floating-pill]').count();
@@ -162,7 +163,7 @@ for (const [name, size] of [
   });
 }
 
-test('phone: the Save a seat pill appears after the hero and gives way to the booking card', async ({
+test('phone: the Save a seat pill appears once the booking card is behind you, and gives way to it', async ({
   page,
 }) => {
   await open(page, PHONE);
@@ -170,7 +171,7 @@ test('phone: the Save a seat pill appears after the hero and gives way to the bo
 
   await expect(pill).toHaveCount(0);
 
-  await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2));
+  await scrollPastCard(page);
   await expect(pill).toBeVisible();
   const box = (await pill.boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(44);
@@ -180,7 +181,7 @@ test('phone: the Save a seat pill appears after the hero and gives way to the bo
   await expect(pill).toHaveCount(0);
 });
 
-test('desktop: the pill sits top-centre once the hero has scrolled away, and gives way to the card', async ({
+test('desktop: the pill sits top-centre once the card is behind you, and gives way to it', async ({
   page,
 }) => {
   await open(page, DESKTOP);
@@ -188,7 +189,7 @@ test('desktop: the pill sits top-centre once the hero has scrolled away, and giv
 
   await expect(pill).toHaveCount(0);
 
-  await scrollPastHero(page);
+  await scrollPastCard(page);
   await expect(pill).toBeVisible();
   // Let the arrival finish so the box is the resting one.
   await page.waitForTimeout(800);
@@ -205,7 +206,7 @@ test('desktop: the pill sits top-centre once the hero has scrolled away, and giv
 
 test('the page is axe-clean with the pill showing', async ({ page }, testInfo) => {
   await open(page, testInfo.project.name === 'desktop' ? DESKTOP : PHONE);
-  await scrollPastHero(page);
+  await scrollPastCard(page);
   await expect(page.locator('[data-floating-pill]')).toBeVisible();
   await page.waitForTimeout(800);
 
