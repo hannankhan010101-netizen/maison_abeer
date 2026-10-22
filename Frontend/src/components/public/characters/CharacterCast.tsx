@@ -91,7 +91,9 @@ function CastMember({
   live: boolean;
 }) {
   const Character = CAST[kind];
-  const [factIndex, setFactIndex] = useState(-1);
+  // Taps so far. The fact shown is derived from it, so a tap that lands
+  // before the guide has loaded still gets its fact the moment it arrives.
+  const [taps, setTaps] = useState(0);
   const [open, setOpen] = useState(false);
   const [wow, setWow] = useState(false);
   const [blink, setBlink] = useState(false);
@@ -132,31 +134,30 @@ function CastMember({
     setWow(true);
     window.clearTimeout(timers.current.wow);
     timers.current.wow = window.setTimeout(() => setWow(false), WOW_FOR_MS);
-    if (facts.length === 0) return;
-    setFactIndex((index) => (index + 1) % facts.length);
+    setTaps((count) => count + 1);
     setOpen(true);
     window.clearTimeout(timers.current.speech);
     timers.current.speech = window.setTimeout(() => setOpen(false), SPEECH_FOR_MS);
   };
 
   const mood = wow ? 'wow' : blink ? 'sleepy' : 'happy';
+  const factIndex = facts.length > 0 && taps > 0 ? (taps - 1) % facts.length : -1;
   const fact = open && factIndex >= 0 ? facts[factIndex] : undefined;
 
   return (
     <div className="character-slot" data-slot={slot} data-craft={kind}>
-      <button
-        type="button"
-        aria-label={castLabel(kind)}
-        className={cn('character', tier > 0 && 'character-float')}
-        onClick={tap}
-      >
-        {/* The press squishes this inner layer, so it never fights the
-            float over the button's own transform. */}
-        <span
-          className={cn('character-body', tier > 0 && squish && 'character-squish')}
-          onAnimationEnd={() => setSquish(false)}
-        >
-          <Character mood={mood} size={64} />
+      <button type="button" aria-label={castLabel(kind)} className="character" onClick={tap}>
+        {/* The button's own box never moves, so it is a still target for a
+            thumb (and for a test's click). The float moves the layer inside
+            it, and the press squishes the layer inside that, so the two
+            never fight over one transform. */}
+        <span className={cn('character-layer', tier > 0 && 'character-float')}>
+          <span
+            className={cn('character-body', tier > 0 && squish && 'character-squish')}
+            onAnimationEnd={() => setSquish(false)}
+          >
+            <Character mood={mood} size={64} />
+          </span>
         </span>
       </button>
       <p className="character-speech" aria-live="polite" data-open={fact ? '' : undefined}>

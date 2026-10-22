@@ -51,6 +51,15 @@ describe('CharacterCast', () => {
     expect(screen.queryByRole('button', { name: /Pip/ })).toBeNull();
   });
 
+  it('a tap before the facts arrive gets its fact when they do', () => {
+    const empty = { pottery: [], cake: [], painting: [] };
+    const { rerender } = render(<CharacterCast crafts={['cake']} facts={empty} />);
+    fireEvent.click(screen.getByRole('button', { name: /Bento/ }));
+    expect(liveRegion(/Bento/).textContent).toBe('');
+    rerender(<CharacterCast crafts={['cake']} facts={FACTS} />);
+    expect(liveRegion(/Bento/).textContent).toBe('cake one');
+  });
+
   it('renders nothing for a studio with no classes', () => {
     const { container } = render(<CharacterCast crafts={[]} facts={FACTS} />);
     expect(container.innerHTML).toBe('');
@@ -102,7 +111,8 @@ describe('CharacterCast', () => {
     vi.useFakeTimers();
     render(<CharacterCast crafts={['pottery']} facts={FACTS} />);
     const button = screen.getByRole('button', { name: /Pip/ });
-    expect(button.className).toContain('character-float');
+    expect(button.querySelector('.character-float')).not.toBeNull();
+    expect(button.className).not.toContain('character-float');
     act(() => {
       vi.advanceTimersByTime(BLINK_EVERY_MS * 3);
     });
