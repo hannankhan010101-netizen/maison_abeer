@@ -75,6 +75,7 @@ export type StoryMeasure = (text: string, size: number, face: StoryFace, weight:
 const CENTRE = STORY_SIZE.width / 2;
 const TEXT_WIDTH = 780;
 const HANDLE_SIZES = [72, 60, 48, 40] as const;
+const HANDLE_MIN = 40;
 
 function block(
   measure: StoryMeasure,
@@ -141,7 +142,7 @@ export function storyLayout(model: StoryModel, measure: StoryMeasure): StoryLayo
     // The biggest size the whole handle fits at; past the smallest, it is cut.
     const size =
       HANDLE_SIZES.find((candidate) => measure(handle, candidate, 'hand', 700) <= TEXT_WIDTH) ??
-      HANDLE_SIZES[HANDLE_SIZES.length - 1];
+      HANDLE_MIN;
     blocks.push(
       block(measure, {
         role: 'handle',
