@@ -1,0 +1,172 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+
+import '@/styles/units/characters.css';
+
+import { cn } from '@/lib/cn';
+import { haptic, useMotionTier, type MotionTier } from '@/lib/motion';
+import type { CraftKind } from '@/lib/public/studioPhotos';
+import { useCastOnScreen } from './useCastOnScreen';
+
+import { CAST, castLabel } from './cast';
+
+/**
+ * The cast in the hero: one character per craft the studio teaches, each a
+ * button. A tap squishes it, makes it say "wow" and pops a speech sticker with
+ * the next of that craft's fun facts (cycling, read out politely).
+ *
+ * Idle motion follows the device: tier 0 is still and complete, tier 1 adds
+ * the CSS float, tier 2 adds an occasional blink on a small timer. Everything
+ * rests while the hero is off screen or the tab is hidden.
+ */
+
+/** How often a character blinks at tier 2, in ms. */
+export const BLINK_EVERY_MS = 4200;
+/** How long a blink holds the eyes shut. */
+const BLINK_FOR_MS = 180;
+/** Each character blinks on its own beat. */
+const BLINK_STAGGER_MS = 1300;
+/** How long "wow" lasts after a tap. */
+const WOW_FOR_MS = 1200;
+/** How long a speech sticker stays up. */
+const SPEECH_FOR_MS = 6000;
+
+export interface CharacterCastProps {
+  crafts: CraftKind[];
+  facts: Record<CraftKind, string[]>;
+}
+
+function useTabVisible(): boolean {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const update = () => setVisible(document.visibilityState !== 'hidden');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+  return visible;
+}
+
+export function CharacterCast({ crafts, facts }: CharacterCastProps) {
+  const tier = useMotionTier();
+  const [ref, onScreen] = useCastOnScreen<HTMLDivElement>();
+  const visible = useTabVisible();
+  const live = onScreen && visible;
+
+  if (crafts.length === 0) return null;
+
+  return (
+    <div
+      ref={ref}
+      className="character-cast"
+      data-count={crafts.length}
+      data-paused={live ? undefined : ''}
+    >
+      {crafts.map((kind, slot) => (
+        <CastMember
+          key={kind}
+          kind={kind}
+          slot={slot}
+          facts={facts[kind] ?? []}
+          tier={tier}
+          live={live}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CastMember({
+  kind,
+  slot,
+  facts,
+  tier,
+  live,
+}: {
+  kind: CraftKind;
+  slot: number;
+  facts: string[];
+  tier: MotionTier;
+  live: boolean;
+}) {
+  const Character = CAST[kind];
+  // Taps so far. The fact shown is derived from it, so a tap that lands
+  // before the guide has loaded still gets its fact the moment it arrives.
+  const [taps, setTaps] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [wow, setWow] = useState(false);
+  const [blink, setBlink] = useState(false);
+  const [squish, setSquish] = useState(false);
+  const timers = useRef<{ wow?: number; speech?: number }>({});
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      window.clearTimeout(pending.wow);
+      window.clearTimeout(pending.speech);
+    };
+  }, []);
+
+  // The blink: tier 2 only, and only while someone could see it.
+  useEffect(() => {
+    if (tier < 2 || !live) return;
+    let shut: number | undefined;
+    let next: number;
+    const schedule = (delay: number) => {
+      next = window.setTimeout(() => {
+        setBlink(true);
+        shut = window.setTimeout(() => setBlink(false), BLINK_FOR_MS);
+        schedule(BLINK_EVERY_MS);
+      }, delay);
+    };
+    schedule(BLINK_EVERY_MS + slot * BLINK_STAGGER_MS);
+    return () => {
+      window.clearTimeout(next);
+      window.clearTimeout(shut);
+      setBlink(false);
+    };
+  }, [tier, live, slot]);
+
+  const tap = () => {
+    haptic('tap');
+    if (tier > 0) setSquish(true);
+    setWow(true);
+    window.clearTimeout(timers.current.wow);
+    timers.current.wow = window.setTimeout(() => setWow(false), WOW_FOR_MS);
+    setTaps((count) => count + 1);
+    setOpen(true);
+    window.clearTimeout(timers.current.speech);
+    timers.current.speech = window.setTimeout(() => setOpen(false), SPEECH_FOR_MS);
+  };
+
+  const mood = wow ? 'wow' : blink ? 'sleepy' : 'happy';
+  const factIndex = facts.length > 0 && taps > 0 ? (taps - 1) % facts.length : -1;
+  const fact = open && factIndex >= 0 ? facts[factIndex] : undefined;
+
+  return (
+    <div className="character-slot" data-slot={slot} data-craft={kind}>
+      <button type="button" aria-label={castLabel(kind)} className="character" onClick={tap}>
+        {/* The button's own box never moves, so it is a still target for a
+            thumb (and for a test's click). The float moves the layer inside
+            it, and the press squishes the layer inside that, so the two
+            never fight over one transform. */}
+        <span className={cn('character-layer', tier > 0 && 'character-float')}>
+          <span
+            className={cn('character-body', tier > 0 && squish && 'character-squish')}
+            onAnimationEnd={() => setSquish(false)}
+          >
+            <Character mood={mood} size={64} />
+          </span>
+        </span>
+      </button>
+      <p className="character-speech" aria-live="polite" data-open={fact ? '' : undefined}>
+        {fact ? (
+          <span key={factIndex} className={cn(tier > 0 && 'character-pop')}>
+            {fact}
+          </span>
+        ) : null}
+      </p>
+    </div>
+  );
+}
