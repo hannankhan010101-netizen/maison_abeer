@@ -1,0 +1,195 @@
+/* The character cast (`CharacterCast`) in the hero.
+
+   The cast lives in the band of the hero's top padding, above the text box, so
+   it never covers a word: the header's `pt-14` (56px) holds a 48px character on
+   a phone, its `pt-20` (80px) a 64px one from `sm`. Up to three slots: the
+   left corner, the right corner and the middle. Every box is a fixed pixel
+   size and the speech sticker is absolutely placed, so nothing around the
+   cast moves when it renders, taps or speaks.
+
+   At rest (tier 0, reduced motion, Data Saver) this file is the whole story:
+   still characters, a speech sticker that simply appears. Float, squish and
+   pop exist only under `no-preference`, and only when `CharacterCast` has put
+   their classes on (tier 1 and up). Transform and opacity only. */
+
+.character-cast {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.character-slot {
+  position: absolute;
+  top: -52px;
+  left: 4px;
+  pointer-events: auto;
+}
+
+.character-slot[data-slot='1'] {
+  right: 4px;
+  left: auto;
+}
+
+.character-slot[data-slot='2'] {
+  left: calc(50% - 24px);
+}
+
+.character {
+  display: block;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.character:focus-visible {
+  outline: 3px solid var(--color-cocoa);
+  outline-offset: 2px;
+}
+
+.character-body,
+.character-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The speech sticker. Always in the page, so its live region is there before
+   the first fact; hidden until a tap opens it. */
+.character-speech {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 216px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--character-ink);
+  border-radius: 14px;
+  background: var(--character-tint);
+  box-shadow: var(--sticker-shadow);
+  color: var(--character-ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.character-speech[data-open] {
+  visibility: visible;
+  opacity: 1;
+}
+
+.character-pop {
+  display: block;
+}
+
+.character-slot[data-slot='1'] .character-speech {
+  right: 0;
+  left: auto;
+}
+
+.character-slot[data-slot='2'] .character-speech {
+  left: calc(50% - 108px);
+}
+
+.character-slot[data-craft='pottery'] {
+  --character-tint: var(--craft-pottery);
+  --character-ink: var(--craft-pottery-ink);
+}
+
+.character-slot[data-craft='cake'] {
+  --character-tint: var(--craft-bento);
+  --character-ink: var(--craft-bento-ink);
+}
+
+.character-slot[data-craft='painting'] {
+  --character-tint: var(--craft-painting);
+  --character-ink: var(--craft-painting-ink);
+}
+
+@media (min-width: 640px) {
+  .character-slot {
+    top: -76px;
+    left: 3%;
+  }
+
+  .character-slot[data-slot='1'] {
+    right: 3%;
+    left: auto;
+  }
+
+  .character-slot[data-slot='2'] {
+    left: calc(50% - 32px);
+  }
+
+  .character {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+/* A paused cast (off screen, or the tab hidden) holds still mid-bob. */
+.character-cast[data-paused] .character-float {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes character-float {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-5px);
+    }
+  }
+
+  @keyframes character-squish {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.12, 0.86);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes character-pop {
+    from {
+      transform: scale(0.7);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .character-float {
+    animation: character-float 1.8s ease-in-out infinite alternate;
+  }
+
+  .character-slot[data-slot='1'] .character-float {
+    animation-delay: -0.7s;
+  }
+
+  .character-slot[data-slot='2'] .character-float {
+    animation-delay: -1.3s;
+  }
+
+  .character-squish {
+    animation: character-squish 0.42s var(--spring-squish);
+  }
+
+  .character-pop {
+    transform-origin: top left;
+    animation: character-pop 0.32s var(--spring-pop) both;
+  }
+}
