@@ -9,8 +9,8 @@ const { tier, haptic, onScreen } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/motion', () => ({ useMotionTier: tier, haptic }));
-vi.mock('@/lib/public/useIsOnScreen', () => ({
-  useIsOnScreen: () => [{ current: null }, onScreen()],
+vi.mock('./useCastOnScreen', () => ({
+  useCastOnScreen: () => [{ current: null }, onScreen()],
 }));
 
 import type { CraftKind } from '@/lib/public/studioPhotos';

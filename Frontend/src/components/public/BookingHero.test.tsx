@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mayAnimate } = vi.hoisted(() => ({ mayAnimate: vi.fn(() => false) }));
@@ -7,6 +7,7 @@ vi.mock('@/lib/motion/gsap', () => ({ loadGsap: vi.fn(() => Promise.resolve(null
 vi.mock('@/lib/public/useMayAnimate', () => ({ useMayAnimate: mayAnimate }));
 
 import type { PublicClass } from '@/lib/public/api';
+import { guideFor } from '@/lib/public/craftGuide';
 
 import { BookingHero } from './BookingHero';
 
@@ -24,6 +25,13 @@ const upcoming: PublicClass = {
 };
 
 beforeEach(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   mayAnimate.mockReset();
   mayAnimate.mockReturnValue(false);
 });
@@ -164,4 +172,61 @@ describe('BookingHero Instagram line', () => {
       expect(container.textContent).not.toContain('@');
     },
   );
+});
+
+describe('BookingHero cast', () => {
+  const pottery: PublicClass = { ...upcoming, id: 'class-2', color_token: 'terra' };
+  const painting: PublicClass = { ...upcoming, id: 'class-3', color_token: 'sage' };
+
+  function castButtons() {
+    return screen.queryAllByRole('button', { name: /tap for a .* fact/ });
+  }
+
+  it('brings one character for each craft the classes teach', () => {
+    render(<BookingHero studioName="Maison Abeer" classes={[upcoming, pottery, upcoming]} />);
+    expect(castButtons().map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Bento, tap for a cake fact',
+      'Pip, tap for a clay fact',
+    ]);
+  });
+
+  it('brings all three for a studio teaching all three', () => {
+    render(<BookingHero studioName="Maison Abeer" classes={[upcoming, pottery, painting]} />);
+    expect(castButtons()).toHaveLength(3);
+  });
+
+  it('brings no one for a studio with no classes', () => {
+    render(<BookingHero studioName="Maison Abeer" classes={[]} />);
+    expect(castButtons()).toHaveLength(0);
+  });
+
+  it('no longer draws the corner cake, pot and palette stickers', () => {
+    const { container } = render(
+      <BookingHero studioName="Maison Abeer" classes={[upcoming, pottery, painting]} />,
+    );
+    expect(container.querySelectorAll('.character-cast svg')).toHaveLength(3);
+    // The old cake and pot sat at `-top-11`; the palette at `sm:left-[10%]`.
+    expect(
+      container.querySelectorAll('svg[class*="-top-11"], svg[class*="sm:left-[10%]"]'),
+    ).toHaveLength(0);
+  });
+
+  it('pops a real fun fact from the craft guide on a tap', async () => {
+    render(<BookingHero studioName="Maison Abeer" classes={[upcoming]} />);
+    const bento = screen.getByRole('button', { name: 'Bento, tap for a cake fact' });
+    const [first] = guideFor('cake').funFacts;
+    // The guide loads after mount, off the first screen's script.
+    await vi.waitFor(() => {
+      fireEvent.click(bento);
+      expect(bento.parentElement!.querySelector('[aria-live="polite"]')!.textContent).toBe(first);
+    });
+  });
+
+  it('keeps the font-swap guarantees: the cast band and the em measure', () => {
+    const { container } = render(<BookingHero studioName="Maison Abeer" classes={[upcoming]} />);
+    const header = container.querySelector('header')!;
+    expect(header.className).toContain('pt-14');
+    expect(header.className).toContain('sm:pt-20');
+    expect(container.querySelector('.hero-promise')!.className).toContain('max-w-[14em]');
+  });
 });

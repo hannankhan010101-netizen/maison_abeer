@@ -7,7 +7,7 @@ import '@/styles/units/characters.css';
 import { cn } from '@/lib/cn';
 import { haptic, useMotionTier, type MotionTier } from '@/lib/motion';
 import type { CraftKind } from '@/lib/public/studioPhotos';
-import { useIsOnScreen } from '@/lib/public/useIsOnScreen';
+import { useCastOnScreen } from './useCastOnScreen';
 
 import { CAST, castLabel } from './cast';
 
@@ -50,7 +50,7 @@ function useTabVisible(): boolean {
 
 export function CharacterCast({ crafts, facts }: CharacterCastProps) {
   const tier = useMotionTier();
-  const [ref, onScreen] = useIsOnScreen<HTMLDivElement>();
+  const [ref, onScreen] = useCastOnScreen<HTMLDivElement>();
   const visible = useTabVisible();
   const live = onScreen && visible;
 

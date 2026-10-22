@@ -6,13 +6,9 @@ import '@/styles/units/hero.css';
 
 import { SplitHeading } from '@/components/motion/SplitHeading';
 import { Tilt } from '@/components/motion/Tilt';
-import {
-  StickerCake,
-  StickerHeart,
-  StickerPalette,
-  StickerPot,
-  StickerSpark,
-} from '@/components/public/CraftStickers';
+import { CharacterCast } from '@/components/public/characters/CharacterCast';
+import { StickerHeart, StickerSpark } from '@/components/public/CraftStickers';
+import { useCraftFacts } from '@/components/public/hero/useCraftFacts';
 import { VerbRoll } from '@/components/public/hero/VerbRoll';
 import { ParticleField } from '@/components/public/ParticleField';
 import { PhotoFan } from '@/components/public/PhotoFan';
@@ -96,9 +92,9 @@ export function BookingHero({
   const ctaRef = useMagnetic<HTMLAnchorElement>();
   // Derived from the class list exactly as the chapters are. Still "make"
   // whenever the roll may not run, so the static line claims no one craft.
-  const verbs = mayAnimate
-    ? verbsFor(craftsIn(classes.map((item) => item.color_token)))
-    : [FALLBACK_VERB];
+  const crafts = craftsIn(classes.map((item) => item.color_token));
+  const verbs = mayAnimate ? verbsFor(crafts) : [FALLBACK_VERB];
+  const facts = useCraftFacts();
 
   // The whole design system already routes colour through CSS custom
   // properties (see tokens.css and how `.mocha` retheming works the same
@@ -205,8 +201,12 @@ export function BookingHero({
         {/* Stickers frame the text from the corners of the same box the text
             lives in, so they keep their distance from it at every width
             instead of being tuned to one viewport. They come before the text
-            in the DOM and are painted beneath it. */}
+            in the DOM and are painted beneath it.
+            The cast (one character per craft taught) sits in the band of
+            the header's top padding, above the text, so it covers no word;
+            see characters.css. Like the stickers, it leaves a photo alone. */}
         {hasPhoto ? null : <Stickers />}
+        {hasPhoto ? null : <CharacterCast crafts={crafts} facts={facts} />}
 
         <div className="relative">
           <p
@@ -346,26 +346,12 @@ export function BookingHero({
 }
 
 /**
- * The sticker arrangement. Phones get the cake and the pot at the top
- * corners, where the headline never reaches (it is centred and the stickers
- * hug the edges); the palette joins from `sm`, when there is room beside
- * the copy for it. Each bobs on its own phase so no two move together.
+ * The sticker arrangement: sparks and a heart around the copy. The craft
+ * stickers that used to hold the corners are now the cast (`CharacterCast`).
  */
 function Stickers() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-      <StickerCake
-        className="animate-float absolute -top-11 left-1 w-14 sm:top-1 sm:left-[3%] sm:w-24 lg:-left-2 lg:w-28"
-        style={{ '--float-rot': '-9deg' } as CSSProperties}
-      />
-      <StickerPot
-        className="animate-float absolute -top-11 right-1 w-14 sm:top-8 sm:right-[3%] sm:w-24 lg:-right-2 lg:w-28"
-        style={{ '--float-rot': '7deg', animationDelay: '0.9s' } as CSSProperties}
-      />
-      <StickerPalette
-        className="animate-float absolute bottom-2 hidden w-20 sm:left-[10%] sm:block lg:left-[6%] lg:w-24"
-        style={{ '--float-rot': '-6deg', animationDelay: '1.7s' } as CSSProperties}
-      />
       <StickerSpark className="animate-twinkle absolute -top-6 right-[30%] w-6 sm:top-2 sm:right-[22%] sm:w-9" />
       <StickerSpark
         className="animate-twinkle absolute bottom-16 left-[8%] hidden w-5 sm:left-[24%] sm:block sm:w-6"
