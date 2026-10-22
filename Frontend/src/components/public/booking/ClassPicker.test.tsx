@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,7 +7,7 @@ import { formatDay } from '@/lib/public/bookingCopy';
 import { whenLine } from '@/lib/public/format';
 
 const withViewTransition = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/motion', () => ({ withViewTransition }));
+vi.mock('@/lib/motion', () => ({ withViewTransition, useMotionTier: () => 1 }));
 
 import { ClassPicker } from './ClassPicker';
 
@@ -122,5 +122,69 @@ describe('ClassPicker seats line', () => {
     for (const line of lines) expect(line).toHaveClass('block', 'min-h-7');
     expect(lines[0]).toHaveTextContent('4 seats left');
     expect(lines[1]).toHaveTextContent(/join the waitlist/i);
+  });
+});
+
+describe('ClassPicker cards', () => {
+  it('renders one pop-up card per class, each with one button and a Maps link', () => {
+    render(<ClassPicker classes={classes} onPick={() => {}} />);
+    const cards = document.querySelectorAll<HTMLElement>('[data-popup-card]');
+    expect(cards).toHaveLength(2);
+    for (const card of cards) {
+      expect(within(card).getAllByRole('button')).toHaveLength(1);
+      expect(within(card).getByRole('link', { name: /Maps/ })).toBeInTheDocument();
+    }
+  });
+});
+
+describe('ClassPicker craft filter', () => {
+  const mixed = [
+    { ...item('a', 'Bento cake'), color_token: 'pink' },
+    { ...item('b', 'Clay pots'), color_token: 'terra' },
+    { ...item('c', 'Watercolour'), color_token: 'sage' },
+  ] as PublicClass[];
+
+  it('shows no filter when every class is one craft', () => {
+    render(<ClassPicker classes={classes} onPick={() => {}} />);
+    expect(screen.queryByRole('group', { name: /craft/i })).toBeNull();
+  });
+
+  it('shows All first then a chip per craft, and narrows the list', async () => {
+    render(<ClassPicker classes={mixed} onPick={() => {}} />);
+    const group = screen.getByRole('group', { name: /craft/i });
+    const chips = within(group).getAllByRole('button');
+    expect(chips.map((chip) => chip.textContent)).toEqual(['All', 'Cake', 'Pottery', 'Painting']);
+    expect(chips[0]).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(within(group).getByRole('button', { name: 'Pottery' }));
+    expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Clay pots/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Bento cake/ })).toBeNull();
+
+    await userEvent.click(within(group).getByRole('button', { name: 'All' }));
+    expect(document.querySelectorAll('[data-popup-card]')).toHaveLength(3);
+  });
+});
+
+describe('ClassPicker with no classes', () => {
+  it('shows the friendly card with the follow link', () => {
+    render(<ClassPicker classes={[]} onPick={() => {}} handle="@MaisonAbeer" />);
+    expect(screen.getByText(/next pop-up is coming/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /follow/i })).toHaveAttribute(
+      'href',
+      'https://instagram.com/maisonabeer',
+    );
+    expect(screen.queryByRole('group', { name: /craft/i })).toBeNull();
+  });
+
+  it('shows no follow link for an invalid or missing handle', () => {
+    const { unmount } = render(
+      <ClassPicker classes={[]} onPick={() => {}} handle="not a handle!" />,
+    );
+    expect(screen.getByText(/next pop-up is coming/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).toBeNull();
+    unmount();
+    render(<ClassPicker classes={[]} onPick={() => {}} />);
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });

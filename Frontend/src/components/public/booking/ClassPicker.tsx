@@ -2,36 +2,72 @@
 
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { DateLeaf } from '@/components/public/DateLeaf';
-import { cn } from '@/lib/cn';
 import { type PublicClass } from '@/lib/public/api';
-import { accentFor, seatCopy } from '@/lib/public/bookingCopy';
-import { whenLine } from '@/lib/public/format';
+import { instagramUrl } from '@/lib/public/instagram';
 import { useMountedNow } from '@/lib/public/useMountedNow';
-import { withViewTransition } from '@/lib/motion';
+import { useMotionTier, withViewTransition } from '@/lib/motion';
 import { useRevealOnScroll } from '@/lib/public/useRevealOnScroll';
+import { craftOf, craftsIn, type CraftKind } from '@/lib/public/studioPhotos';
 import '@/styles/units/booking.css';
 
-/** The one shared-element name; it must sit on a single element at any moment. */
-export const CLASS_LEAF = 'class-leaf';
+import { CraftFilter } from './CraftFilter';
+import { CLASS_LEAF, PopupCard } from './PopupCard';
+
+export { CLASS_LEAF };
 
 // ---------------------------------------------------------------------------
-// Step 1 — pick a class
+// Step 1 — pick a pop-up
 // ---------------------------------------------------------------------------
+
+/** No classes open: a friendly card, and the studio's Instagram if the handle is valid. */
+function ComingSoon({ handle }: { handle?: string | null }) {
+  const follow = instagramUrl(handle);
+
+  return (
+    <div
+      data-popups-empty=""
+      className="border-line bg-paper rounded-[var(--radius-md)] border-[1.5px] border-dashed p-6 text-center"
+    >
+      <p className="text-5xl" aria-hidden="true">
+        🌷
+      </p>
+      <h2 className="font-display mt-2 text-xl">No classes open right now</h2>
+      <p className="text-latte mt-1 text-sm">
+        The next pop-up is coming — new dates go up often, so follow along and you&rsquo;ll catch
+        it.
+      </p>
+      {follow ? (
+        <a
+          href={follow}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="clay bg-rose text-on-rose focus-visible:outline-cocoa mt-4 inline-flex min-h-[44px] items-center rounded-[var(--radius-pill)] px-6 text-[15px] font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Follow on Instagram
+        </a>
+      ) : null}
+    </div>
+  );
+}
 
 export function ClassPicker({
   classes,
   onPick,
   returnedFromId = null,
+  handle = null,
 }: {
   classes: PublicClass[];
   onPick: (item: PublicClass) => void;
   /** The class whose details step we just came back from: its leaf is where the stub flies home to. */
   returnedFromId?: string | null;
+  /** The studio's Instagram handle, for the follow link when nothing is open. */
+  handle?: string | null;
 }) {
   const now = useMountedNow();
+  const tier = useMotionTier();
   // One id, not one flag per card, so two cards can never carry the name together.
   const [namedId, setNamedId] = useState<string | null>(returnedFromId);
+  const [craft, setCraft] = useState<CraftKind | null>(null);
   const inFlight = useRef(false);
   const [listRef, listVisible] = useRevealOnScroll<HTMLUListElement>();
 
@@ -50,19 +86,10 @@ export function ClassPicker({
     });
   }
 
-  if (classes.length === 0) {
-    return (
-      <div className="p-1 text-center">
-        <p className="text-5xl" aria-hidden="true">
-          🌷
-        </p>
-        <p className="font-display mt-2 text-xl">No classes open right now</p>
-        <p className="text-latte mt-1 text-sm">
-          New dates go up often — follow along and you&rsquo;ll catch the next one.
-        </p>
-      </div>
-    );
-  }
+  if (classes.length === 0) return <ComingSoon handle={handle} />;
+
+  const crafts = craftsIn(classes.map((item) => item.color_token));
+  const shown = craft ? classes.filter((item) => craftOf(item.color_token) === craft) : classes;
 
   return (
     <section aria-labelledby="pick-heading">
@@ -73,93 +100,18 @@ export function ClassPicker({
         Tap one to save your seat — it takes about a minute.
       </p>
 
-      <ul ref={listRef} className="grid gap-3">
-        {classes.map((item, index) => {
-          const seats = seatCopy(item);
-          const accent = accentFor(item.color_token);
+      <CraftFilter crafts={crafts} value={craft} onChange={setCraft} />
 
-          return (
-            <li
-              key={item.id}
-              className={listVisible ? 'animate-rise-in' : undefined}
-              style={listVisible ? { animationDelay: `${index * 60}ms` } : { opacity: 0 }}
-            >
-              <button
-                type="button"
-                onClick={() => pick(item)}
-                data-cursor-label="BOOK"
-                className={cn(
-                  'group border-line bg-paper relative grid w-full grid-cols-[auto_1fr_auto] items-center gap-3.5',
-                  'rounded-[var(--radius-md)] border-[1.5px] p-3.5 text-left sm:p-4',
-                  'min-h-[44px] shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-200',
-                  // Lifted a little and ringed in the craft's own colour on
-                  // hover (`hoverGlow`) — picked up, not recoloured.
-                  'hover:-translate-y-1 hover:border-transparent',
-                  // A phone has no hover, so the lift above never fires there
-                  // and the card confirmed nothing when tapped. This is the
-                  // whole of the feedback on the app's conversion surface.
-                  'active:scale-[0.98] motion-reduce:active:scale-100',
-                  accent.hoverGlow,
-                  'motion-reduce:transform-none',
-                  'focus-visible:outline-rose focus-visible:outline-[3px] focus-visible:outline-offset-2',
-                )}
-              >
-                {/* The date as a calendar leaf, banded in the class-type
-                    colour — same colour language as the admin calendar, so
-                    a returning guest's eye already knows what pink versus
-                    terracotta means here. */}
-                <span
-                  className="flex"
-                  style={namedId === item.id ? { viewTransitionName: CLASS_LEAF } : undefined}
-                >
-                  <DateLeaf iso={item.starts_at} token={item.color_token} ready={now !== null} />
-                </span>
-
-                <span className="min-w-0">
-                  <span className="font-display block text-lg leading-tight">{item.name}</span>
-
-                  {/* suppressHydrationWarning: the date is formatted in the
-                      visitor's locale, which the server cannot know. */}
-                  <span className="text-cocoa mt-1 block text-sm" suppressHydrationWarning>
-                    {now ? whenLine(item) : ' '}
-                  </span>
-
-                  {item.location ? (
-                    <span className="text-latte block text-sm">{item.location}</span>
-                  ) : null}
-
-                  {/* The line keeps its height whatever it says, so a seat
-                      count corrected after load changes text, not layout. */}
-                  <span data-seats-line className="mt-2 block min-h-7">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-extrabold',
-                        item.is_full
-                          ? 'bg-butter-soft text-butter-ink'
-                          : seats.urgent
-                            ? 'bg-blush text-rose-ink animate-pulse motion-reduce:animate-none'
-                            : 'bg-sage-soft text-sage-ink',
-                      )}
-                    >
-                      {seats.urgent && !item.is_full ? <span aria-hidden="true">🔥</span> : null}
-                      {seats.text}
-                    </span>
-                  </span>
-                </span>
-
-                {/* Always visible: it was once revealed on hover only, so on
-                    every phone the one mark telling a guest the card moves
-                    them forward never appeared at all. Hover nudges it. */}
-                <span
-                  aria-hidden="true"
-                  className="text-rose-ink text-xl opacity-100 transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none"
-                >
-                  →
-                </span>
-              </button>
-            </li>
-          );
-        })}
+      <ul ref={listRef} className="grid gap-3" data-popups-motion={tier >= 1 ? '' : undefined}>
+        {shown.map((item, index) => (
+          <li
+            key={item.id}
+            className={listVisible ? 'animate-rise-in' : undefined}
+            style={listVisible ? { animationDelay: `${index * 60}ms` } : { opacity: 0 }}
+          >
+            <PopupCard item={item} now={now} onPick={pick} returnedFromId={namedId} />
+          </li>
+        ))}
       </ul>
     </section>
   );
