@@ -110,6 +110,21 @@ export class EmptyCraftsError extends Error {
 const ANSWERS = new Map(QUIZ.flatMap((question) => question.answers.map((a) => [a.id, a])));
 
 /**
+ * The answers worth showing for a question, given the crafts the studio
+ * teaches: an answer whose scores touch none of them would be an option with
+ * nothing behind it, so it is left out. Every question still needs at least
+ * two answers to choose between, so a question that would otherwise lose too
+ * many keeps the full set rather than leave the guest with one or zero.
+ */
+export function answersFor(question: QuizQuestion, crafts: readonly CraftKind[]): QuizAnswer[] {
+  const taught = new Set(crafts);
+  const fits = question.answers.filter((answer) =>
+    Object.keys(answer.scores).some((kind) => taught.has(kind as CraftKind)),
+  );
+  return fits.length >= 2 ? fits : question.answers;
+}
+
+/**
  * Sums each picked answer's scores over only the crafts in `crafts`. The
  * highest total wins; a tie goes to the craft listed first, and so does a quiz
  * with no known answers. Unknown ids are ignored.

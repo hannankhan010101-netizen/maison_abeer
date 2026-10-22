@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LazySection } from './LazySection';
@@ -44,7 +45,10 @@ function Hello({ name }: { name: string }) {
 
 function enter() {
   act(() => {
-    for (const observer of observers) observer.cb([{ isIntersecting: true }]);
+    // A real observer that has been disconnected never calls back.
+    for (const observer of observers) {
+      if (observer.disconnect.mock.calls.length === 0) observer.cb([{ isIntersecting: true }]);
+    }
   });
 }
 
@@ -265,5 +269,33 @@ describe('LazySection prefetch', () => {
 
     expect(await screen.findByText('Hello Sana')).toBeInTheDocument();
     expect(load).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('LazySection under React StrictMode', () => {
+  it('still mounts without an IntersectionObserver, although effects run twice', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    const load = vi.fn(() => Promise.resolve({ default: Hello }));
+
+    render(
+      <StrictMode>
+        <LazySection load={load} props={{ name: 'Strict' }} minHeight="1px" label="x" />
+      </StrictMode>,
+    );
+
+    expect(await screen.findByText('Hello Strict')).toBeInTheDocument();
+  });
+
+  it('still mounts on arrival, although effects run twice', async () => {
+    const load = vi.fn(() => Promise.resolve({ default: Hello }));
+
+    render(
+      <StrictMode>
+        <LazySection load={load} props={{ name: 'Strict' }} minHeight="1px" label="x" />
+      </StrictMode>,
+    );
+    enter();
+
+    expect(await screen.findByText('Hello Strict')).toBeInTheDocument();
   });
 });

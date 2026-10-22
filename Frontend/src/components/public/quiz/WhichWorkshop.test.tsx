@@ -9,7 +9,7 @@ const { tier, saveStory } = vi.hoisted(() => ({
 vi.mock('@/lib/motion', () => ({ useMotionTier: () => tier.value, haptic: vi.fn() }));
 vi.mock('@/lib/public/storyCanvas', () => ({ saveStory }));
 
-import { QUIZ, RESULT_COPY, scoreQuiz } from '@/lib/public/quiz';
+import { answersFor, QUIZ, RESULT_COPY, scoreQuiz } from '@/lib/public/quiz';
 
 import WhichWorkshop from './WhichWorkshop';
 
@@ -44,9 +44,12 @@ describe('WhichWorkshop', () => {
 
   it('completes to a result among the crafts and books it', () => {
     const onBook = vi.fn();
-    render(<WhichWorkshop crafts={['pottery', 'painting']} onBook={onBook} />);
-    QUIZ.forEach((_, index) => answer(index));
-    const picked = QUIZ.map((question) => question.answers[1]!.id);
+    const crafts = ['pottery', 'painting'] as const;
+    render(<WhichWorkshop crafts={[...crafts]} onBook={onBook} />);
+    // The second answer the guest is actually shown on each question.
+    const shown = QUIZ.map((question) => answersFor(question, crafts)[1]!);
+    shown.forEach((choice) => fireEvent.click(screen.getByRole('button', { name: choice.label })));
+    const picked = shown.map((choice) => choice.id);
     const { kind } = scoreQuiz(picked, ['pottery', 'painting']);
     expect(['pottery', 'painting']).toContain(kind);
     expect(screen.getByRole('heading', { name: RESULT_COPY[kind].vibe })).toBeInTheDocument();
@@ -114,5 +117,29 @@ describe('WhichWorkshop', () => {
     tier.value = 1;
     const moving = render(<WhichWorkshop crafts={[...ALL]} onBook={vi.fn()} />);
     expect(moving.container.querySelector('.quiz')).toHaveClass('is-animated');
+  });
+
+  it('does not offer an answer that only points at a craft the studio does not teach', () => {
+    render(<WhichWorkshop crafts={['cake', 'pottery']} onBook={vi.fn()} />);
+
+    expect(
+      screen.queryByRole('button', { name: 'Music on, colours everywhere' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Something sweet cooling on the counter' }),
+    ).toBeInTheDocument();
+  });
+
+  it('recovers when the picture cannot be made, instead of staying busy', async () => {
+    saveStory.mockRejectedValueOnce(new Error('canvas gone'));
+    render(<WhichWorkshop crafts={[...ALL]} onBook={vi.fn()} />);
+    QUIZ.forEach((_, index) => answer(index));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Share to Story' }));
+    });
+
+    expect(await screen.findByText(/would not save/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Share to Story/ })).toBeEnabled();
   });
 });

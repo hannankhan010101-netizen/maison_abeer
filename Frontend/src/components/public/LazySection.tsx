@@ -113,16 +113,22 @@ export function LazySection<P extends object>({
       if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
     }
 
+    // React may run this effect, undo it and run it again (StrictMode in development).
+    // Undoing it must also forget that loading had started, or the second run would find
+    // `started` already set while the first run's result had been thrown away.
+    const undo = () => {
+      cancelled = true;
+      started.current = false;
+      stopIdle();
+    };
+
     if (typeof IntersectionObserver === 'undefined') {
       start();
-      return () => {
-        cancelled = true;
-        stopIdle();
-      };
+      return undo;
     }
 
     const node = ref.current;
-    if (!node) return;
+    if (!node) return undo;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -137,8 +143,7 @@ export function LazySection<P extends object>({
     observer.observe(node);
 
     return () => {
-      cancelled = true;
-      stopIdle();
+      undo();
       observer.disconnect();
     };
     // `load` and `props` are meant to be stable; the section loads once.

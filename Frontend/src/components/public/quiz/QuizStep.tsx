@@ -1,6 +1,6 @@
 import type { Ref } from 'react';
 
-import type { QuizQuestion } from '@/lib/public/quiz';
+import type { QuizAnswer, QuizQuestion } from '@/lib/public/quiz';
 
 /**
  * One question: its text as a heading (focus lands here when the step
@@ -9,11 +9,14 @@ import type { QuizQuestion } from '@/lib/public/quiz';
  */
 export function QuizStep({
   question,
+  answers = question.answers,
   chosen,
   onPick,
   headingRef,
 }: {
   question: QuizQuestion;
+  /** The answers to show (a studio that teaches two crafts may not need all three). Defaults to every answer. */
+  answers?: QuizAnswer[];
   chosen: string | undefined;
   onPick: (answerId: string) => void;
   headingRef?: Ref<HTMLHeadingElement>;
@@ -24,7 +27,7 @@ export function QuizStep({
         {question.text}
       </h3>
       <ul className="quiz-answers" role="list">
-        {question.answers.map((answer) => (
+        {answers.map((answer) => (
           <li key={answer.id}>
             <button
               type="button"

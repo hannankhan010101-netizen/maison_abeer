@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EmptyCraftsError, QUIZ, RESULT_COPY, scoreQuiz } from './quiz';
+import { answersFor, EmptyCraftsError, QUIZ, RESULT_COPY, scoreQuiz } from './quiz';
 import type { CraftKind } from './studioPhotos';
 
 const ALL: CraftKind[] = ['cake', 'pottery', 'painting'];
@@ -82,5 +82,39 @@ describe('scoreQuiz', () => {
 
   it('throws a typed error for no crafts', () => {
     expect(() => scoreQuiz([], [])).toThrow(EmptyCraftsError);
+  });
+});
+
+describe('answersFor', () => {
+  it('shows every answer when the studio teaches all three crafts', () => {
+    for (const question of QUIZ) expect(answersFor(question, ALL)).toEqual(question.answers);
+  });
+
+  it('hides an answer that only points at a craft the studio does not teach', () => {
+    const weekend = QUIZ.find((question) => question.id === 'weekend')!;
+    const shown = answersFor(weekend, ['cake', 'pottery']);
+
+    expect(shown.map((answer) => answer.id)).toEqual(['weekend-bake', 'weekend-mud']);
+  });
+
+  it('keeps at least two answers for every pair of crafts, on every question', () => {
+    const pairs: CraftKind[][] = [
+      ['cake', 'pottery'],
+      ['cake', 'painting'],
+      ['pottery', 'painting'],
+    ];
+    for (const crafts of pairs) {
+      for (const question of QUIZ) {
+        expect(
+          answersFor(question, crafts).length,
+          `${question.id} for ${crafts}`,
+        ).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('falls back to every answer rather than leave fewer than two to choose from', () => {
+    const only = { id: 'q', text: 'q', answers: QUIZ[0]!.answers };
+    expect(answersFor(only, ['painting']).length).toBeGreaterThanOrEqual(2);
   });
 });

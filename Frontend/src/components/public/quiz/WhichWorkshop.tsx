@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { haptic, useMotionTier } from '@/lib/motion';
-import { QUIZ, RESULT_COPY, scoreQuiz } from '@/lib/public/quiz';
+import { answersFor, QUIZ, RESULT_COPY, scoreQuiz } from '@/lib/public/quiz';
 import { saveStory } from '@/lib/public/storyCanvas';
 import { storyModel } from '@/lib/public/storyCard';
 import type { CraftKind } from '@/lib/public/studioPhotos';
@@ -63,6 +63,9 @@ export default function WhichWorkshop({
 
   const done = step >= QUIZ.length;
   const question = QUIZ[Math.min(step, QUIZ.length - 1)]!;
+  // Only the crafts the studio teaches decide which answers are worth showing, so a guest
+  // can never pick, and the score can never count, an answer for a craft that is not offered.
+  const offered = answersFor(question, kinds);
   const kind = done ? scoreQuiz(answers, kinds).kind : null;
 
   const go = (next: number) => {
@@ -84,14 +87,19 @@ export default function WhichWorkshop({
   const shareStory = async () => {
     if (!kind || share === 'busy') return;
     setShare('busy');
-    const outcome = await saveStory(
-      storyModel({ kind, ...RESULT_COPY[kind], handle: handle ?? null }),
-    );
-    if (outcome === 'failed') setShare('failed');
-    else if (outcome === 'cancelled') setShare('idle');
-    else {
-      haptic('success');
-      setShare(outcome === 'shared' ? 'shared' : 'saved');
+    try {
+      const outcome = await saveStory(
+        storyModel({ kind, ...RESULT_COPY[kind], handle: handle ?? null }),
+      );
+      if (outcome === 'failed') setShare('failed');
+      else if (outcome === 'cancelled') setShare('idle');
+      else {
+        haptic('success');
+        setShare(outcome === 'shared' ? 'shared' : 'saved');
+      }
+    } catch {
+      // The drawing or the share/download itself threw: the button must never be stuck on "Saving…".
+      setShare('failed');
     }
   };
 
@@ -141,6 +149,7 @@ export default function WhichWorkshop({
             </div>
             <QuizStep
               question={question}
+              answers={offered}
               chosen={answers[step]}
               onPick={pick}
               headingRef={heading}

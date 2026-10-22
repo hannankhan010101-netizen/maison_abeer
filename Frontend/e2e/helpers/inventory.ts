@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 import { COMMON_FAQ, CRAFT_GUIDES } from '../../src/lib/public/craftGuide';
+import { QUIZ } from '../../src/lib/public/quiz';
 import { instagramDmUrl, instagramUrl } from '../../src/lib/public/instagram';
 import { mapsUrl } from '../../src/lib/public/maps';
 
@@ -59,6 +60,29 @@ const QUESTIONS = [...COMMON_FAQ, ...Object.values(CRAFT_GUIDES).flatMap((guide)
   (entry) => entry.q,
 );
 const anyOf = (names: readonly string[]) => new RegExp(`^(${names.map(escape).join('|')})$`);
+
+/** Every answer label across the quiz's questions, so a new question or answer is covered at once. */
+const QUIZ_ANSWERS = QUIZ.flatMap((question) => question.answers.map((answer) => answer.label));
+
+/** Completes the quiz with the first answer on every question, so its result controls come up. */
+async function finishQuiz(page: Page) {
+  const quiz = page.locator('section.quiz');
+  if ((await quiz.count()) === 0) return;
+
+  for (let i = 0; i < QUIZ.length; i += 1) {
+    const button = quiz.getByRole('button', { name: QUIZ[i]!.answers[0]!.label });
+    if (await button.count()) await button.first().click();
+  }
+}
+
+/** Answers the first question only, so the Back button comes up without finishing the quiz. */
+async function startQuiz(page: Page) {
+  const quiz = page.locator('section.quiz');
+  if ((await quiz.count()) === 0) return;
+
+  const button = quiz.getByRole('button', { name: QUIZ[0]!.answers[0]!.label });
+  if (await button.count()) await button.first().click();
+}
 
 /** After a tap on a disclosure button (a tool, a question) something in the corner is open. */
 async function cornerHasOpen(page: Page) {
@@ -221,14 +245,61 @@ export const INVENTORY: readonly InventoryEntry[] = [
     outcome: cornerHasOpen,
   },
 
-  // The quiz: each answer moves on (the Back button then appears).
+  // The quiz: each answer moves on; the result offers to book, share or start again.
   {
     page: BOOK,
-    name: /.+/,
+    name: anyOf(QUIZ_ANSWERS),
     kind: 'button',
     within: 'section.quiz',
     outcome: async (page) => {
-      await expect(page.getByRole('button', { name: 'Back' })).toBeVisible();
+      // The first answer has no Back button yet; any later one does.
+      const moved = page.locator('section.quiz [role="progressbar"], section.quiz h3');
+      await expect(moved.first()).toBeVisible();
+    },
+  },
+  {
+    page: BOOK,
+    name: /^Back$/,
+    kind: 'button',
+    within: 'section.quiz',
+    reveal: startQuiz,
+    outcome: async (page) => {
+      await expect(page.locator('section.quiz [role="progressbar"]')).toBeVisible();
+    },
+  },
+  {
+    page: BOOK,
+    name: /^Book this one$/,
+    kind: 'button',
+    within: 'section.quiz',
+    reveal: finishQuiz,
+    outcome: async (page) => {
+      await expect(page.locator('#booking-widget')).toBeInViewport();
+    },
+  },
+  {
+    page: BOOK,
+    name: /^Share to Story$/,
+    kind: 'button',
+    within: 'section.quiz',
+    reveal: finishQuiz,
+    outcome: async (page) => {
+      await expect(
+        page.getByText(/Saved to your photos or downloads|would not save/i),
+      ).toBeVisible();
+    },
+  },
+  {
+    page: BOOK,
+    name: /^Start again$/,
+    kind: 'button',
+    within: 'section.quiz',
+    reveal: finishQuiz,
+    outcome: async (page) => {
+      await expect(page.locator('section.quiz [role="progressbar"]')).toHaveAttribute(
+        'aria-valuenow',
+        '1',
+      );
     },
   },
 
