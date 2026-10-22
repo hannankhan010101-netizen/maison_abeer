@@ -58,7 +58,8 @@ describe('LazySection', () => {
 
     const placeholder = container.querySelector('[data-lazy-section]') as HTMLElement;
     expect(placeholder).toBeTruthy();
-    expect(placeholder.style.minHeight).toBe('480px');
+    expect(placeholder.style.getPropertyValue('--lazy-h')).toBe('480px');
+    expect(placeholder.className).toContain('lazy-section');
     expect(placeholder.getAttribute('aria-hidden')).toBe('true');
     expect(load).not.toHaveBeenCalled();
     expect(screen.queryByText(/Hello/)).not.toBeInTheDocument();
@@ -151,5 +152,118 @@ describe('LazySection', () => {
       />,
     );
     expect(container.querySelector('[data-lazy-section="Craft corner"]')).toBeTruthy();
+  });
+
+  it('can hold a different height on a wide screen', () => {
+    const { container } = render(
+      <LazySection
+        load={() => Promise.resolve({ default: Hello })}
+        props={{ name: 'x' }}
+        minHeight="720px"
+        minHeightLg="1800px"
+        label="Making of"
+      />,
+    );
+    const placeholder = container.querySelector('[data-lazy-section]') as HTMLElement;
+    expect(placeholder.style.getPropertyValue('--lazy-h')).toBe('720px');
+    expect(placeholder.style.getPropertyValue('--lazy-h-lg')).toBe('1800px');
+  });
+
+  it('uses the same height on a wide screen when none is given', () => {
+    const { container } = render(
+      <LazySection
+        load={() => Promise.resolve({ default: Hello })}
+        props={{ name: 'x' }}
+        minHeight="300px"
+        label="x"
+      />,
+    );
+    const placeholder = container.querySelector('[data-lazy-section]') as HTMLElement;
+    expect(placeholder.style.getPropertyValue('--lazy-h-lg')).toBe('300px');
+  });
+});
+
+describe('LazySection prefetch', () => {
+  let idleCallbacks: Array<() => void> = [];
+
+  beforeEach(() => {
+    idleCallbacks = [];
+    vi.stubGlobal('requestIdleCallback', (cb: () => void) => {
+      idleCallbacks.push(cb);
+      return idleCallbacks.length;
+    });
+    vi.stubGlobal('cancelIdleCallback', () => {});
+  });
+
+  function idle() {
+    act(() => {
+      for (const cb of idleCallbacks.splice(0)) cb();
+    });
+  }
+
+  it('fetches the code in idle time, without rendering the section', async () => {
+    const load = vi.fn(() => Promise.resolve({ default: Hello }));
+
+    render(<LazySection load={load} props={{ name: 'Sana' }} minHeight="300px" label="x" />);
+    expect(load).not.toHaveBeenCalled();
+
+    idle();
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    // Warm, but not mounted: it only mounts when it is near the viewport.
+    expect(screen.queryByText(/Hello/)).not.toBeInTheDocument();
+  });
+
+  it('uses the warmed code when the section arrives and never loads twice', async () => {
+    const load = vi.fn(() => Promise.resolve({ default: Hello }));
+
+    render(<LazySection load={load} props={{ name: 'Sana' }} minHeight="300px" label="x" />);
+    idle();
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    enter();
+
+    expect(await screen.findByText('Hello Sana')).toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not prefetch for a visitor who asked to save data', () => {
+    vi.stubGlobal('navigator', { ...navigator, connection: { saveData: true } });
+    const load = vi.fn(() => Promise.resolve({ default: Hello }));
+
+    render(<LazySection load={load} props={{ name: 'x' }} minHeight="300px" label="x" />);
+    idle();
+
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('can be switched off', () => {
+    const load = vi.fn(() => Promise.resolve({ default: Hello }));
+
+    render(
+      <LazySection
+        load={load}
+        props={{ name: 'x' }}
+        minHeight="300px"
+        label="x"
+        prefetch={false}
+      />,
+    );
+    idle();
+
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('retries on arrival when the idle fetch failed', async () => {
+    const load = vi
+      .fn<() => Promise<{ default: typeof Hello }>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ default: Hello });
+
+    render(<LazySection load={load} props={{ name: 'Sana' }} minHeight="300px" label="x" />);
+    idle();
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    enter();
+
+    expect(await screen.findByText('Hello Sana')).toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });

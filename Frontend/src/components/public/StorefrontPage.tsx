@@ -1,12 +1,8 @@
 'use client';
 
 import { BookingHero } from '@/components/public/BookingHero';
-import { CraftChapters } from '@/components/public/CraftChapters';
 import { CustomCursor } from '@/components/public/CustomCursor';
-import { HowItWorks } from '@/components/public/HowItWorks';
-import { PhotoMarquee } from '@/components/public/PhotoMarquee';
-import { MakingOf } from '@/components/public/making/MakingOf';
-import { MemoryWall } from '@/components/public/memories/MemoryWall';
+import { LazySection } from '@/components/public/LazySection';
 import { FloatingPill } from '@/components/public/nav/FloatingPill';
 import { SmoothScroll } from '@/components/public/SmoothScroll';
 import { StorefrontBackdrop } from '@/components/public/StorefrontBackdrop';
@@ -19,6 +15,33 @@ import { seatsLine } from '@/lib/public/bookingCopy';
 import { useMountedNow } from '@/lib/public/useMountedNow';
 import { type PublicClass, type PublicMemory, type PublicWord } from '@/lib/public/api';
 import { craftsIn } from '@/lib/public/studioPhotos';
+
+/**
+ * Everything below the first screen loads as an island: its code is fetched
+ * when it is within a screen or so of the viewport, not with the page. Each
+ * placeholder holds the section's measured height (phone, then wide) so
+ * nothing jumps. The heights were measured on 2026-10-22 with one pottery
+ * class and no memories: how it works 423 / 368, chapters 687 / 650, memory
+ * wall 508 / 403, the pinned making-of 716 / 1800 (375 / 1440 px).
+ */
+const loadHowItWorks = () =>
+  import('@/components/public/HowItWorks').then((module) => ({ default: module.HowItWorks }));
+const loadChapters = () =>
+  import('@/components/public/CraftChapters').then((module) => ({
+    default: module.CraftChapters,
+  }));
+const loadMemoryWall = () =>
+  import('@/components/public/memories/MemoryWall').then((module) => ({
+    default: module.MemoryWall,
+  }));
+const loadMakingOf = () =>
+  import('@/components/public/making/MakingOf').then((module) => ({ default: module.MakingOf }));
+const loadMarquee = () =>
+  import('@/components/public/PhotoMarquee').then((module) => ({
+    default: module.PhotoMarquee,
+  }));
+
+const NO_PROPS = {};
 
 export interface StorefrontPageProps {
   children: React.ReactNode;
@@ -67,6 +90,7 @@ export function StorefrontPage({
     'pottery',
   );
   const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
+  const teachesSeveral = craftsIn((classes ?? []).map((item) => item.color_token)).length > 1;
 
   return (
     // `storefront` pins this page to the light palette whatever the visitor's
@@ -100,12 +124,47 @@ export function StorefrontPage({
         <>
           <StudioRibbon crafts={crafts} />
           <div className="space-y-[var(--section-gap)] pt-[var(--section-gap)] pb-4">
-            <HowItWorks />
+            <LazySection
+              label="How it works"
+              load={loadHowItWorks}
+              props={NO_PROPS}
+              minHeight="420px"
+              minHeightLg="370px"
+            />
             {story ? <StorySection story={story} /> : null}
-            <CraftChapters classes={classes!} />
-            <MemoryWall classes={classes!} memories={memories} words={words} />
-            {teachesPottery ? <MakingOf /> : null}
-            <PhotoMarquee classes={classes!} />
+            <LazySection
+              label="Craft chapters"
+              load={loadChapters}
+              props={{ classes: classes! }}
+              minHeight="690px"
+              minHeightLg="650px"
+            />
+            <LazySection
+              label="Memory wall"
+              load={loadMemoryWall}
+              props={{ classes: classes!, memories, words }}
+              minHeight="500px"
+              minHeightLg="400px"
+            />
+            {teachesPottery ? (
+              <LazySection
+                label="Making of"
+                load={loadMakingOf}
+                props={NO_PROPS}
+                minHeight="720px"
+                minHeightLg="1800px"
+              />
+            ) : null}
+            {/* The marquee is a strip of crafts: with one craft it renders nothing, so
+                it gets no placeholder either (an empty reserved block would be a hole). */}
+            {teachesSeveral ? (
+              <LazySection
+                label="Photo marquee"
+                load={loadMarquee}
+                props={{ classes: classes! }}
+                minHeight="240px"
+              />
+            ) : null}
           </div>
         </>
       ) : null}

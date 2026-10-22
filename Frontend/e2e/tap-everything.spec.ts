@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { threeCrafts } from './helpers/booking';
 import { INVENTORY, STUDIO_HANDLE, type InventoryEntry, type Kind } from './helpers/inventory';
+import { loadAllSections } from './helpers/lazy';
 
 /**
  * Tap everything on the public storefront.
@@ -42,6 +43,8 @@ async function open(page: Page) {
   await page.goto(PAGE);
   await expect(page.getByRole('heading', { name: 'Maison Abeer', level: 1 })).toBeVisible();
   await expect(page.getByRole('button', { name: /Bento cake decorating/ }).first()).toBeVisible();
+  // Everything below the first screen is a lazy island: bring each into range so its controls exist.
+  await loadAllSections(page);
 }
 
 /** Every control visible right now, each tagged with a stable id. */

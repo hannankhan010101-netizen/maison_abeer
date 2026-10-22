@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { stubClass, threeCrafts, type StubClass } from './helpers/booking';
+import { loadAllSections } from './helpers/lazy';
 
 /**
  * The memory wall, in a real browser.
@@ -55,6 +56,7 @@ async function stub(
 
 async function openWall(page: Page) {
   await page.goto('/book/maison-abeer');
+  await loadAllSections(page);
   const wall = page.locator('.memory-wall');
   await expect(page.getByRole('heading', { name: 'Pick your class' })).toBeVisible();
   await wall.scrollIntoViewIfNeeded();
@@ -100,6 +102,7 @@ test.describe('what the wall says it is', () => {
 
     await stub(page, { memories: memories(2), words: [{ id: 'w1', word: 'joyful' }] });
     await page.reload();
+    await loadAllSections(page);
     await expect(page.getByRole('list', { name: 'Words from guests' })).toBeAttached();
   });
 });
@@ -131,6 +134,7 @@ test.describe('hearts', () => {
     expect(await heart.innerText()).not.toMatch(/\d/);
 
     await page.reload();
+    await loadAllSections(page);
     await expect(page.getByRole('button', { name: /^Keep/ }).first()).toHaveAttribute(
       'aria-pressed',
       'true',

@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicClass } from '@/lib/public/api';
 
@@ -37,34 +37,38 @@ function page(classes: PublicClass[]) {
 }
 
 describe('StorefrontPage', () => {
-  it('tells the story of making a pot when the studio teaches pottery', () => {
+  it('tells the story of making a pot when the studio teaches pottery', async () => {
     page([aClass('terra', 'Pottery & wheel throwing')]);
 
-    expect(screen.getAllByText('A lump of clay').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('A lump of clay')).length).toBeGreaterThan(0);
   });
 
-  it('leaves it out for a studio that only teaches cakes and painting', () => {
+  it('leaves it out for a studio that only teaches cakes and painting', async () => {
     page([aClass('pink', 'Bento cakes'), aClass('sage', 'Ceramic painting')]);
 
+    // The sections that do follow the classes arrive (they load as islands)…
+    expect(
+      await screen.findByRole('heading', { name: 'Pick your kind of mess' }),
+    ).toBeInTheDocument();
+    // …and the pottery story never does.
     expect(screen.queryByText('A lump of clay')).not.toBeInTheDocument();
-    // …while the sections that do follow the classes are still there.
-    expect(screen.getByRole('heading', { name: 'Pick your kind of mess' })).toBeInTheDocument();
   });
 
-  it('includes it when pottery is one of several crafts', () => {
+  it('includes it when pottery is one of several crafts', async () => {
     page([aClass('pink', 'Bento cakes'), aClass('terra', 'Pottery')]);
 
-    expect(screen.getAllByText('A lump of clay').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('A lump of clay')).length).toBeGreaterThan(0);
   });
 });
 
 describe('StorefrontPage rhythm', () => {
-  it('spaces its sections with the section-gap token, not per-section margins', () => {
+  it('spaces its sections with the section-gap token, not per-section margins', async () => {
     page([aClass('terra', 'Pottery & wheel throwing')]);
 
-    const wrapper = screen
-      .getByRole('heading', { name: 'How it works' })
-      .closest('section')!.parentElement!;
+    // Each section loads inside a lazy island, so the stack is the island's parent.
+    const wrapper = (await screen.findByRole('heading', { name: 'How it works' })).closest(
+      '[data-lazy-section]',
+    )!.parentElement!;
 
     // One rhythm token — and as block margins, not a flex gap. GSAP's
     // ScrollTrigger turns pin spacing off inside a flex parent, so a flex
@@ -109,5 +113,36 @@ describe('StorefrontPage wiring (v3)', () => {
       '#booking-widget',
     );
     expect(within(footer).getByRole('link', { name: 'Bento cakes' })).toBeInTheDocument();
+  });
+});
+
+describe('StorefrontPage islands', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the sections below the fold out of the page until they are near the viewport', () => {
+    class NeverIntersects {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+    vi.stubGlobal('IntersectionObserver', NeverIntersects);
+
+    const { container } = page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    // The hero, the pill, the ticket and the footer are there at once…
+    expect(screen.getByRole('navigation', { name: 'Book a seat' })).toBeInTheDocument();
+    expect(screen.getByText('booking card')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+    // …the sections are placeholders that hold their height and say what they will be.
+    for (const label of ['How it works', 'Craft chapters', 'Memory wall', 'Making of']) {
+      expect(container.querySelector(`[data-lazy-section="${label}"]`), label).toBeTruthy();
+    }
+    expect(screen.queryByRole('heading', { name: 'How it works' })).not.toBeInTheDocument();
+    expect(screen.queryByText('A lump of clay')).not.toBeInTheDocument();
   });
 });

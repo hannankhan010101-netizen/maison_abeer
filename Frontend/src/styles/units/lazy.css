@@ -1,0 +1,10 @@
+/* The place a lazy section holds until its code arrives: phone height, then wide height. */
+.lazy-section {
+  min-height: var(--lazy-h);
+}
+
+@media (min-width: 1024px) {
+  .lazy-section {
+    min-height: var(--lazy-h-lg, var(--lazy-h));
+  }
+}

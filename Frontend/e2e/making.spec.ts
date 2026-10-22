@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { stubBookingApi, threeCrafts } from './helpers/booking';
+import { loadAllSections } from './helpers/lazy';
 
 /**
  * "The making of" scroll story.
@@ -16,6 +17,7 @@ async function open(page: Page) {
   await stubBookingApi(page, threeCrafts());
   await page.goto('/book/maison-abeer');
   await expect(page.getByRole('heading', { name: 'Pick your class' })).toBeAttached();
+  await loadAllSections(page);
 }
 
 async function scrollWholePage(page: Page) {

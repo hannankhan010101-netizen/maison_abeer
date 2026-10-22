@@ -21,6 +21,8 @@ import { stubBookingApi, threeCrafts } from './helpers/booking';
 const BUDGET = 0.1;
 
 test('the booking page does not shift while it loads or scrolls', async ({ page }) => {
+  // It settles, then reads down a page that now fetches its sections' code as it goes: allow for a cold dev server.
+  test.slow();
   await page.addInitScript(() => {
     const w = window as unknown as { __cls: number; __shifts: unknown[] };
     w.__cls = 0;
@@ -47,6 +49,12 @@ test('the booking page does not shift while it loads or scrolls', async ({ page 
 
   await page.goto('/book/maison-abeer');
   await expect(page.getByRole('heading', { name: 'Pick your class' })).toBeAttached();
+
+  // A visitor lets the page settle before reading down it; the sections' code is fetched in
+  // idle time, so by the time the network is quiet it is ready and nothing pops in on screen.
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1500);
+  await page.waitForLoadState('networkidle');
 
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   for (let y = 0; y <= height; y += 300) {

@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { stubBookingApi, threeCrafts } from './helpers/booking';
+import { loadAllSections } from './helpers/lazy';
 
 /**
  * The storefront's atmosphere, measured in a real browser: scroll-driven
@@ -16,6 +17,8 @@ async function open(page: Page, size: { width: number; height: number }) {
   await page.setViewportSize(size);
   await stubBookingApi(page, threeCrafts());
   await page.goto('/book/maison-abeer');
+  // The chapters are a lazy island: bring every section into range before looking for them.
+  await loadAllSections(page);
   await expect(page.getByRole('heading', { name: 'Pick your kind of mess' })).toBeAttached();
 }
 
