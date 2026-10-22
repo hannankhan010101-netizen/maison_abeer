@@ -307,6 +307,28 @@ describe('BookingFlow', () => {
     expect(await screen.findByText(/^7 seats across 2 classes$/)).toBeInTheDocument();
   });
 
+  it('offers the follow link on the empty state, from the studio’s own handle', async () => {
+    fetchMock.mockImplementation(
+      json({ studio: { name: 'Maison Abeer', instagram_handle: 'maison._abeer' }, classes: [] }),
+    );
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    const link = await screen.findByRole('link', { name: /Follow on Instagram/ });
+    expect(link).toHaveAttribute('href', 'https://instagram.com/maison._abeer');
+  });
+
+  it('offers no follow link when the studio has no valid handle', async () => {
+    fetchMock.mockImplementation(
+      json({ studio: { name: 'Maison Abeer', instagram_handle: 'not a handle!' }, classes: [] }),
+    );
+
+    render(<BookingFlow slug="maison-abeer" />);
+
+    expect(await screen.findByText('No classes open right now')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Follow on Instagram/ })).not.toBeInTheDocument();
+  });
+
   it('the brand strip steps aside once a guest has picked a class', async () => {
     fetchMock.mockImplementation(json(classList()));
 

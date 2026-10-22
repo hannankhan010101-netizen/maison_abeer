@@ -146,3 +146,44 @@ describe('StorefrontPage islands', () => {
     expect(screen.queryByText('A lump of clay')).not.toBeInTheDocument();
   });
 });
+
+describe('StorefrontPage order (v4)', () => {
+  it('puts the booking card right after the hero, with the sections below it', async () => {
+    page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    const card = screen.getByText('booking card');
+    const hero = screen.getByRole('heading', { level: 1, name: 'Maison Abeer' });
+    const receipt = await screen.findByRole('heading', { name: 'How it works' });
+
+    const follows = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(follows(hero, card)).toBe(true);
+    expect(follows(card, receipt)).toBe(true);
+  });
+
+  it('adds the craft corner as an island below the card, only for the crafts taught', async () => {
+    const { container } = page([aClass('terra', 'Pottery & wheel throwing')]);
+
+    expect(container.querySelector('[data-lazy-section="Craft corner"]')).toBeTruthy();
+    expect(
+      await screen.findByRole('heading', { name: /A little lesson before you come/ }),
+    ).toBeInTheDocument();
+    // One craft, so no tab row; and nothing about a craft the studio does not teach.
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bento cakes')).not.toBeInTheDocument();
+  });
+
+  it('offers a tab per craft when the studio teaches several', async () => {
+    page([aClass('pink', 'Bento cakes'), aClass('terra', 'Pottery')]);
+
+    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
+  });
+
+  it('has no craft corner when there are no classes', () => {
+    const { container } = page([]);
+
+    expect(container.querySelector('[data-lazy-section="Craft corner"]')).toBeNull();
+  });
+});

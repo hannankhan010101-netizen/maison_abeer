@@ -128,7 +128,12 @@ export function BookingFlow({ slug, initialData = null }: BookingFlowProps) {
       ) : chosen ? (
         <DetailsStep slug={slug} item={chosen} onBack={() => goBack(chosen)} onDone={setResult} />
       ) : (
-        <ClassPicker classes={data.classes} onPick={setChosen} returnedFromId={returnedFromId} />
+        <ClassPicker
+          classes={data.classes}
+          handle={data.studio.instagram_handle}
+          onPick={setChosen}
+          returnedFromId={returnedFromId}
+        />
       )}
     </StorefrontPage>
   );

@@ -22,7 +22,8 @@ import { craftsIn } from '@/lib/public/studioPhotos';
  * placeholder holds the section's measured height (phone, then wide) so
  * nothing jumps. The heights were measured on 2026-10-22 with one pottery
  * class and no memories: how it works 423 / 368, chapters 687 / 650, memory
- * wall 508 / 403, the pinned making-of 716 / 1800 (375 / 1440 px).
+ * wall 508 / 403, the pinned making-of 716 / 1800 (375 / 1440 px); the craft corner
+ * (measured with one craft and with three) 2481-2558 / 1245-1418.
  */
 const loadHowItWorks = () =>
   import('@/components/public/HowItWorks').then((module) => ({ default: module.HowItWorks }));
@@ -36,6 +37,7 @@ const loadMemoryWall = () =>
   }));
 const loadMakingOf = () =>
   import('@/components/public/making/MakingOf').then((module) => ({ default: module.MakingOf }));
+const loadCorner = () => import('@/components/public/corner/CraftCorner');
 const loadMarquee = () =>
   import('@/components/public/PhotoMarquee').then((module) => ({
     default: module.PhotoMarquee,
@@ -90,7 +92,8 @@ export function StorefrontPage({
     'pottery',
   );
   const crafts = classes ? [...new Set(classes.map((item) => item.name))] : [];
-  const teachesSeveral = craftsIn((classes ?? []).map((item) => item.color_token)).length > 1;
+  const taught = craftsIn((classes ?? []).map((item) => item.color_token));
+  const teachesSeveral = taught.length > 1;
 
   return (
     // `storefront` pins this page to the light palette whatever the visitor's
@@ -114,60 +117,11 @@ export function StorefrontPage({
         />
       ) : null}
 
-      {/* The hero dissolves into this same background colour at its own
-          bottom edge (see BookingHero's scrim), so what follows just starts
-          here on solid ground. The ribbon, the steps and the brand sections
-          are the arrival experience — once a guest has committed to a class
-          or finished booking, the page's job narrows to "get this done," so
-          they step aside rather than compete with the form for attention. */}
-      {brandSections ? (
-        <>
-          <StudioRibbon crafts={crafts} />
-          <div className="space-y-[var(--section-gap)] pt-[var(--section-gap)] pb-4">
-            <LazySection
-              label="How it works"
-              load={loadHowItWorks}
-              props={NO_PROPS}
-              minHeight="420px"
-              minHeightLg="370px"
-            />
-            {story ? <StorySection story={story} /> : null}
-            <LazySection
-              label="Craft chapters"
-              load={loadChapters}
-              props={{ classes: classes! }}
-              minHeight="690px"
-              minHeightLg="650px"
-            />
-            <LazySection
-              label="Memory wall"
-              load={loadMemoryWall}
-              props={{ classes: classes!, memories, words }}
-              minHeight="500px"
-              minHeightLg="400px"
-            />
-            {teachesPottery ? (
-              <LazySection
-                label="Making of"
-                load={loadMakingOf}
-                props={NO_PROPS}
-                minHeight="720px"
-                minHeightLg="1800px"
-              />
-            ) : null}
-            {/* The marquee is a strip of crafts: with one craft it renders nothing, so
-                it gets no placeholder either (an empty reserved block would be a hole). */}
-            {teachesSeveral ? (
-              <LazySection
-                label="Photo marquee"
-                load={loadMarquee}
-                props={{ classes: classes! }}
-                minHeight="240px"
-              />
-            ) : null}
-          </div>
-        </>
-      ) : null}
+      {/* The hero dissolves into this same background colour at its own bottom edge
+          (see BookingHero's scrim), so what follows starts on solid ground. The ribbon
+          is the arrival strip; right under it comes the booking card (the pop-ups), so
+          a bookable class is about two screens from the top. */}
+      {brandSections ? <StudioRibbon crafts={crafts} /> : null}
 
       {/* The key is what stops the page jumping. Until the classes arrive this is
           all there is: a placeholder as tall as the screen, centred. When they do,
@@ -219,6 +173,65 @@ export function StorefrontPage({
           </div>
         </div>
       </div>
+
+      {/* The brand sections are the arrival experience: once a guest has committed
+          to a class or finished booking, the page's job narrows to "get this done,"
+          so they step aside rather than compete with the form for attention. They
+          sit below the card, so none of them can push it down while they load. */}
+      {brandSections ? (
+        <>
+          <div className="space-y-[var(--section-gap)] pt-[var(--section-gap)] pb-4">
+            <LazySection
+              label="Craft corner"
+              load={loadCorner}
+              props={{ crafts: taught }}
+              minHeight="2500px"
+              minHeightLg="1300px"
+            />
+            <LazySection
+              label="How it works"
+              load={loadHowItWorks}
+              props={NO_PROPS}
+              minHeight="420px"
+              minHeightLg="370px"
+            />
+            {story ? <StorySection story={story} /> : null}
+            <LazySection
+              label="Craft chapters"
+              load={loadChapters}
+              props={{ classes: classes! }}
+              minHeight="690px"
+              minHeightLg="650px"
+            />
+            <LazySection
+              label="Memory wall"
+              load={loadMemoryWall}
+              props={{ classes: classes!, memories, words }}
+              minHeight="500px"
+              minHeightLg="400px"
+            />
+            {teachesPottery ? (
+              <LazySection
+                label="Making of"
+                load={loadMakingOf}
+                props={NO_PROPS}
+                minHeight="720px"
+                minHeightLg="1800px"
+              />
+            ) : null}
+            {/* The marquee is a strip of crafts: with one craft it renders nothing, so
+                it gets no placeholder either (an empty reserved block would be a hole). */}
+            {teachesSeveral ? (
+              <LazySection
+                label="Photo marquee"
+                load={loadMarquee}
+                props={{ classes: classes! }}
+                minHeight="240px"
+              />
+            ) : null}
+          </div>
+        </>
+      ) : null}
 
       {studioName ? (
         <StudioFooter studioName={studioName} handle={handle} classes={classes} />
